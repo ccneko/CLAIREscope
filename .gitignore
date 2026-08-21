@@ -1,0 +1,44 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Virtual Environments
+.venv/
+env/
+venv/
+
+# Data Files & Single-Cell Objects (NEVER COMMIT DATA)
+*.h5ad
+*.h5
+*.loom
+*.rds
+*.RData
+*.csv
+*.tsv
+*.parquet
+*.feather
+*.zarr
+*.mtx
+*.tar.gz
+*.zip
+data/
+datasets/
+raw_data/
+processed_data/
+
+# IDE / OS Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Streamlit Local Config
+.streamlit/secrets.toml
