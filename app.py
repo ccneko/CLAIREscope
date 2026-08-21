@@ -1719,7 +1719,31 @@ if app_mode == "Gene Expression UMAP":
                     x_scale_tag = f" ({chosen_scale_label})" if not x_is_score else ""
                     y_scale_tag = f" ({chosen_scale_label})" if not y_is_score else ""
                     
-                    fig_scat.suptitle(f"Correlation: {x_label_name} vs. {y_label_name}", fontsize=13.5, fontweight='bold', y=0.995)
+                    # Cell state and zero-filtering status tags for super title
+                    if split_mode == "Split by Cell State":
+                        cell_state_title_tag = "Split by Cell State"
+                    elif len(filter_scat_states) == len(all_scat_states):
+                        cell_state_title_tag = "All Cell States"
+                    elif len(filter_scat_states) == 1:
+                        cell_state_title_tag = f"Cell State: {filter_scat_states[0]}"
+                    elif len(filter_scat_states) <= 3:
+                        cell_state_title_tag = f"Cell States: {', '.join(filter_scat_states)}"
+                    else:
+                        cell_state_title_tag = f"{len(filter_scat_states)} Cell States"
+
+                    zero_tag_map = {
+                        "Include all cells (Keep zeros)": "All Cells (Zeros Included)",
+                        "Co-detected only: Remove cells with X = 0 OR Y = 0 (X > 0 and Y > 0)": "Co-detected Only (X > 0 & Y > 0)",
+                        "Remove double-zeros (X > 0 or Y > 0)": "Double-zeros Removed (X > 0 | Y > 0)",
+                        "Remove X = 0 cells only (X > 0)": "X > 0 Only",
+                        "Remove Y = 0 cells only (Y > 0)": "Y > 0 Only"
+                    }
+                    zero_filter_title_tag = zero_tag_map.get(zero_filter_mode, zero_filter_mode)
+
+                    fig_scat.suptitle(
+                        f"Correlation: {x_label_name} vs. {y_label_name}\n({cell_state_title_tag}  |  {zero_filter_title_tag})", 
+                        fontsize=13.0, fontweight='bold', y=0.99
+                    )
 
                     scat_stats_records = []
 
@@ -1816,7 +1840,7 @@ if app_mode == "Gene Expression UMAP":
                     for extra_idx in range(n_scat_plots, len(axes_scat_flat)):
                         axes_scat_flat[extra_idx].axis('off')
 
-                    plt.tight_layout(rect=[0, 0, 1, 0.96])
+                    plt.tight_layout(rect=[0, 0, 1, 0.94])
                     st.pyplot(fig_scat)
                     plt.close(fig_scat)
 
