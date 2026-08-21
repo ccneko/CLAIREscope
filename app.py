@@ -458,10 +458,7 @@ if app_mode == "Gene Expression UMAP":
             
         chosen_vmax = float(custom_vmax)
         chosen_scale_label = "Log2(Norm+1)" if use_log2 else "Linear"
-    
-    if resolved_display_name:
-        st.info(f"Displaying analysis for: **{resolved_display_name}** | Scale: **{chosen_scale_label}** | Colormap: **{cmap_choice}** | Max Limit (vmax): `{chosen_vmax:.2f}` ({pct_slider}th percentile)")
-        
+
     # Caching static multi-panel grid generator with Sample UMAP as 1st plot and custom vmax
     @st.cache_data
     def generate_static_grid(_adata, var_key, disp_title, col, s_col, dataset_name, log2_mode, v_max, cmap_name):
@@ -572,12 +569,12 @@ if app_mode == "Gene Expression UMAP":
 
     # 6 Main Tabs
     tab_static, tab_interactive, tab_composition, tab_gene_violin, tab_score_violin, tab_scatter = st.tabs([
-        "Static Plots (Grid)", 
-        "Interactive Plots (Plotly)", 
-        "Sample Composition (Stacked Bar & Donut)",
-        "Gene Expression Violins (with Stats)",
-        "Signature & Pathway Scoring (with Stats)",
-        "Correlation & Scatter Plots (with Stats)"
+        "Static Plots", 
+        "Interactive Plots", 
+        "Sample Composition",
+        "Gene Expression Violins",
+        "Signature & Pathway Scoring",
+        "Correlation & Scatter Plots"
     ])
     
     # ---------------- TAB 1: STATIC PLOTS ----------------
@@ -1138,15 +1135,23 @@ if app_mode == "Gene Expression UMAP":
                 available_samples = sorted(df_gene_violin["Sample"].unique())
                 
             with st.expander("Violin & Statistical Comparison Options", expanded=True):
-                c_v0, c_v1, c_v2, c_v3 = st.columns([1.1, 1.8, 1.0, 1.1])
+                c_v0, c_v1, c_v2, c_v3 = st.columns([1.2, 1.8, 0.9, 1.1])
                 with c_v0:
                     include_all_cells = st.checkbox("Include 'All Cells (Global)' as 1st Plot", value=True, key="v_include_all")
+                    filter_zeros_v = st.checkbox("Remove Expression = 0 Cells", value=False, help="Restricts violin analysis and statistical testing to expressing cells only (>0).", key="v_filter_zeros")
                 with c_v1:
                     selected_states_v = st.multiselect("Select Cell States to Include:", options=all_states, default=all_states, key="v_gene_states")
                 with c_v2:
                     plot_ncols = st.selectbox("Subplot Grid Columns:", [2, 3, 4], index=1, key="v_gene_ncols")
                 with c_v3:
-                    filter_zeros_v = st.checkbox("Remove Expression = 0 Cells", value=False, help="Restricts violin analysis and statistical testing to expressing cells only (>0).", key="v_filter_zeros")
+                    gene_max_input = st.number_input(
+                        "Expression Y-Axis Max (0 for Auto):",
+                        min_value=0.0,
+                        max_value=10000.0,
+                        value=0.0,
+                        step=0.5 if use_log2 else 10.0,
+                        help="Set fixed upper limit for expression Y-axis across all subplots, or keep 0 for automatic."
+                    )
                     
                 if filter_zeros_v:
                     df_gene_violin = df_gene_violin[df_gene_violin["Expression"] > 0]
@@ -1250,7 +1255,10 @@ if app_mode == "Gene Expression UMAP":
                                 ax.text((idx1 + idx2)/2.0, y_curr + h_bracket + y_range * 0.01, sig_str, ha="center", va="bottom", fontsize=9.5, fontweight="bold", color="black")
                                 y_curr += y_range * 0.16
                                 
-                        ax.set_ylim(ymin, y_curr + y_range * 0.05)
+                        if gene_max_input > 0:
+                            ax.set_ylim(ymin, gene_max_input)
+                        else:
+                            ax.set_ylim(ymin, y_curr + y_range * 0.05)
                         ax.set_title(title_display, fontsize=11.5, fontweight="bold")
                         ax.set_xlabel("")
                         ax.set_ylabel(f"{clean_sym} ({chosen_scale_label})" if (idx % n_cols) == 0 else "", fontsize=11)
