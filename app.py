@@ -17,8 +17,9 @@ import streamlit.components.v1 as components
 # Setup paths
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJ_BASE = os.path.dirname(os.path.dirname(APP_DIR))
-DATA_DIR = os.path.join(PROJ_BASE, "out", "2026-07-06_adherens_junction_and_col17a1_correlation_analysis")
+DATA_DIR = os.path.join(PROJ_BASE, "out", "2026-08-23_human_epidermal_subclustering")
 SCAN_DIRS = [
+    os.path.join(PROJ_BASE, "out", "2026-08-23_human_epidermal_subclustering"),
     os.path.join(PROJ_BASE, "out", "2026-07-06_adherens_junction_and_col17a1_correlation_analysis"),
     os.path.join(PROJ_BASE, "out", "2026-02-09_celltypist"),
     os.path.join(PROJ_BASE, "out", "2026-02-26_harmony"),
@@ -204,11 +205,32 @@ def save_yaml(data):
     with open(YAML_PATH, "w", encoding="utf-8") as f:
         yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
 
+DATASET_CONFIG_PATH = os.path.join(APP_DIR, "dataset_config.yaml")
+
+# Helper to load dataset config
+def load_dataset_config():
+    if os.path.exists(DATASET_CONFIG_PATH):
+        try:
+            with open(DATASET_CONFIG_PATH, "r", encoding="utf-8") as f:
+                cfg = yaml.safe_load(f)
+                return cfg if isinstance(cfg, dict) else {}
+        except Exception:
+            return {}
+    return {}
+
+# Helper to save dataset config
+def save_dataset_config(cfg):
+    with open(DATASET_CONFIG_PATH, "w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, default_flow_style=False, sort_keys=False)
+
 # Scan folder dynamically for h5ad files
-@st.cache_resource
 def scan_datasets(data_dir):
-    datasets = {}
+    active_datasets = {}
+    all_datasets = {}
     target_dirs = SCAN_DIRS if 'SCAN_DIRS' in globals() else [data_dir]
+    cfg = load_dataset_config()
+    hidden_list = cfg.get("hidden_datasets", [])
+    
     for d in target_dirs:
         if not os.path.exists(d):
             continue
@@ -216,13 +238,11 @@ def scan_datasets(data_dir):
             if filename.endswith(".h5ad") and not filename.startswith("."):
                 filepath = os.path.join(d, filename)
                 folder_tag = os.path.basename(d)
-                try:
-                    adata = sc.read_h5ad(filepath, backed='r')
-                    dataset_name = adata.uns.get("dataset_name", f"{filename[:-5]} ({folder_tag})")
-                    datasets[dataset_name] = filepath
-                except Exception:
-                    datasets[f"{filename[:-5]} ({folder_tag})"] = filepath
-    return datasets
+                ds_name = f"{filename[:-5]} ({folder_tag})"
+                all_datasets[ds_name] = filepath
+                if ds_name not in hidden_list:
+                    active_datasets[ds_name] = filepath
+    return active_datasets, all_datasets
 
 # Cache data loading
 @st.cache_resource
@@ -335,17 +355,27 @@ def resolve_gene_var_name(adata, gene_name, sym_to_display, display_to_var):
 st.sidebar.title("Navigation")
 app_mode = st.sidebar.selectbox("Choose the page:", [
     "Gene Expression UMAP", 
-    "Cell-Type Marker Editor"
+    "Cell-Type Marker Editor",
+    "Dataset Management & Launch Settings"
 ])
 
 # Dynamic Dataset Picker
-datasets_map = scan_datasets(DATA_DIR)
-if not datasets_map:
-    st.error("No `.h5ad` files found in specified directories.")
-    st.stop()
+active_datasets, all_detected_datasets = scan_datasets(DATA_DIR)
+if not active_datasets:
+    if all_detected_datasets:
+        st.sidebar.warning("All datasets are currently marked hidden in Dataset Settings.")
+        active_datasets = all_detected_datasets
+    else:
+        st.error("No `.h5ad` files found in specified directories.")
+        st.stop()
 
-selected_dataset_name = st.sidebar.selectbox("Select Dataset:", list(datasets_map.keys()))
-h5ad_path = datasets_map[selected_dataset_name]
+cfg = load_dataset_config()
+default_ds_name = cfg.get("default_dataset", None)
+active_keys = list(active_datasets.keys())
+default_ds_idx = active_keys.index(default_ds_name) if default_ds_name in active_keys else 0
+
+selected_dataset_name = st.sidebar.selectbox("Select Dataset:", active_keys, index=default_ds_idx)
+h5ad_path = active_datasets[selected_dataset_name]
 
 # Load selected dataset
 adata = load_adata(h5ad_path)
@@ -2036,3 +2066,39 @@ elif app_mode == "Cell-Type Marker Editor":
                 save_yaml(config)
                 st.success("Reset markers to defaults.")
                 st.rerun()
+
+# ----------------- PAGE 3: DATASET MANAGEMENT & SETTINGS -----------------
+elif app_mode == "Dataset Management & Launch Settings":
+    st.title("📁 Dataset Management & Launch Preferences")
+    st.write("Configure which single-cell datasets are active in dropdowns, choose the default dataset to load automatically upon app launch, or hide unneeded `.h5ad` files.")
+    
+    cfg = load_dataset_config()
+    hidden_list = cfg.get("hidden_datasets", [])
+    current_default = cfg.get("default_dataset", None)
+    all_avail_keys = list(all_detected_datasets.keys())
+    
+    st.markdown("### 1. Default Dataset at Launch")
+    default_idx = all_avail_keys.index(current_default) if current_default in all_avail_keys else 0
+    chosen_default = st.selectbox("Select which dataset to load automatically at startup:", all_avail_keys, index=default_idx)
+    
+    st.markdown("### 2. Dataset Visibility in Dropdown")
+    st.caption("ℹ️ Unchecking a dataset hides it from the main selector to keep the dropdown clean and accelerate startup.")
+    
+    new_hidden = []
+    for ds_name in all_avail_keys:
+        is_shown = ds_name not in hidden_list
+        c_chk, c_info = st.columns([1.5, 3])
+        with c_chk:
+            show_box = st.checkbox(f"Show `{ds_name}`", value=is_shown, key=f"ds_vis_{ds_name}")
+            if not show_box:
+                new_hidden.append(ds_name)
+        with c_info:
+            st.caption(f"📁 Path: `{all_detected_datasets[ds_name]}`")
+            
+    st.write("")
+    if st.button("💾 Save Dataset Preferences & Reload"):
+        cfg["default_dataset"] = chosen_default
+        cfg["hidden_datasets"] = new_hidden
+        save_dataset_config(cfg)
+        st.success("Dataset preferences saved successfully! Reloading...")
+        st.rerun()
