@@ -634,14 +634,15 @@ if app_mode == "Gene Expression UMAP":
         plt.tight_layout()
         return fig
 
-    # 6 Main Tabs
-    tab_static, tab_interactive, tab_composition, tab_gene_violin, tab_score_violin, tab_scatter = st.tabs([
+    # 7 Main Tabs
+    tab_static, tab_interactive, tab_composition, tab_gene_violin, tab_score_violin, tab_scatter, tab_trajectory = st.tabs([
         "Static Plots", 
         "Interactive Plots", 
         "Sample Composition",
         "Gene Expression Violins",
         "Signature & Pathway Scoring",
-        "Correlation & Scatter Plots"
+        "Correlation & Scatter Plots",
+        "Trajectory Analysis"
     ])
     
     # ---------------- TAB 1: STATIC PLOTS ----------------
@@ -2011,6 +2012,230 @@ if app_mode == "Gene Expression UMAP":
                             file_name=f"{selected_dataset_name}_{x_label_name}_vs_{y_label_name}_correlation_stats.csv",
                             mime="text/csv"
                         )
+
+
+    # ---------------- TAB 7: TRAJECTORY ANALYSIS ----------------
+    with tab_trajectory:
+        st.markdown("### Lineage Trajectory & Pseudotime Dynamics")
+        st.write("Explore continuous differentiation trajectories, PAGA connectivity, and dynamic gene expression kinetics along developmental pseudotime.")
+        
+        # Detect pseudotime columns
+        pt_cols = [c for c in adata.obs.columns if any(k in c.lower() for k in ['pseudotime', 'dpt', 'slingshot', 'latent_time', 'time'])]
+        
+        if not pt_cols:
+            st.info("ℹ️ No precomputed pseudotime column was found in this dataset.")
+            if ('neighbors' in adata.uns or 'X_pca_harmony' in adata.obsm or 'X_pca' in adata.obsm) and 'X_umap' in adata.obsm:
+                if st.button("🚀 Compute Diffusion Pseudotime (DPT) on current dataset"):
+                    with st.spinner("Computing Diffusion Map and DPT..."):
+                        try:
+                            if 'neighbors' not in adata.uns:
+                                rep = 'X_pca_harmony' if 'X_pca_harmony' in adata.obsm else 'X_pca'
+                                sc.pp.neighbors(adata, use_rep=rep, n_neighbors=25)
+                            sc.tl.diffmap(adata)
+                            adata.uns['iroot'] = 0
+                            sc.tl.dpt(adata)
+                            st.success("Computed DPT successfully! Reloading...")
+                            st.rerun()
+                        except Exception as err:
+                            st.error(f"Error computing DPT: {err}")
+        else:
+            selected_pt_col = st.selectbox("Select Pseudotime Variable:", pt_cols, index=0, key="traj_pt_col")
+            
+            with st.expander("Trajectory Plot Controls", expanded=True):
+                c_tr1, c_tr2, c_tr3 = st.columns([1.5, 1.5, 1.2])
+                with c_tr1:
+                    tr_cmap = st.selectbox("Pseudotime Colormap:", ["plasma", "viridis", "inferno", "magma", "cividis", "turbo"], index=0, key="tr_cmap")
+                with c_tr2:
+                    tr_pt_size = st.slider("Trajectory Point Size:", min_value=0.5, max_value=6.0, value=2.0, step=0.5, key="tr_pt_size")
+                with c_tr3:
+                    show_densities = st.checkbox("Show Density by Sample", value=True, key="tr_show_dens")
+            
+            # 1. Trajectory Overview Multi-panel Grid
+            if 'X_umap' in adata.obsm:
+                with st.spinner("Rendering trajectory overview grid..."):
+                    umap_xy = adata.obsm['X_umap']
+                    pt_vals = adata.obs[selected_pt_col].values
+                    
+                    samples_list = [s for s in ordered_samples if s in adata.obs[sample_col].unique()][:4] if (sample_col and sample_col in adata.obs.columns) else []
+                    n_sub_samples = len(samples_list)
+                    
+                    total_tr_plots = 2 + (1 if show_densities else 0) + n_sub_samples
+                    n_tr_cols = 3 if total_tr_plots >= 3 else total_tr_plots
+                    n_tr_rows = (total_tr_plots + n_tr_cols - 1) // n_tr_cols
+                    
+                    fig_tr, axes_tr = plt.subplots(n_tr_rows, n_tr_cols, figsize=(5.2 * n_tr_cols, 4.6 * n_tr_rows))
+                    axes_tr_flat = axes_tr.flatten() if hasattr(axes_tr, 'flatten') else [axes_tr]
+                    
+                    # Plot 1: Continuous Pseudotime
+                    ax1 = axes_tr_flat[0]
+                    sort_pt = np.argsort(pt_vals)
+                    sc_pt = ax1.scatter(umap_xy[sort_pt, 0], umap_xy[sort_pt, 1], c=pt_vals[sort_pt], cmap=tr_cmap, s=tr_pt_size, alpha=0.85)
+                    ax1.set_title(f"Differentiation Pseudotime ({selected_pt_col})", fontsize=11.5, fontweight='bold')
+                    ax1.set_xlabel("UMAP 1", fontsize=10)
+                    ax1.set_ylabel("UMAP 2", fontsize=10)
+                    ax1.tick_params(axis='both', which='major', labelsize=9.5)
+                    cb_pt = fig_tr.colorbar(sc_pt, ax=ax1, label="Pseudotime")
+                    cb_pt.ax.tick_params(labelsize=9)
+                    
+                    # Plot 2: Cell States
+                    ax2 = axes_tr_flat[1]
+                    if selected_col:
+                        categories = adata.obs[selected_col].cat.categories.tolist() if hasattr(adata.obs[selected_col], "cat") else sorted(adata.obs[selected_col].dropna().unique().tolist())
+                        color_key = f"{selected_col}_colors"
+                        if color_key in adata.uns:
+                            colors = list(adata.uns[color_key])
+                        else:
+                            cmap = plt.get_cmap('tab20')
+                            colors = [matplotlib.colors.to_hex(cmap(i % 20)) for i in range(len(categories))]
+                        color_map = dict(zip(categories, colors))
+                        for cat in categories:
+                            mask = adata.obs[selected_col] == cat
+                            ax2.scatter(umap_xy[mask, 0], umap_xy[mask, 1], label=cat, color=color_map.get(cat, "#7f8c8d"), s=tr_pt_size, alpha=0.8)
+                        ax2.set_title(f"Cell States ({selected_col})", fontsize=11.5, fontweight='bold')
+                        ax2.set_xlabel("UMAP 1", fontsize=10)
+                        ax2.set_ylabel("UMAP 2", fontsize=10)
+                        ax2.tick_params(axis='both', which='major', labelsize=9.5)
+                        ax2.legend(title="Cell State", bbox_to_anchor=(0.5, -0.2), loc="upper center", markerscale=5, fontsize=8.5, ncol=2, frameon=False)
+                    else:
+                        ax2.text(0.5, 0.5, "No Annotation Column", ha='center', va='center')
+                        ax2.axis('off')
+                        
+                    curr_plot_idx = 2
+                    
+                    # Plot 3: Pseudotime Distribution by Sample
+                    if show_densities and sample_col and sample_col in adata.obs.columns:
+                        ax3 = axes_tr_flat[curr_plot_idx]
+                        curr_plot_idx += 1
+                        for s in ordered_samples:
+                            if s in adata.obs[sample_col].values:
+                                s_pt = adata.obs[adata.obs[sample_col] == s][selected_pt_col].dropna().values
+                                if len(s_pt) > 5:
+                                    sns.kdeplot(s_pt, ax=ax3, label=s, color=sample_color_map.get(s, "#3498db"), lw=2.0)
+                        ax3.set_title("Pseudotime Distribution by Sample", fontsize=11.5, fontweight='bold')
+                        ax3.set_xlabel("Pseudotime", fontsize=10)
+                        ax3.set_ylabel("Density", fontsize=10)
+                        ax3.tick_params(axis='both', which='major', labelsize=9.5)
+                        ax3.legend(title="Sample", fontsize=9, frameon=False)
+                        ax3.grid(True, linestyle=':', alpha=0.5)
+                        
+                    # Split Subplots per Sample
+                    for idx, sample in enumerate(samples_list):
+                        ax_s = axes_tr_flat[curr_plot_idx]
+                        curr_plot_idx += 1
+                        mask = adata.obs[sample_col] == sample
+                        bg_x = umap_xy[~mask, 0]
+                        bg_y = umap_xy[~mask, 1]
+                        ax_s.scatter(bg_x, bg_y, color='lightgrey', s=0.5, alpha=0.25)
+                        
+                        sub_pt = pt_vals[mask]
+                        sub_coords = umap_xy[mask]
+                        sub_sort = np.argsort(sub_pt)
+                        sc_sub = ax_s.scatter(sub_coords[sub_sort, 0], sub_coords[sub_sort, 1], c=sub_pt[sub_sort], cmap=tr_cmap, s=tr_pt_size, alpha=0.85, vmin=0, vmax=1)
+                        ax_s.set_title(f"{sample} only (Pseudotime)", fontsize=11.5, fontweight='bold')
+                        ax_s.set_xlabel("UMAP 1", fontsize=10)
+                        ax_s.set_ylabel("UMAP 2", fontsize=10)
+                        ax_s.tick_params(axis='both', which='major', labelsize=9.5)
+                        cb_s = fig_tr.colorbar(sc_sub, ax=ax_s)
+                        cb_s.ax.tick_params(labelsize=9)
+                        
+                    for extra in range(curr_plot_idx, len(axes_tr_flat)):
+                        axes_tr_flat[extra].axis('off')
+                        
+                    plt.tight_layout()
+                    st.pyplot(fig_tr)
+                    plt.close(fig_tr)
+            
+            # 2. Gene Expression Dynamics along Pseudotime (Interactive Rolling Trendline)
+            st.markdown("#### Dynamic Gene Expression along Pseudotime")
+            st.caption("ℹ️ Examine continuous expression kinetics (induction, peak, repression) along developmental pseudotime across conditions.")
+            
+            c_g1, c_g2, c_g3 = st.columns([1.8, 1.2, 1.2])
+            with c_g1:
+                traj_gene_choice = st.selectbox(
+                    "Select Gene for Trajectory Plot:", 
+                    display_options, 
+                    index=display_options.index(st.session_state.selected_gene_display) if st.session_state.selected_gene_display in display_options else 0,
+                    key="traj_gene_sel"
+                )
+            with c_g2:
+                traj_smooth_window = st.slider("Smoothing Window (Cells):", min_value=20, max_value=500, value=150, step=10, key="traj_smooth_win")
+            with c_g3:
+                traj_show_scatter = st.checkbox("Show Single-Cell Points", value=True, key="traj_show_scat")
+                
+            resolved_traj_var = resolve_gene_var_name(adata, traj_gene_choice, sym_to_display, display_to_var)
+            
+            if resolved_traj_var:
+                with st.spinner("Plotting gene dynamics along pseudotime..."):
+                    if scipy.sparse.issparse(adata.X):
+                        g_raw = adata[:, resolved_traj_var].X.toarray().flatten()
+                    else:
+                        g_raw = adata[:, resolved_traj_var].X.flatten()
+                    g_vals = np.log2(g_raw + 1) if use_log2 else g_raw
+                    clean_traj_sym = traj_gene_choice.split(" (")[0]
+                    
+                    df_traj = pd.DataFrame({
+                        "Pseudotime": adata.obs[selected_pt_col].values,
+                        "Expression": g_vals,
+                        "Sample": adata.obs[sample_col].astype(str) if (sample_col and sample_col in adata.obs.columns) else "All",
+                        "Cell State": adata.obs[selected_col].astype(str) if (selected_col and selected_col in adata.obs.columns) else "All"
+                    }).dropna(subset=["Pseudotime"]).sort_values("Pseudotime")
+                    
+                    fig_dyn, (ax_dyn1, ax_dyn2) = plt.subplots(1, 2, figsize=(14, 4.8))
+                    
+                    # Subplot 1: Split by Condition / Sample
+                    if sample_col and sample_col in adata.obs.columns:
+                        for s in ordered_samples:
+                            if s in df_traj["Sample"].values:
+                                df_s = df_traj[df_traj["Sample"] == s]
+                                if len(df_s) > 10:
+                                    if traj_show_scatter:
+                                        ax_dyn1.scatter(df_s["Pseudotime"], df_s["Expression"], color=sample_color_map.get(s, "#3498db"), s=1.5, alpha=0.25)
+                                    df_s_roll = df_s.rolling(window=min(traj_smooth_window, len(df_s)//2), min_periods=10, on="Pseudotime")["Expression"].mean()
+                                    ax_dyn1.plot(df_s["Pseudotime"], df_s_roll, label=s, color=sample_color_map.get(s, "#3498db"), lw=2.5)
+                    ax_dyn1.set_title(f"{clean_traj_sym} Kinetics by Sample ({chosen_scale_label})", fontsize=12, fontweight='bold')
+                    ax_dyn1.set_xlabel("Pseudotime", fontsize=11)
+                    ax_dyn1.set_ylabel(f"{clean_traj_sym} Expression", fontsize=11)
+                    ax_dyn1.tick_params(axis='both', which='major', labelsize=10)
+                    ax_dyn1.legend(title="Sample", fontsize=9.5, frameon=False)
+                    ax_dyn1.grid(True, linestyle=':', alpha=0.5)
+                    
+                    # Subplot 2: Split by Cell State / Global Trend
+                    if selected_col and selected_col in adata.obs.columns:
+                        categories = adata.obs[selected_col].cat.categories.tolist() if hasattr(adata.obs[selected_col], "cat") else sorted(adata.obs[selected_col].dropna().unique().tolist())
+                        if traj_show_scatter:
+                            for cat in categories:
+                                df_c = df_traj[df_traj["Cell State"] == cat]
+                                if len(df_c) > 0:
+                                    ax_dyn2.scatter(df_c["Pseudotime"], df_c["Expression"], label=cat, color=color_map.get(cat, "#7f8c8d"), s=2.0, alpha=0.45)
+                    df_glob_roll = df_traj.rolling(window=traj_smooth_window, min_periods=10, on="Pseudotime")["Expression"].mean()
+                    ax_dyn2.plot(df_traj["Pseudotime"], df_glob_roll, color="black", lw=3.0, label="Global Trend", ls="--")
+                    ax_dyn2.set_title(f"{clean_traj_sym} Kinetics by Cell State", fontsize=12, fontweight='bold')
+                    ax_dyn2.set_xlabel("Pseudotime", fontsize=11)
+                    ax_dyn2.set_ylabel(f"{clean_traj_sym} Expression", fontsize=11)
+                    ax_dyn2.tick_params(axis='both', which='major', labelsize=10)
+                    ax_dyn2.legend(title="Cell State / Trend", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=4, fontsize=8.5, frameon=False)
+                    ax_dyn2.grid(True, linestyle=':', alpha=0.5)
+                    
+                    plt.tight_layout()
+                    st.pyplot(fig_dyn)
+                    plt.close(fig_dyn)
+                    
+            # 3. Precomputed Pipeline Trajectory Figures Gallery
+            data_folder = os.path.dirname(h5ad_path)
+            traj_pngs = [f for f in sorted(os.listdir(data_folder)) if f.endswith('.png') and any(k in f.lower() for k in ['trajectory', 'pseudotime', 'paga'])] if os.path.exists(data_folder) else []
+            
+            # Also check scan dirs for precomputed trajectory pngs
+            for d in SCAN_DIRS:
+                if os.path.exists(d) and d != data_folder:
+                    extra_pngs = [os.path.join(d, f) for f in os.listdir(d) if f.endswith('.png') and any(k in f.lower() for k in ['trajectory', 'pseudotime', 'paga'])]
+                    traj_pngs.extend(extra_pngs)
+                    
+            if traj_pngs:
+                st.markdown("---")
+                with st.expander("🖼️ View Pre-computed Pipeline Trajectory & PAGA Figures", expanded=False):
+                    sel_fig = st.selectbox("Select Precomputed Figure:", traj_pngs)
+                    full_fig_path = sel_fig if os.path.isabs(sel_fig) else os.path.join(data_folder, sel_fig)
+                    st.image(full_fig_path, caption=os.path.basename(full_fig_path), use_column_width=True)
 
 # ----------------- PAGE 2: MARKER EDITOR -----------------
 elif app_mode == "Cell-Type Marker Editor":
