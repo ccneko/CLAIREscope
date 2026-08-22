@@ -12,6 +12,7 @@ from scipy.stats import mannwhitneyu, spearmanr, pearsonr
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import streamlit.components.v1 as components
 
 # Setup paths
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -118,8 +119,44 @@ st.markdown("""
         font-weight: 600 !important;
         padding: 8px 18px !important;
     }
+    iframe[title="streamlit.components.v1.html"], div[data-testid="stCustomComponentV1"] {
+        display: none !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
+
+# Disable Streamlit 'C' / 'c' Clear Cache keyboard shortcut popup in browser
+components.html("""
+<script>
+(function() {
+    try {
+        const targetWin = window.parent || window;
+        const targetDoc = targetWin.document;
+        targetWin.addEventListener('keydown', function(e) {
+            const activeEl = targetDoc.activeElement;
+            const isEditable = activeEl && (
+                activeEl.tagName === 'INPUT' || 
+                activeEl.tagName === 'TEXTAREA' || 
+                activeEl.tagName === 'SELECT' || 
+                activeEl.isContentEditable
+            );
+            if (!isEditable) {
+                // Block standalone 'c' / 'C' (Streamlit's clear cache shortcut)
+                if ((e.key === 'c' || e.key === 'C' || e.keyCode === 67) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                }
+            }
+        }, true);
+    } catch (err) {
+        console.warn("Unable to attach shortcut blocker:", err);
+    }
+})();
+</script>
+""", height=0, width=0)
 
 DEFAULT_SIGNATURES = {
     "Adherens Junction Complex": ["CDH1", "CTNNB1", "CTNNA1", "CTNND1", "JUP"],
