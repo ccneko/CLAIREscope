@@ -1209,7 +1209,10 @@ if app_mode == "Gene Expression UMAP":
                             data=df_sub, x="Sample", y="Expression", ax=ax,
                             width=0.12, boxprops={'facecolor':'white', 'edgecolor':'black', 'linewidth':0.8},
                             whiskerprops={'color':'black', 'linewidth':0.8}, capprops={'color':'black', 'linewidth':0.8},
-                            medianprops={'color':'red', 'linewidth':1.2}, showfliers=False, order=available_samples
+                            medianprops={'color':'red', 'linewidth':1.3},
+                            showmeans=True,
+                            meanprops={'marker':'D', 'markerfacecolor':'#0284c7', 'markeredgecolor':'black', 'markersize':4.5},
+                            showfliers=False, order=available_samples
                         )
                         
                         ymin, ymax = ax.get_ylim()
@@ -1237,15 +1240,19 @@ if app_mode == "Gene Expression UMAP":
                                         
                                 sig_str = get_sig_label(p_val)
                                 m1, m2 = np.mean(val1) if len(val1)>0 else 0, np.mean(val2) if len(val2)>0 else 0
+                                med1, med2 = np.median(val1) if len(val1)>0 else 0, np.median(val2) if len(val2)>0 else 0
                                 stats_records.append({
                                     "Gene": resolved_display_name,
                                     "Population": ct,
                                     "Comparison (S1 vs S2)": f"{s1} vs {s2}",
                                     "N (S1)": len(val1),
                                     "Mean (S1)": round(float(m1), 3),
+                                    "Median (S1)": round(float(med1), 3),
                                     "N (S2)": len(val2),
                                     "Mean (S2)": round(float(m2), 3),
-                                    "Difference (S1 - S2)": round(float(m1 - m2), 3),
+                                    "Median (S2)": round(float(med2), 3),
+                                    "Mean Diff (S1 - S2)": round(float(m1 - m2), 3),
+                                    "Median Diff (S1 - S2)": round(float(med1 - med2), 3),
                                     "Mann-Whitney U": u_stat,
                                     "p-value_raw": p_val,
                                     "Significance": sig_str
@@ -1270,31 +1277,52 @@ if app_mode == "Gene Expression UMAP":
                     plt.tight_layout(rect=[0, 0, 1, 0.96])
                     st.pyplot(fig_v)
                     plt.close(fig_v)
+                    st.caption("ℹ️ **Boxplot Legend**: 🔴 **Red line** = Median (50th percentile) &nbsp;|&nbsp; 🔷 **Blue diamond** = Mean (arithmetic average). For skewed single-cell distributions, the Mean is pulled by high-expressing cells.")
                     
-                    # 1. Sample Mean Summary Table (Rows: Clusters, Cols: Samples)
-                    st.markdown("#### Sample Mean Expression Summary Table")
+                    # 1. Sample Mean & Median Summary Tables
+                    st.markdown("#### Sample Expression Summary Tables")
                     mean_rows = []
+                    median_rows = []
                     for pop in plots_to_generate:
                         df_pop = df_gene_violin if pop == "All Cells (Global)" else df_gene_violin[df_gene_violin["Cell State"] == pop]
-                        r_data = {"Population / Cluster": pop}
+                        r_mean = {"Population / Cluster": pop}
+                        r_median = {"Population / Cluster": pop}
                         for s in available_samples:
                             s_vals = df_pop[df_pop["Sample"] == s]["Expression"].values
-                            r_data[s] = round(float(np.mean(s_vals)), 3) if len(s_vals) > 0 else np.nan
-                        mean_rows.append(r_data)
+                            r_mean[s] = round(float(np.mean(s_vals)), 3) if len(s_vals) > 0 else np.nan
+                            r_median[s] = round(float(np.median(s_vals)), 3) if len(s_vals) > 0 else np.nan
+                        mean_rows.append(r_mean)
+                        median_rows.append(r_median)
+                        
                     df_sample_means = pd.DataFrame(mean_rows).set_index("Population / Cluster")
-                    st.dataframe(df_sample_means, use_container_width=True)
-                    csv_means = df_sample_means.to_csv().encode('utf-8')
-                    st.download_button(
-                        label=f"📥 Download {clean_sym} Sample Means CSV",
-                        data=csv_means,
-                        file_name=f"{selected_dataset_name}_{clean_sym}_sample_means.csv",
-                        mime="text/csv"
-                    )
+                    df_sample_medians = pd.DataFrame(median_rows).set_index("Population / Cluster")
+                    
+                    tab_m_tbl, tab_med_tbl = st.tabs(["Mean Expression Table", "Median Expression Table"])
+                    with tab_m_tbl:
+                        st.dataframe(df_sample_means, use_container_width=True)
+                        csv_means = df_sample_means.to_csv().encode('utf-8')
+                        st.download_button(
+                            label=f"📥 Download {clean_sym} Sample Means CSV",
+                            data=csv_means,
+                            file_name=f"{selected_dataset_name}_{clean_sym}_sample_means.csv",
+                            mime="text/csv",
+                            key="dl_gene_means_csv"
+                        )
+                    with tab_med_tbl:
+                        st.dataframe(df_sample_medians, use_container_width=True)
+                        csv_medians = df_sample_medians.to_csv().encode('utf-8')
+                        st.download_button(
+                            label=f"📥 Download {clean_sym} Sample Medians CSV",
+                            data=csv_medians,
+                            file_name=f"{selected_dataset_name}_{clean_sym}_sample_medians.csv",
+                            mime="text/csv",
+                            key="dl_gene_medians_csv"
+                        )
                     
                     # 2. Statistical Significance Table
                     if stats_records:
                         st.markdown("#### Statistical Significance Summary Table (Mann-Whitney U Test)")
-                        st.caption("ℹ️ **Comparison Direction**: `Difference (S1 - S2) = Mean(S1) - Mean(S2)`. A positive difference indicates higher expression in S1 compared to S2. p-values and FDR q-values formatted to 4 significant figures.")
+                        st.caption("ℹ️ **Statistical Note**: Mann-Whitney U is a non-parametric rank-sum test evaluating whether S1 values tend to be higher than S2 (evaluating rank/median shifts). Both parametric Means and non-parametric Medians are reported for clarity.")
                         df_stats = pd.DataFrame(stats_records)
                         if len(df_stats) > 1:
                             from scipy.stats import false_discovery_control
@@ -1311,8 +1339,8 @@ if app_mode == "Gene Expression UMAP":
                         
                         cols_to_show = [
                             "Gene", "Population", "Comparison (S1 vs S2)", 
-                            "N (S1)", "Mean (S1)", "N (S2)", "Mean (S2)", 
-                            "Difference (S1 - S2)", "Mann-Whitney U", "p-value", "FDR (q-value)", "Significance"
+                            "N (S1)", "Mean (S1)", "Median (S1)", "N (S2)", "Mean (S2)", "Median (S2)",
+                            "Mean Diff (S1 - S2)", "Median Diff (S1 - S2)", "Mann-Whitney U", "p-value", "FDR (q-value)", "Significance"
                         ]
                         df_stats_display = df_stats[cols_to_show]
                         st.dataframe(df_stats_display, use_container_width=True)
@@ -1321,7 +1349,8 @@ if app_mode == "Gene Expression UMAP":
                             label=f"📥 Download {clean_sym} Statistical Summary CSV",
                             data=csv_stats,
                             file_name=f"{selected_dataset_name}_{clean_sym}_significance_stats.csv",
-                            mime="text/csv"
+                            mime="text/csv",
+                            key="dl_gene_stats_csv"
                         )
 
     # ---------------- TAB 5: SIGNATURE & PATHWAY SCORING (WITH STATS) ----------------
@@ -1446,7 +1475,10 @@ if app_mode == "Gene Expression UMAP":
                             data=df_sub, x="Sample", y="Score", ax=ax,
                             width=0.12, boxprops={'facecolor':'white', 'edgecolor':'black', 'linewidth':0.8},
                             whiskerprops={'color':'black', 'linewidth':0.8}, capprops={'color':'black', 'linewidth':0.8},
-                            medianprops={'color':'red', 'linewidth':1.2}, showfliers=False, order=available_samples_s
+                            medianprops={'color':'red', 'linewidth':1.3},
+                            showmeans=True,
+                            meanprops={'marker':'D', 'markerfacecolor':'#0284c7', 'markeredgecolor':'black', 'markersize':4.5},
+                            showfliers=False, order=available_samples_s
                         )
                         
                         ymin, ymax = ax.get_ylim()
@@ -1474,15 +1506,19 @@ if app_mode == "Gene Expression UMAP":
                                         
                                 sig_str = get_sig_label(p_val)
                                 m1, m2 = np.mean(val1) if len(val1)>0 else 0, np.mean(val2) if len(val2)>0 else 0
+                                med1, med2 = np.median(val1) if len(val1)>0 else 0, np.median(val2) if len(val2)>0 else 0
                                 score_stats_records.append({
                                     "Signature": selected_sig_name,
                                     "Population": ct,
                                     "Comparison (S1 vs S2)": f"{s1} vs {s2}",
                                     "N (S1)": len(val1),
                                     "Mean Score (S1)": round(float(m1), 3),
+                                    "Median Score (S1)": round(float(med1), 3),
                                     "N (S2)": len(val2),
                                     "Mean Score (S2)": round(float(m2), 3),
-                                    "Score Difference (S1 - S2)": round(float(m1 - m2), 3),
+                                    "Median Score (S2)": round(float(med2), 3),
+                                    "Mean Diff (S1 - S2)": round(float(m1 - m2), 3),
+                                    "Median Diff (S1 - S2)": round(float(med1 - med2), 3),
                                     "Mann-Whitney U": u_stat,
                                     "p-value_raw": p_val,
                                     "Significance": sig_str
@@ -1508,31 +1544,52 @@ if app_mode == "Gene Expression UMAP":
                     plt.tight_layout(rect=[0, 0, 1, 0.96])
                     st.pyplot(fig_sv)
                     plt.close(fig_sv)
+                    st.caption("ℹ️ **Boxplot Legend**: 🔴 **Red line** = Median (50th percentile) &nbsp;|&nbsp; 🔷 **Blue diamond** = Mean (arithmetic average). For skewed single-cell distributions, the Mean is pulled by high-scoring cells.")
                     
-                    # 1. Sample Mean Score Summary Table
-                    st.markdown(f"#### {selected_sig_name} Sample Mean Score Summary Table")
+                    # 1. Sample Mean & Median Score Summary Tables
+                    st.markdown(f"#### {selected_sig_name} Sample Score Summary Tables")
                     score_mean_rows = []
+                    score_median_rows = []
                     for pop in score_plots_to_generate:
                         df_pop = df_score_violin if pop == "All Cells (Global)" else df_score_violin[df_score_violin["Cell State"] == pop]
-                        r_data = {"Population / Cluster": pop}
+                        r_mean = {"Population / Cluster": pop}
+                        r_med = {"Population / Cluster": pop}
                         for s in available_samples_s:
                             s_vals = df_pop[df_pop["Sample"] == s]["Score"].values
-                            r_data[s] = round(float(np.mean(s_vals)), 3) if len(s_vals) > 0 else np.nan
-                        score_mean_rows.append(r_data)
+                            r_mean[s] = round(float(np.mean(s_vals)), 3) if len(s_vals) > 0 else np.nan
+                            r_med[s] = round(float(np.median(s_vals)), 3) if len(s_vals) > 0 else np.nan
+                        score_mean_rows.append(r_mean)
+                        score_median_rows.append(r_med)
+                        
                     df_score_sample_means = pd.DataFrame(score_mean_rows).set_index("Population / Cluster")
-                    st.dataframe(df_score_sample_means, use_container_width=True)
-                    csv_score_means = df_score_sample_means.to_csv().encode('utf-8')
-                    st.download_button(
-                        label=f"📥 Download {selected_sig_name} Sample Means CSV",
-                        data=csv_score_means,
-                        file_name=f"{selected_dataset_name}_{selected_sig_name.replace(' ', '_')}_sample_means.csv",
-                        mime="text/csv"
-                    )
+                    df_score_sample_medians = pd.DataFrame(score_median_rows).set_index("Population / Cluster")
+                    
+                    tab_sm_tbl, tab_smed_tbl = st.tabs(["Mean Score Table", "Median Score Table"])
+                    with tab_sm_tbl:
+                        st.dataframe(df_score_sample_means, use_container_width=True)
+                        csv_score_means = df_score_sample_means.to_csv().encode('utf-8')
+                        st.download_button(
+                            label=f"📥 Download {selected_sig_name} Sample Means CSV",
+                            data=csv_score_means,
+                            file_name=f"{selected_dataset_name}_{selected_sig_name.replace(' ', '_')}_sample_means.csv",
+                            mime="text/csv",
+                            key="dl_score_means_csv"
+                        )
+                    with tab_smed_tbl:
+                        st.dataframe(df_score_sample_medians, use_container_width=True)
+                        csv_score_medians = df_score_sample_medians.to_csv().encode('utf-8')
+                        st.download_button(
+                            label=f"📥 Download {selected_sig_name} Sample Medians CSV",
+                            data=csv_score_medians,
+                            file_name=f"{selected_dataset_name}_{selected_sig_name.replace(' ', '_')}_sample_medians.csv",
+                            mime="text/csv",
+                            key="dl_score_medians_csv"
+                        )
                     
                     # 2. Statistical Significance Table
                     if score_stats_records:
                         st.markdown("#### Statistical Significance Summary Table (Mann-Whitney U Test)")
-                        st.caption("ℹ️ **Comparison Direction**: `Score Difference (S1 - S2) = Mean(S1) - Mean(S2)`. A positive difference indicates higher score in S1 compared to S2. p-values and FDR q-values formatted to 4 significant figures.")
+                        st.caption("ℹ️ **Statistical Note**: Mann-Whitney U is a non-parametric rank-sum test evaluating whether S1 scores tend to be systematically higher than S2 (evaluating rank/median shifts). Both parametric Means and non-parametric Medians are reported for clarity.")
                         df_score_stats = pd.DataFrame(score_stats_records)
                         if len(df_score_stats) > 1:
                             from scipy.stats import false_discovery_control
@@ -1549,8 +1606,8 @@ if app_mode == "Gene Expression UMAP":
                         
                         cols_to_show_s = [
                             "Signature", "Population", "Comparison (S1 vs S2)", 
-                            "N (S1)", "Mean Score (S1)", "N (S2)", "Mean Score (S2)", 
-                            "Score Difference (S1 - S2)", "Mann-Whitney U", "p-value", "FDR (q-value)", "Significance"
+                            "N (S1)", "Mean Score (S1)", "Median Score (S1)", "N (S2)", "Mean Score (S2)", "Median Score (S2)", 
+                            "Mean Diff (S1 - S2)", "Median Diff (S1 - S2)", "Mann-Whitney U", "p-value", "FDR (q-value)", "Significance"
                         ]
                         df_score_stats_display = df_score_stats[cols_to_show_s]
                         st.dataframe(df_score_stats_display, use_container_width=True)
@@ -1559,7 +1616,8 @@ if app_mode == "Gene Expression UMAP":
                             label=f"📥 Download {selected_sig_name} Scoring Stats CSV",
                             data=csv_score_stats,
                             file_name=f"{selected_dataset_name}_{selected_sig_name.replace(' ', '_')}_score_stats.csv",
-                            mime="text/csv"
+                            mime="text/csv",
+                            key="dl_score_stats_csv"
                         )
 
     # ---------------- TAB 6: CORRELATION & SCATTER PLOTS (WITH STATS) ----------------
