@@ -586,7 +586,7 @@ if app_mode == "Gene Expression UMAP":
 
     # Caching static multi-panel grid generator with Sample UMAP as 1st plot and custom vmax
     @st.cache_data
-    def generate_static_grid(_adata, var_key, disp_title, col, s_col, dataset_name, log2_mode, v_max, cmap_name, grid_cols=3, grid_rows="Auto"):
+    def generate_static_grid(_adata, var_key, disp_title, col, s_col, dataset_name, log2_mode, v_max, cmap_name, grid_cols=3, grid_rows="Auto", col_color_tag=""):
         if scipy.sparse.issparse(_adata.X):
             expr_raw = _adata[:, var_key].X.toarray().flatten()
         else:
@@ -736,7 +736,8 @@ if app_mode == "Gene Expression UMAP":
                 
         if resolved_var_name:
             with st.spinner("Generating static UMAP grid..."):
-                fig_grid = generate_static_grid(adata, resolved_var_name, resolved_display_name, selected_col, sample_col, selected_dataset_name, use_log2, chosen_vmax, cmap_choice, grid_cols=stat_grid_cols, grid_rows=stat_grid_rows)
+                color_tag_str = str(get_cluster_color_map(adata, selected_col)[0]) if selected_col else ''
+                fig_grid = generate_static_grid(adata, resolved_var_name, resolved_display_name, selected_col, sample_col, selected_dataset_name, use_log2, chosen_vmax, cmap_choice, grid_cols=stat_grid_cols, grid_rows=stat_grid_rows, col_color_tag=color_tag_str)
                 st.pyplot(fig_grid)
                 plt.close(fig_grid)
         else:
