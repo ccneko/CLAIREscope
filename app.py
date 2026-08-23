@@ -421,7 +421,7 @@ if sample_col and sample_col in adata.obs.columns:
 else:
     ordered_samples = []
 
-sample_color_map = {"Control": "#d62728", "Rescued_1": "#5c2d91", "Rescued_2": "#b5a500", "Mutant": "#00a8e0", "Control_P4": "#d62728", "Sample_Rescued_1": "#5c2d91", "Sample_Rescued_2": "#b5a500", "Sample_Mutant": "#00a8e0", "Normal": "#2ecc71", "JEB": "#e74c3c", "Revertant": "#3498db"}
+sample_color_map = {"Control": "#e74c3c", "Rescued_1": "#8e44ad", "Rescued_2": "#f1c40f", "Mutant": "#00a8ff", "Control_P4": "#e74c3c", "Sample_Rescued_1": "#8e44ad", "Sample_Rescued_2": "#f1c40f", "Sample_Mutant": "#00a8ff", "Normal": "#2ecc71", "JEB": "#e74c3c", "Revertant": "#3498db"}
 for idx, s in enumerate(ordered_samples):
     if s not in sample_color_map:
         cmap = plt.get_cmap('tab10')
