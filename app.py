@@ -484,7 +484,13 @@ if app_mode == "Gene Expression UMAP":
         )
     
     resolved_var_name = display_to_var.get(selected_gene_box, None) if selected_gene_box != "None" else None
-    resolved_display_name = selected_gene_box if selected_gene_box != "None" else None
+    if resolved_var_name and resolved_var_name not in adata.var_names:
+        # Fallback search if var_names format differs
+        if selected_gene_box in adata.var_names:
+            resolved_var_name = selected_gene_box
+        else:
+            resolved_var_name = None
+    resolved_display_name = selected_gene_box if resolved_var_name else None
     
     # Colormap & Scale Controls
     with st.expander("🎨 Colormap, Scale & Contrast Controls (Loupe-Style)", expanded=bool(resolved_var_name)):
