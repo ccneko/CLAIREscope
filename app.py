@@ -2071,7 +2071,12 @@ if app_mode == "Gene Expression UMAP":
                         except Exception as err:
                             st.error(f"Error computing DPT: {err}")
         else:
-            selected_pt_col = st.selectbox("Select Pseudotime Variable:", pt_cols, index=0, key="traj_pt_col")
+            pref_pt_idx = 0
+            if "dpt_landmark_aligned" in pt_cols:
+                pref_pt_idx = pt_cols.index("dpt_landmark_aligned")
+            elif "dpt_pseudotime" in pt_cols:
+                pref_pt_idx = pt_cols.index("dpt_pseudotime")
+            selected_pt_col = st.selectbox("Select Pseudotime Variable:", pt_cols, index=pref_pt_idx, key="traj_pt_col")
             
             with st.expander("Trajectory Plot Controls", expanded=True):
                 c_tr1, c_tr2, c_tr3 = st.columns([1.5, 1.5, 1.2])
