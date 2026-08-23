@@ -555,6 +555,23 @@ if app_mode == "Gene Expression UMAP":
             categories = sorted(adata_obj.obs[col_name].dropna().unique().tolist())
         
         color_key = f"{col_name}_colors"
+        if col_name == 'predicted_labels':
+            pred_map = {}
+            for cat in categories:
+                c_str = str(cat).lower()
+                if 'undiff' in c_str:
+                    pred_map[cat] = '#c0c0c0'  # Silver for Undifferentiated
+                elif 'diff' in c_str:
+                    pred_map[cat] = '#f5deb3'  # Wheat for Differentiated
+                else:
+                    pred_map[cat] = '#c0c0c0'
+            colors = [pred_map[c] for c in categories]
+            try:
+                adata_obj.uns[color_key] = colors
+            except Exception:
+                pass
+            return pred_map, categories
+
         if color_key in adata_obj.uns and len(adata_obj.uns[color_key]) >= len(categories):
             colors = list(adata_obj.uns[color_key])[:len(categories)]
         else:
@@ -1378,16 +1395,19 @@ if app_mode == "Gene Expression UMAP":
                                 val1 = df_sub[df_sub["Sample"] == s1]["Expression"].values
                                 val2 = df_sub[df_sub["Sample"] == s2]["Expression"].values
                                 
+                                if len(val1) < 3 or len(val2) < 3:
+                                    # Do not show comparison lines when cells are missing / insufficient
+                                    continue
+                                
                                 p_val = 1.0
                                 u_stat = np.nan
-                                if len(val1) >= 3 and len(val2) >= 3:
-                                    try:
-                                        res = mannwhitneyu(val1, val2, alternative="two-sided")
-                                        p_val = res.pvalue
-                                        u_stat = res.statistic
-                                    except Exception:
-                                        p_val = 1.0
-                                        
+                                try:
+                                    res = mannwhitneyu(val1, val2, alternative="two-sided")
+                                    p_val = res.pvalue
+                                    u_stat = res.statistic
+                                except Exception:
+                                    p_val = 1.0
+                                    
                                 sig_str = get_sig_label(p_val)
                                 m1, m2 = np.mean(val1) if len(val1)>0 else 0, np.mean(val2) if len(val2)>0 else 0
                                 med1, med2 = np.median(val1) if len(val1)>0 else 0, np.median(val2) if len(val2)>0 else 0
@@ -1644,16 +1664,19 @@ if app_mode == "Gene Expression UMAP":
                                 val1 = df_sub[df_sub["Sample"] == s1]["Score"].values
                                 val2 = df_sub[df_sub["Sample"] == s2]["Score"].values
                                 
+                                if len(val1) < 3 or len(val2) < 3:
+                                    # Do not show comparison lines when cells are missing / insufficient
+                                    continue
+                                
                                 p_val = 1.0
                                 u_stat = np.nan
-                                if len(val1) >= 3 and len(val2) >= 3:
-                                    try:
-                                        res = mannwhitneyu(val1, val2, alternative="two-sided")
-                                        p_val = res.pvalue
-                                        u_stat = res.statistic
-                                    except Exception:
-                                        p_val = 1.0
-                                        
+                                try:
+                                    res = mannwhitneyu(val1, val2, alternative="two-sided")
+                                    p_val = res.pvalue
+                                    u_stat = res.statistic
+                                except Exception:
+                                    p_val = 1.0
+                                    
                                 sig_str = get_sig_label(p_val)
                                 m1, m2 = np.mean(val1) if len(val1)>0 else 0, np.mean(val2) if len(val2)>0 else 0
                                 med1, med2 = np.median(val1) if len(val1)>0 else 0, np.median(val2) if len(val2)>0 else 0
