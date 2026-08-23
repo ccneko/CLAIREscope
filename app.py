@@ -12,6 +12,16 @@ from scipy.stats import mannwhitneyu, spearmanr, pearsonr
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import plotly.io as pio
+
+# Global Plotly Typography Configuration
+if "plotly_white" in pio.templates:
+    pio.templates["plotly_white"].layout.font.family = "Segoe UI, Arial, sans-serif"
+    pio.templates["plotly_white"].layout.font.size = 13
+    pio.templates["plotly_white"].layout.title.font.size = 16
+    pio.templates["plotly_white"].layout.legend.font.size = 12
+    pio.templates["plotly_white"].layout.legend.title.font.size = 13
+pio.templates.default = "plotly_white"
 import streamlit.components.v1 as components
 
 # Setup paths
@@ -859,17 +869,18 @@ if app_mode == "Gene Expression UMAP":
                         )
                         fig_samp.update_traces(marker=dict(size=pt_size, opacity=0.85))
                         
-                    fig_samp.update_xaxes(range=x_range, title_text="UMAP 1", zeroline=False, showgrid=True, gridcolor="#F8FAFC")
-                    fig_samp.update_yaxes(range=y_range, title_text="UMAP 2", scaleanchor="x", scaleratio=1, zeroline=False, showgrid=True, gridcolor="#F8FAFC")
+                    fig_samp.update_xaxes(range=x_range, title_text="UMAP 1", title_font=dict(size=14, family="Segoe UI, sans-serif"), tickfont=dict(size=12), zeroline=False, showgrid=True, gridcolor="#F8FAFC")
+                    fig_samp.update_yaxes(range=y_range, title_text="UMAP 2", title_font=dict(size=14, family="Segoe UI, sans-serif"), tickfont=dict(size=12), scaleanchor="x", scaleratio=1, zeroline=False, showgrid=True, gridcolor="#F8FAFC")
                     fig_samp.update_layout(
-                        height=500,
-                        margin=dict(l=10, r=10, t=40, b=10),
+                        height=520,
+                        title_font=dict(size=16, family="Segoe UI, sans-serif"),
+                        margin=dict(l=10, r=10, t=45, b=10),
                         legend=dict(
                             itemsizing='constant',
-                            font=dict(size=10, family="Segoe UI, sans-serif"),
-                            title=dict(font=dict(size=11, family="Segoe UI, sans-serif")),
-                            bgcolor="rgba(255,255,255,0.85)",
-                            bordercolor="#E2E8F0",
+                            font=dict(size=12, family="Segoe UI, sans-serif"),
+                            title=dict(font=dict(size=13, family="Segoe UI, sans-serif")),
+                            bgcolor="rgba(255,255,255,0.9)",
+                            bordercolor="#CBD5E1",
                             borderwidth=1
                         )
                     )
@@ -930,17 +941,18 @@ if app_mode == "Gene Expression UMAP":
                         )
                         fig_states.update_traces(marker=dict(size=pt_size, opacity=0.85))
                         
-                    fig_states.update_xaxes(range=x_range, title_text="UMAP 1", zeroline=False, showgrid=True, gridcolor="#F8FAFC")
-                    fig_states.update_yaxes(range=y_range, title_text="UMAP 2", scaleanchor="x", scaleratio=1, zeroline=False, showgrid=True, gridcolor="#F8FAFC")
+                    fig_states.update_xaxes(range=x_range, title_text="UMAP 1", title_font=dict(size=14, family="Segoe UI, sans-serif"), tickfont=dict(size=12), zeroline=False, showgrid=True, gridcolor="#F8FAFC")
+                    fig_states.update_yaxes(range=y_range, title_text="UMAP 2", title_font=dict(size=14, family="Segoe UI, sans-serif"), tickfont=dict(size=12), scaleanchor="x", scaleratio=1, zeroline=False, showgrid=True, gridcolor="#F8FAFC")
                     fig_states.update_layout(
-                        height=500,
-                        margin=dict(l=10, r=10, t=40, b=10),
+                        height=520,
+                        title_font=dict(size=16, family="Segoe UI, sans-serif"),
+                        margin=dict(l=10, r=10, t=45, b=10),
                         legend=dict(
                             itemsizing='constant',
-                            font=dict(size=10, family="Segoe UI, sans-serif"),
-                            title=dict(font=dict(size=11, family="Segoe UI, sans-serif")),
-                            bgcolor="rgba(255,255,255,0.85)",
-                            bordercolor="#E2E8F0",
+                            font=dict(size=12, family="Segoe UI, sans-serif"),
+                            title=dict(font=dict(size=13, family="Segoe UI, sans-serif")),
+                            bgcolor="rgba(255,255,255,0.9)",
+                            bordercolor="#CBD5E1",
                             borderwidth=1
                         )
                     )
@@ -1011,12 +1023,14 @@ if app_mode == "Gene Expression UMAP":
                             )
                             fig_expr.update_traces(marker=dict(size=pt_size, opacity=0.85))
                             
-                        fig_expr.update_xaxes(range=x_range, title_text="UMAP 1", zeroline=False, showgrid=True, gridcolor="#F8FAFC")
-                        fig_expr.update_yaxes(range=y_range, title_text="UMAP 2", scaleanchor="x", scaleratio=1, zeroline=False, showgrid=True, gridcolor="#F8FAFC")
+                        fig_expr.update_xaxes(range=x_range, title_text="UMAP 1", title_font=dict(size=14, family="Segoe UI, sans-serif"), tickfont=dict(size=12), zeroline=False, showgrid=True, gridcolor="#F8FAFC")
+                        fig_expr.update_yaxes(range=y_range, title_text="UMAP 2", title_font=dict(size=14, family="Segoe UI, sans-serif"), tickfont=dict(size=12), scaleanchor="x", scaleratio=1, zeroline=False, showgrid=True, gridcolor="#F8FAFC")
                         fig_expr.update_layout(
-                            height=500,
-                            margin=dict(l=10, r=10, t=40, b=10),
-                            legend=dict(itemsizing='constant', font=dict(size=10))
+                            height=520,
+                            title_font=dict(size=16, family="Segoe UI, sans-serif"),
+                            margin=dict(l=10, r=10, t=45, b=10),
+                            legend=dict(itemsizing='constant', font=dict(size=12)),
+                            coloraxis_colorbar=dict(title_font=dict(size=13), tickfont=dict(size=12))
                         )
                         st.plotly_chart(fig_expr, use_container_width=True)
 
@@ -1085,16 +1099,16 @@ if app_mode == "Gene Expression UMAP":
                     fig_bar.update_layout(
                         barmode='stack',
                         template='plotly_white',
-                        height=480,
-                        margin=dict(l=10, r=10, t=30, b=10),
-                        xaxis=dict(title="Sample / Condition", tickfont=dict(size=11, family="Segoe UI, sans-serif")),
-                        yaxis=dict(title=yaxis_title, range=yaxis_range, showgrid=True, gridcolor="#F1F5F9"),
+                        height=520,
+                        margin=dict(l=10, r=10, t=35, b=10),
+                        xaxis=dict(title="Sample / Condition", title_font=dict(size=14, family="Segoe UI, sans-serif"), tickfont=dict(size=13, family="Segoe UI, sans-serif")),
+                        yaxis=dict(title=yaxis_title, title_font=dict(size=14, family="Segoe UI, sans-serif"), tickfont=dict(size=12), range=yaxis_range, showgrid=True, gridcolor="#F1F5F9"),
                         legend=dict(
                             itemsizing='constant',
-                            font=dict(size=10, family="Segoe UI, sans-serif"),
-                            title=dict(font=dict(size=11, family="Segoe UI, sans-serif")),
-                            bgcolor="rgba(255,255,255,0.85)",
-                            bordercolor="#E2E8F0",
+                            font=dict(size=12, family="Segoe UI, sans-serif"),
+                            title=dict(font=dict(size=13, family="Segoe UI, sans-serif")),
+                            bgcolor="rgba(255,255,255,0.9)",
+                            bordercolor="#CBD5E1",
                             borderwidth=1
                         )
                     )
