@@ -2408,6 +2408,112 @@ if app_mode == "Gene Expression UMAP":
                         st.pyplot(fig_dyn)
                         plt.close(fig_dyn)
             
+            # 3. Dynamic Pathway & Signature Scores along Pseudotime
+            st.markdown("---")
+            st.markdown("### 🧬 Dynamic Pathway & Signature Scores along Pseudotime")
+            st.caption(f"ℹ️ Evaluate multi-gene module, pathway, and stratum signature kinetics along **{pt_label_str}** across cohorts.")
+            
+            # Detect available scores in adata.obs and DEFAULT_SIGNATURES
+            obs_scores = [c for c in adata.obs.columns if (c.startswith('score_') or 'score' in c.lower()) and pd.api.types.is_numeric_dtype(adata.obs[c])]
+            available_signatures = list(DEFAULT_SIGNATURES.keys()) if 'DEFAULT_SIGNATURES' in globals() or 'DEFAULT_SIGNATURES' in locals() else []
+            
+            all_score_options = obs_scores + [f"Sig: {s}" for s in available_signatures if s not in obs_scores]
+            
+            if not all_score_options:
+                st.info("ℹ️ No precomputed pathway scores found in this dataset. You can compute gene signatures in Tab 4 (Signature Scoring).")
+            else:
+                with st.expander("⚙️ Pathway Score Plot Controls & Layout", expanded=True):
+                    c_pw1, c_pw2, c_pw3 = st.columns([1.5, 1.0, 1.2])
+                    with c_pw1:
+                        pw_smooth_window = st.slider("Score Smoothing Window (Cells):", min_value=10, max_value=400, value=80, step=10, key="pw_smooth_win")
+                    with c_pw2:
+                        pw_grid_cols = st.selectbox("Score Grid Columns:", [1, 2, 3, 4], index=1, key="pw_grid_cols")
+                    with c_pw3:
+                        pw_show_scatter = st.checkbox("Show Single-Cell Score Points", value=False, key="pw_show_scat")
+                
+                # Default selected scores
+                def_scores = [s for s in ["score_Basal_1", "score_Basal_2", "score_Spinous", "score_Granular", "score_Mitotic", "score_WNTI_Bulge"] if s in all_score_options]
+                if not def_scores and all_score_options:
+                    def_scores = all_score_options[:4]
+                    
+                selected_pw_scores = st.multiselect(
+                    "Select Pathway / Module Scores to Plot along Pseudotime:",
+                    options=all_score_options,
+                    default=def_scores[:4],
+                    key="traj_pathway_scores"
+                )
+                
+                if selected_pw_scores:
+                    with st.spinner("Rendering pathway score kinetics along pseudotime..."):
+                        n_pw = len(selected_pw_scores)
+                        n_cols_pw = pw_grid_cols
+                        n_rows_pw = (n_pw + n_cols_pw - 1) // n_cols_pw
+                        
+                        fig_pw, axes_pw = plt.subplots(n_rows_pw, n_cols_pw, figsize=(6.8 * n_cols_pw, 4.6 * n_rows_pw), dpi=200)
+                        axes_pw_flat = axes_pw.flatten() if hasattr(axes_pw, 'flatten') else [axes_pw]
+                        
+                        for idx_s, score_item in enumerate(selected_pw_scores):
+                            ax_pw = axes_pw_flat[idx_s]
+                            
+                            # Retrieve or compute score values
+                            if score_item in adata.obs.columns:
+                                s_vals = adata.obs[score_item].values
+                                clean_title = score_item.replace('score_', '').replace('_', ' ') + " Score"
+                            elif score_item.startswith("Sig: "):
+                                sig_real_name = score_item.replace("Sig: ", "")
+                                sig_genes = DEFAULT_SIGNATURES.get(sig_real_name, [])
+                                sig_vars = [resolve_gene_var_name(adata, g, sym_to_display, display_to_var) for g in sig_genes]
+                                sig_vars = [v for v in sig_vars if v and v in adata.var_names]
+                                if sig_vars:
+                                    if scipy.sparse.issparse(adata.X):
+                                        sub_m = adata[:, sig_vars].X.toarray()
+                                    else:
+                                        sub_m = adata[:, sig_vars].X
+                                    s_vals = np.mean(sub_m, axis=1)
+                                    clean_title = sig_real_name + " Signature"
+                                else:
+                                    s_vals = np.zeros(adata.n_obs)
+                                    clean_title = sig_real_name
+                            else:
+                                s_vals = np.zeros(adata.n_obs)
+                                clean_title = score_item
+                                
+                            df_pw = pd.DataFrame({
+                                "Pseudotime": adata.obs[selected_pt_col].values,
+                                "Score": s_vals,
+                                "Sample": adata.obs[sample_col].astype(str) if (sample_col and sample_col in adata.obs.columns) else "All"
+                            }).dropna(subset=["Pseudotime"]).sort_values("Pseudotime")
+                            
+                            if sample_col and sample_col in adata.obs.columns:
+                                for s in ordered_samples:
+                                    if s in df_pw["Sample"].values:
+                                        df_pws = df_pw[df_pw["Sample"] == s]
+                                        if len(df_pws) > 10:
+                                            s_col = sample_color_map.get(s, "#3498db")
+                                            if pw_show_scatter:
+                                                ax_pw.scatter(df_pws["Pseudotime"], df_pws["Score"], color=s_col, s=1.2, alpha=0.2)
+                                            num_pws = df_pws[['Pseudotime', 'Score']].copy()
+                                            roll_win = max(min(pw_smooth_window, len(df_pws)//2), 5)
+                                            df_pws_roll = num_pws.rolling(window=roll_win, min_periods=5)['Score'].mean()
+                                            ax_pw.plot(df_pws["Pseudotime"], df_pws_roll, label=s, color=s_col, lw=2.8)
+                                            
+                            ax_pw.set_title(f"{clean_title} along Pseudotime", fontsize=13, fontweight='bold')
+                            ax_pw.set_xlabel(pt_label_str, fontsize=11, fontweight='bold')
+                            ax_pw.set_ylabel(f"{clean_title}", fontsize=11)
+                            ax_pw.tick_params(axis='both', which='major', labelsize=10)
+                            ax_pw.grid(True, linestyle=':', alpha=0.5)
+                            ax_pw.legend(title="Cohort", fontsize=9.5, frameon=True, facecolor='white', framealpha=0.9)
+                            
+                        for extra in range(n_pw, len(axes_pw_flat)):
+                            axes_pw_flat[extra].axis('off')
+                            
+                        plt.tight_layout()
+                        st.pyplot(fig_pw)
+                        plt.close(fig_pw)
+                else:
+                    st.info("Please select at least one pathway/signature score to display.")
+
+
             # 3. Precomputed Pipeline Trajectory Figures Gallery
             data_folder = os.path.dirname(h5ad_path)
             traj_pngs = [f for f in sorted(os.listdir(data_folder)) if f.endswith('.png') and any(k in f.lower() for k in ['trajectory', 'pseudotime', 'paga'])] if os.path.exists(data_folder) else []
