@@ -546,6 +546,27 @@ if app_mode == "Gene Expression UMAP":
         chosen_vmax = float(custom_vmax)
         chosen_scale_label = "Log2(Norm+1)" if use_log2 else "Linear"
 
+    def get_cluster_color_map(adata_obj, col_name):
+        if not col_name or col_name not in adata_obj.obs.columns:
+            return {}, []
+        if hasattr(adata_obj.obs[col_name], 'cat'):
+            categories = adata_obj.obs[col_name].cat.categories.tolist()
+        else:
+            categories = sorted(adata_obj.obs[col_name].dropna().unique().tolist())
+        
+        color_key = f"{col_name}_colors"
+        if color_key in adata_obj.uns and len(adata_obj.uns[color_key]) >= len(categories):
+            colors = list(adata_obj.uns[color_key])[:len(categories)]
+        else:
+            cmap = plt.get_cmap('tab20')
+            colors = [matplotlib.colors.to_hex(cmap(i % 20)) for i in range(len(categories))]
+            try:
+                adata_obj.uns[color_key] = colors
+            except Exception:
+                pass
+                
+        return dict(zip(categories, colors)), categories
+
     # Caching static multi-panel grid generator with Sample UMAP as 1st plot and custom vmax
     @st.cache_data
     def generate_static_grid(_adata, var_key, disp_title, col, s_col, dataset_name, log2_mode, v_max, cmap_name, grid_cols=3, grid_rows="Auto"):
