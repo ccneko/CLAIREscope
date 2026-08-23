@@ -2093,11 +2093,12 @@ if app_mode == "Gene Expression UMAP":
                 else:
                     return f"Pseudotime ({pt_col})"
 
+            # Default to dpt_pseudotime (Original Global DPT) as requested
             pref_pt_idx = 0
-            if "dpt_landmark_aligned" in pt_cols:
-                pref_pt_idx = pt_cols.index("dpt_landmark_aligned")
-            elif "dpt_pseudotime" in pt_cols:
+            if "dpt_pseudotime" in pt_cols:
                 pref_pt_idx = pt_cols.index("dpt_pseudotime")
+            elif "dpt_landmark_aligned" in pt_cols:
+                pref_pt_idx = pt_cols.index("dpt_landmark_aligned")
 
             selected_pt_col = st.selectbox(
                 "Select Pseudotime Variable:",
@@ -2109,12 +2110,14 @@ if app_mode == "Gene Expression UMAP":
             pt_label_str = format_pseudotime_label(selected_pt_col)
             
             with st.expander("Trajectory Overview Controls", expanded=True):
-                c_tr1, c_tr2, c_tr3 = st.columns([1.5, 1.5, 1.2])
+                c_tr1, c_tr2, c_tr3, c_tr4 = st.columns([1.3, 1.2, 1.0, 1.2])
                 with c_tr1:
                     tr_cmap = st.selectbox("Pseudotime Colormap:", ["plasma", "viridis", "inferno", "magma", "cividis", "turbo"], index=0, key="tr_cmap")
                 with c_tr2:
                     tr_pt_size = st.slider("Trajectory Point Size:", min_value=0.5, max_value=6.0, value=2.0, step=0.5, key="tr_pt_size")
                 with c_tr3:
+                    tr_grid_cols = st.selectbox("Grid Columns:", [1, 2, 3, 4], index=2, key="tr_grid_cols")
+                with c_tr4:
                     show_densities = st.checkbox("Show Density by Sample", value=True, key="tr_show_dens")
             
             # 1. Trajectory Overview Multi-panel Grid
@@ -2127,7 +2130,7 @@ if app_mode == "Gene Expression UMAP":
                     n_sub_samples = len(samples_list)
                     
                     total_tr_plots = 2 + (1 if show_densities else 0) + n_sub_samples
-                    n_tr_cols = 3 if total_tr_plots >= 3 else total_tr_plots
+                    n_tr_cols = tr_grid_cols
                     n_tr_rows = (total_tr_plots + n_tr_cols - 1) // n_tr_cols
                     
                     fig_tr, axes_tr = plt.subplots(n_tr_rows, n_tr_cols, figsize=(5.2 * n_tr_cols, 4.6 * n_tr_rows))
@@ -2217,18 +2220,20 @@ if app_mode == "Gene Expression UMAP":
             st.markdown("### 📈 Dynamic Gene Expression along Pseudotime")
             st.caption(f"ℹ️ Plot continuous gene expression kinetics along **{pt_label_str}** across cohorts and cell states.")
             
-            with st.expander("⚙️ Dynamic Drawing Controls & Modes", expanded=True):
-                c_mode, c_win, c_scat = st.columns([1.5, 1.3, 1.2])
+            with st.expander("⚙️ Dynamic Drawing Controls & Layout", expanded=True):
+                c_mode, c_win, c_gcols, c_scat = st.columns([1.4, 1.1, 0.9, 1.1])
                 with c_mode:
                     traj_plot_mode = st.radio("Display Mode:", ["Multi-Gene Kinetics Grid", "Single Gene (Samples & Cell States)"], horizontal=True, key="traj_plot_mode")
                 with c_win:
                     traj_smooth_window = st.slider("Smoothing Window (Cells):", min_value=10, max_value=400, value=80, step=10, key="traj_smooth_win")
+                with c_gcols:
+                    mg_grid_cols = st.selectbox("Grid Columns:", [1, 2, 3, 4], index=1, key="mg_grid_cols")
                 with c_scat:
                     traj_show_scatter = st.checkbox("Show Single-Cell Scatter Points", value=False, key="traj_show_scat")
                     
             if traj_plot_mode == "Multi-Gene Kinetics Grid":
                 # Multi-gene selection
-                default_genes = [g for g in ["COL17A1", "KRT14", "AREG", "KRT10", "FLG", "CXCL14", "CCL2", "IL1R2"] if g in sym_to_display]
+                default_genes = [g for g in ["COL17A1", "KRT14", "AREG", "KRT10", "FLG", "MKI67", "PCNA", "CXCL14", "CCL2", "IL1R2"] if g in sym_to_display]
                 default_disp = [sym_to_display[g] for g in default_genes if g in sym_to_display]
                 if not default_disp:
                     default_disp = display_options[1:5] if len(display_options) > 5 else display_options[1:]
@@ -2243,10 +2248,10 @@ if app_mode == "Gene Expression UMAP":
                 if selected_multi_genes:
                     with st.spinner("Generating multi-gene trajectory kinetics..."):
                         n_mg = len(selected_multi_genes)
-                        n_cols_mg = 2 if n_mg > 1 else 1
+                        n_cols_mg = mg_grid_cols
                         n_rows_mg = (n_mg + n_cols_mg - 1) // n_cols_mg
                         
-                        fig_mg, axes_mg = plt.subplots(n_rows_mg, n_cols_mg, figsize=(7.2 * n_cols_mg, 4.8 * n_rows_mg), dpi=200)
+                        fig_mg, axes_mg = plt.subplots(n_rows_mg, n_cols_mg, figsize=(6.8 * n_cols_mg, 4.6 * n_rows_mg), dpi=200)
                         axes_mg_flat = axes_mg.flatten() if hasattr(axes_mg, 'flatten') else [axes_mg]
                         
                         for idx_g, g_disp in enumerate(selected_multi_genes):
