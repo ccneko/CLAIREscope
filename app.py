@@ -563,6 +563,13 @@ if app_mode == "Gene Expression UMAP":
             ax.axis('off')
             return fig
             
+        x_min, x_max = float(np.min(umap_coords[:, 0])), float(np.max(umap_coords[:, 0]))
+        y_min, y_max = float(np.min(umap_coords[:, 1])), float(np.max(umap_coords[:, 1]))
+        x_pad = (x_max - x_min) * 0.05
+        y_pad = (y_max - y_min) * 0.05
+        u_xlim = (x_min - x_pad, x_max + x_pad)
+        u_ylim = (y_min - y_pad, y_max + y_pad)
+
         samples_list = [s for s in ordered_samples if s in _adata.obs[s_col].unique()][:4] if s_col else []
         num_splits = len(samples_list)
         total_plots = 3 + num_splits
@@ -583,6 +590,9 @@ if app_mode == "Gene Expression UMAP":
             ax_samp.set_title(f"Samples / Conditions ({s_col})", fontsize=12, fontweight='bold')
             ax_samp.set_xlabel("UMAP 1", fontsize=10)
             ax_samp.set_ylabel("UMAP 2", fontsize=10)
+            ax_samp.set_xlim(u_xlim)
+            ax_samp.set_ylim(u_ylim)
+            ax_samp.set_aspect("equal", adjustable="box")
             ax_samp.tick_params(axis='both', which='major', labelsize=9.5)
             ax_samp.legend(title="Sample", bbox_to_anchor=(0.5, -0.2), loc="upper center", markerscale=6, fontsize=9.5, ncol=2, frameon=False)
         else:
@@ -609,6 +619,9 @@ if app_mode == "Gene Expression UMAP":
             ax_ct.set_title(f"Cell States ({col})", fontsize=12, fontweight='bold')
             ax_ct.set_xlabel("UMAP 1", fontsize=10)
             ax_ct.set_ylabel("UMAP 2", fontsize=10)
+            ax_ct.set_xlim(u_xlim)
+            ax_ct.set_ylim(u_ylim)
+            ax_ct.set_aspect("equal", adjustable="box")
             ax_ct.tick_params(axis='both', which='major', labelsize=9.5)
             ax_ct.legend(title="Cell State", bbox_to_anchor=(0.5, -0.2), loc="upper center", markerscale=6, fontsize=9.0, ncol=2, frameon=False)
         else:
@@ -624,6 +637,9 @@ if app_mode == "Gene Expression UMAP":
         ax_all.set_title(f"{clean_name} - All Cells ({scale_tag}, max={v_max:.1f})", fontsize=12, fontweight='bold')
         ax_all.set_xlabel("UMAP 1", fontsize=10)
         ax_all.set_ylabel("UMAP 2", fontsize=10)
+        ax_all.set_xlim(u_xlim)
+        ax_all.set_ylim(u_ylim)
+        ax_all.set_aspect("equal", adjustable="box")
         ax_all.tick_params(axis='both', which='major', labelsize=9.5)
         cbar = fig.colorbar(sc_all, ax=ax_all, label=f"{scale_tag} Expr")
         cbar.ax.tick_params(labelsize=9.5)
@@ -644,6 +660,9 @@ if app_mode == "Gene Expression UMAP":
             ax_sub.set_title(f"{sample} only", fontsize=12, fontweight='bold')
             ax_sub.set_xlabel("UMAP 1", fontsize=10)
             ax_sub.set_ylabel("UMAP 2", fontsize=10)
+            ax_sub.set_xlim(u_xlim)
+            ax_sub.set_ylim(u_ylim)
+            ax_sub.set_aspect("equal", adjustable="box")
             ax_sub.tick_params(axis='both', which='major', labelsize=9.5)
             cbar_s = fig.colorbar(sc_sub, ax=ax_sub)
             cbar_s.ax.tick_params(labelsize=9.5)
@@ -2125,6 +2144,12 @@ if app_mode == "Gene Expression UMAP":
                 with st.spinner("Rendering trajectory overview grid..."):
                     umap_xy = adata.obsm['X_umap']
                     pt_vals = adata.obs[selected_pt_col].values
+                    tx_min, tx_max = float(np.min(umap_xy[:, 0])), float(np.max(umap_xy[:, 0]))
+                    ty_min, ty_max = float(np.min(umap_xy[:, 1])), float(np.max(umap_xy[:, 1]))
+                    tx_pad = (tx_max - tx_min) * 0.05
+                    ty_pad = (ty_max - ty_min) * 0.05
+                    tu_xlim = (tx_min - tx_pad, tx_max + tx_pad)
+                    tu_ylim = (ty_min - ty_pad, ty_max + ty_pad)
                     
                     samples_list = [s for s in ordered_samples if s in adata.obs[sample_col].unique()][:4] if (sample_col and sample_col in adata.obs.columns) else []
                     n_sub_samples = len(samples_list)
@@ -2143,6 +2168,9 @@ if app_mode == "Gene Expression UMAP":
                     ax1.set_title(f"{pt_label_str}", fontsize=11.5, fontweight='bold')
                     ax1.set_xlabel("UMAP 1", fontsize=10)
                     ax1.set_ylabel("UMAP 2", fontsize=10)
+                    ax1.set_xlim(tu_xlim)
+                    ax1.set_ylim(tu_ylim)
+                    ax1.set_aspect("equal", adjustable="box")
                     ax1.tick_params(axis='both', which='major', labelsize=9.5)
                     cb_pt = fig_tr.colorbar(sc_pt, ax=ax1, label=pt_label_str)
                     cb_pt.ax.tick_params(labelsize=9)
@@ -2164,6 +2192,9 @@ if app_mode == "Gene Expression UMAP":
                         ax2.set_title(f"Cell States ({selected_col})", fontsize=11.5, fontweight='bold')
                         ax2.set_xlabel("UMAP 1", fontsize=10)
                         ax2.set_ylabel("UMAP 2", fontsize=10)
+                        ax2.set_xlim(tu_xlim)
+                        ax2.set_ylim(tu_ylim)
+                        ax2.set_aspect("equal", adjustable="box")
                         ax2.tick_params(axis='both', which='major', labelsize=9.5)
                         ax2.legend(title="Cell State", bbox_to_anchor=(0.5, -0.2), loc="upper center", markerscale=5, fontsize=8.5, ncol=2, frameon=False)
                     else:
@@ -2204,6 +2235,9 @@ if app_mode == "Gene Expression UMAP":
                         ax_s.set_title(f"{sample} ({selected_pt_col})", fontsize=11.5, fontweight='bold')
                         ax_s.set_xlabel("UMAP 1", fontsize=10)
                         ax_s.set_ylabel("UMAP 2", fontsize=10)
+                        ax_s.set_xlim(tu_xlim)
+                        ax_s.set_ylim(tu_ylim)
+                        ax_s.set_aspect("equal", adjustable="box")
                         ax_s.tick_params(axis='both', which='major', labelsize=9.5)
                         cb_s = fig_tr.colorbar(sc_sub, ax=ax_s)
                         cb_s.ax.tick_params(labelsize=9)
