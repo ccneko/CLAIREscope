@@ -548,7 +548,7 @@ if app_mode == "Gene Expression UMAP":
 
     # Caching static multi-panel grid generator with Sample UMAP as 1st plot and custom vmax
     @st.cache_data
-    def generate_static_grid(_adata, var_key, disp_title, col, s_col, dataset_name, log2_mode, v_max, cmap_name):
+    def generate_static_grid(_adata, var_key, disp_title, col, s_col, dataset_name, log2_mode, v_max, cmap_name, grid_cols=3, grid_rows="Auto"):
         if scipy.sparse.issparse(_adata.X):
             expr_raw = _adata[:, var_key].X.toarray().flatten()
         else:
@@ -573,8 +573,11 @@ if app_mode == "Gene Expression UMAP":
         samples_list = [s for s in ordered_samples if s in _adata.obs[s_col].unique()][:4] if s_col else []
         num_splits = len(samples_list)
         total_plots = 3 + num_splits
-        n_cols = 3 if total_plots >= 3 else total_plots
-        n_rows = (total_plots + n_cols - 1) // n_cols
+        n_cols = int(grid_cols)
+        if grid_rows == "Auto" or grid_rows is None:
+            n_rows = (total_plots + n_cols - 1) // n_cols
+        else:
+            n_rows = int(grid_rows)
         
         fig, axes = plt.subplots(n_rows, n_cols, figsize=(5.2 * n_cols, 4.8 * n_rows))
         axes_flat = axes.flatten() if hasattr(axes, 'flatten') else [axes]
@@ -686,9 +689,16 @@ if app_mode == "Gene Expression UMAP":
     
     # ---------------- TAB 1: STATIC PLOTS ----------------
     with tab_static:
+        with st.expander("⚙️ Static Grid Layout Controls", expanded=False):
+            c_sg1, c_sg2 = st.columns(2)
+            with c_sg1:
+                stat_grid_cols = st.selectbox("Grid Columns:", [1, 2, 3, 4, 5, 6], index=2, key="stat_grid_cols")
+            with c_sg2:
+                stat_grid_rows = st.selectbox("Grid Rows:", ["Auto", 1, 2, 3, 4, 5, 6], index=0, key="stat_grid_rows")
+                
         if resolved_var_name:
             with st.spinner("Generating static UMAP grid..."):
-                fig_grid = generate_static_grid(adata, resolved_var_name, resolved_display_name, selected_col, sample_col, selected_dataset_name, use_log2, chosen_vmax, cmap_choice)
+                fig_grid = generate_static_grid(adata, resolved_var_name, resolved_display_name, selected_col, sample_col, selected_dataset_name, use_log2, chosen_vmax, cmap_choice, grid_cols=stat_grid_cols, grid_rows=stat_grid_rows)
                 st.pyplot(fig_grid)
                 plt.close(fig_grid)
         else:
@@ -2068,7 +2078,7 @@ if app_mode == "Gene Expression UMAP":
     # ---------------- TAB 7: TRAJECTORY ANALYSIS ----------------
     with tab_trajectory:
         st.markdown("### Lineage Trajectory & Pseudotime Dynamics")
-        st.write("Explore continuous differentiation trajectories, PAGA connectivity, and dynamic gene expression kinetics along developmental pseudotime.")
+        st.write("Explore continuous differentiation trajectories, PAGA connectivity, and dynamic gene & pathway expression kinetics along developmental pseudotime.")
         
         # Detect pseudotime columns in adata.obs
         pt_cols = [c for c in adata.obs.columns if any(k in c.lower() for k in ['pseudotime', 'dpt', 'slingshot', 'latent_time', 'trajectory', 'time'])]
@@ -2129,14 +2139,16 @@ if app_mode == "Gene Expression UMAP":
             pt_label_str = format_pseudotime_label(selected_pt_col)
             
             with st.expander("Trajectory Overview Controls", expanded=True):
-                c_tr1, c_tr2, c_tr3, c_tr4 = st.columns([1.3, 1.2, 1.0, 1.2])
+                c_tr1, c_tr2, c_tr3, c_tr4, c_tr5 = st.columns([1.2, 1.0, 0.9, 0.9, 1.1])
                 with c_tr1:
                     tr_cmap = st.selectbox("Pseudotime Colormap:", ["plasma", "viridis", "inferno", "magma", "cividis", "turbo"], index=0, key="tr_cmap")
                 with c_tr2:
                     tr_pt_size = st.slider("Trajectory Point Size:", min_value=0.5, max_value=6.0, value=2.0, step=0.5, key="tr_pt_size")
                 with c_tr3:
-                    tr_grid_cols = st.selectbox("Grid Columns:", [1, 2, 3, 4], index=2, key="tr_grid_cols")
+                    tr_grid_cols = st.selectbox("Grid Columns:", [1, 2, 3, 4, 5, 6], index=2, key="tr_grid_cols")
                 with c_tr4:
+                    tr_grid_rows = st.selectbox("Grid Rows:", ["Auto", 1, 2, 3, 4, 5, 6], index=0, key="tr_grid_rows")
+                with c_tr5:
                     show_densities = st.checkbox("Show Density by Sample", value=True, key="tr_show_dens")
             
             # 1. Trajectory Overview Multi-panel Grid
@@ -2155,8 +2167,11 @@ if app_mode == "Gene Expression UMAP":
                     n_sub_samples = len(samples_list)
                     
                     total_tr_plots = 2 + (1 if show_densities else 0) + n_sub_samples
-                    n_tr_cols = tr_grid_cols
-                    n_tr_rows = (total_tr_plots + n_tr_cols - 1) // n_tr_cols
+                    n_tr_cols = int(tr_grid_cols)
+                    if tr_grid_rows == "Auto" or tr_grid_rows is None:
+                        n_tr_rows = (total_tr_plots + n_tr_cols - 1) // n_tr_cols
+                    else:
+                        n_tr_rows = int(tr_grid_rows)
                     
                     fig_tr, axes_tr = plt.subplots(n_tr_rows, n_tr_cols, figsize=(5.2 * n_tr_cols, 4.6 * n_tr_rows))
                     axes_tr_flat = axes_tr.flatten() if hasattr(axes_tr, 'flatten') else [axes_tr]
@@ -2178,14 +2193,7 @@ if app_mode == "Gene Expression UMAP":
                     # Plot 2: Cell States
                     ax2 = axes_tr_flat[1]
                     if selected_col:
-                        categories = adata.obs[selected_col].cat.categories.tolist() if hasattr(adata.obs[selected_col], "cat") else sorted(adata.obs[selected_col].dropna().unique().tolist())
-                        color_key = f"{selected_col}_colors"
-                        if color_key in adata.uns:
-                            colors = list(adata.uns[color_key])
-                        else:
-                            cmap = plt.get_cmap('tab20')
-                            colors = [matplotlib.colors.to_hex(cmap(i % 20)) for i in range(len(categories))]
-                        color_map = dict(zip(categories, colors))
+                        color_map, categories = get_cluster_color_map(adata, selected_col)
                         for cat in categories:
                             mask = adata.obs[selected_col] == cat
                             ax2.scatter(umap_xy[mask, 0], umap_xy[mask, 1], label=cat, color=color_map.get(cat, "#7f8c8d"), s=tr_pt_size, alpha=0.8)
@@ -2221,26 +2229,27 @@ if app_mode == "Gene Expression UMAP":
                         
                     # Split Subplots per Sample
                     for idx, sample in enumerate(samples_list):
-                        ax_s = axes_tr_flat[curr_plot_idx]
-                        curr_plot_idx += 1
-                        mask = adata.obs[sample_col] == sample
-                        bg_x = umap_xy[~mask, 0]
-                        bg_y = umap_xy[~mask, 1]
-                        ax_s.scatter(bg_x, bg_y, color='lightgrey', s=0.5, alpha=0.25)
-                        
-                        sub_pt = pt_vals[mask]
-                        sub_coords = umap_xy[mask]
-                        sub_sort = np.argsort(sub_pt)
-                        sc_sub = ax_s.scatter(sub_coords[sub_sort, 0], sub_coords[sub_sort, 1], c=sub_pt[sub_sort], cmap=tr_cmap, s=tr_pt_size, alpha=0.85, vmin=0, vmax=1)
-                        ax_s.set_title(f"{sample} ({selected_pt_col})", fontsize=11.5, fontweight='bold')
-                        ax_s.set_xlabel("UMAP 1", fontsize=10)
-                        ax_s.set_ylabel("UMAP 2", fontsize=10)
-                        ax_s.set_xlim(tu_xlim)
-                        ax_s.set_ylim(tu_ylim)
-                        ax_s.set_aspect("equal", adjustable="box")
-                        ax_s.tick_params(axis='both', which='major', labelsize=9.5)
-                        cb_s = fig_tr.colorbar(sc_sub, ax=ax_s)
-                        cb_s.ax.tick_params(labelsize=9)
+                        if curr_plot_idx < len(axes_tr_flat):
+                            ax_s = axes_tr_flat[curr_plot_idx]
+                            curr_plot_idx += 1
+                            mask = adata.obs[sample_col] == sample
+                            bg_x = umap_xy[~mask, 0]
+                            bg_y = umap_xy[~mask, 1]
+                            ax_s.scatter(bg_x, bg_y, color='lightgrey', s=0.5, alpha=0.25)
+                            
+                            sub_pt = pt_vals[mask]
+                            sub_coords = umap_xy[mask]
+                            sub_sort = np.argsort(sub_pt)
+                            sc_sub = ax_s.scatter(sub_coords[sub_sort, 0], sub_coords[sub_sort, 1], c=sub_pt[sub_sort], cmap=tr_cmap, s=tr_pt_size, alpha=0.85, vmin=0, vmax=1)
+                            ax_s.set_title(f"{sample} ({selected_pt_col})", fontsize=11.5, fontweight='bold')
+                            ax_s.set_xlabel("UMAP 1", fontsize=10)
+                            ax_s.set_ylabel("UMAP 2", fontsize=10)
+                            ax_s.set_xlim(tu_xlim)
+                            ax_s.set_ylim(tu_ylim)
+                            ax_s.set_aspect("equal", adjustable="box")
+                            ax_s.tick_params(axis='both', which='major', labelsize=9.5)
+                            cb_s = fig_tr.colorbar(sc_sub, ax=ax_s)
+                            cb_s.ax.tick_params(labelsize=9)
                         
                     for extra in range(curr_plot_idx, len(axes_tr_flat)):
                         axes_tr_flat[extra].axis('off')
@@ -2249,60 +2258,110 @@ if app_mode == "Gene Expression UMAP":
                     st.pyplot(fig_tr)
                     plt.close(fig_tr)
             
-            # 2. Gene Expression Dynamics along Pseudotime (Interactive Drawing Studio)
+            # 2. Dynamic Feature Kinetics along Pseudotime (Unified Genes & Pathway Scores Studio)
             st.markdown("---")
-            st.markdown("### 📈 Dynamic Gene Expression along Pseudotime")
-            st.caption(f"ℹ️ Plot continuous gene expression kinetics along **{pt_label_str}** across cohorts and cell states.")
+            st.markdown("### 📈 Dynamic Gene & Pathway Kinetics along Pseudotime")
+            st.caption(f"ℹ️ Plot continuous gene expression and pathway/signature score kinetics along **{pt_label_str}** across cohorts.")
             
+            # Build unified feature options: Scores + Signatures + Genes
+            obs_scores = [c for c in adata.obs.columns if (c.startswith('score_') or 'score' in c.lower()) and pd.api.types.is_numeric_dtype(adata.obs[c])]
+            score_labels = [f"Score: {c.replace('score_', '').replace('_', ' ')}" for c in obs_scores]
+            score_col_map = dict(zip(score_labels, obs_scores))
+            
+            sig_labels = [f"Sig: {s}" for s in DEFAULT_SIGNATURES.keys()] if 'DEFAULT_SIGNATURES' in globals() or 'DEFAULT_SIGNATURES' in locals() else []
+            gene_labels = display_options[1:]
+            
+            all_feature_options = score_labels + sig_labels + gene_labels
+            
+            # Helper function to extract array and labels for any selected feature (gene or score or signature)
+            def get_feature_kinetics_data(feat_name):
+                if feat_name in score_col_map:
+                    col_name = score_col_map[feat_name]
+                    vals = adata.obs[col_name].values
+                    clean_title = feat_name.replace("Score: ", "") + " Score"
+                    y_lbl = f"{clean_title} (Module Score)"
+                    return vals, clean_title, y_lbl
+                elif feat_name.startswith("Sig: "):
+                    sig_name = feat_name.replace("Sig: ", "")
+                    sig_genes = DEFAULT_SIGNATURES.get(sig_name, [])
+                    sig_vars = [resolve_gene_var_name(adata, g, sym_to_display, display_to_var) for g in sig_genes]
+                    sig_vars = [v for v in sig_vars if v and v in adata.var_names]
+                    if sig_vars:
+                        if scipy.sparse.issparse(adata.X):
+                            sub_m = adata[:, sig_vars].X.toarray()
+                        else:
+                            sub_m = adata[:, sig_vars].X
+                        vals = np.mean(sub_m, axis=1)
+                    else:
+                        vals = np.zeros(adata.n_obs)
+                    clean_title = sig_name + " Signature"
+                    y_lbl = f"{clean_title} (Mean Expr)"
+                    return vals, clean_title, y_lbl
+                else:
+                    # Gene
+                    var_g = resolve_gene_var_name(adata, feat_name, sym_to_display, display_to_var)
+                    clean_g_sym = feat_name.split(" (")[0]
+                    if var_g and var_g in adata.var_names:
+                        if scipy.sparse.issparse(adata.X):
+                            raw_g = adata[:, var_g].X.toarray().flatten()
+                        else:
+                            raw_g = adata[:, var_g].X.flatten()
+                        vals = np.log2(raw_g + 1) if use_log2 else raw_g
+                    else:
+                        vals = np.zeros(adata.n_obs)
+                    clean_title = clean_g_sym
+                    y_lbl = f"Expression ({chosen_scale_label})"
+                    return vals, clean_title, y_lbl
+
             with st.expander("⚙️ Dynamic Drawing Controls & Layout", expanded=True):
-                c_mode, c_win, c_gcols, c_scat = st.columns([1.4, 1.1, 0.9, 1.1])
+                c_mode, c_win, c_gcols, c_grows, c_scat = st.columns([1.3, 1.0, 0.8, 0.8, 1.1])
                 with c_mode:
-                    traj_plot_mode = st.radio("Display Mode:", ["Multi-Gene Kinetics Grid", "Single Gene (Samples & Cell States)"], horizontal=True, key="traj_plot_mode")
+                    traj_plot_mode = st.radio("Display Mode:", ["Multi-Feature Kinetics Grid", "Single Feature (Samples & Cell States)"], horizontal=True, key="traj_plot_mode")
                 with c_win:
                     traj_smooth_window = st.slider("Smoothing Window (Cells):", min_value=10, max_value=400, value=80, step=10, key="traj_smooth_win")
                 with c_gcols:
-                    mg_grid_cols = st.selectbox("Grid Columns:", [1, 2, 3, 4], index=1, key="mg_grid_cols")
+                    mg_grid_cols = st.selectbox("Grid Columns:", [1, 2, 3, 4, 5, 6], index=1, key="mg_grid_cols")
+                with c_grows:
+                    mg_grid_rows = st.selectbox("Grid Rows:", ["Auto", 1, 2, 3, 4, 5, 6], index=0, key="mg_grid_rows")
                 with c_scat:
                     traj_show_scatter = st.checkbox("Show Single-Cell Scatter Points", value=False, key="traj_show_scat")
                     
-            if traj_plot_mode == "Multi-Gene Kinetics Grid":
-                # Multi-gene selection
-                default_genes = [g for g in ["COL17A1", "KRT14", "AREG", "KRT10", "FLG", "MKI67", "PCNA", "CXCL14", "CCL2", "IL1R2"] if g in sym_to_display]
-                default_disp = [sym_to_display[g] for g in default_genes if g in sym_to_display]
+            if traj_plot_mode == "Multi-Feature Kinetics Grid":
+                # Default selection (mix of key genes + stratum scores)
+                def_genes = [g for g in ["COL17A1", "KRT14", "AREG", "KRT10"] if g in sym_to_display]
+                default_disp = [sym_to_display[g] for g in def_genes if g in sym_to_display]
+                if score_labels:
+                    default_disp.extend(score_labels[:2])
                 if not default_disp:
-                    default_disp = display_options[1:5] if len(display_options) > 5 else display_options[1:]
+                    default_disp = all_feature_options[:4]
                     
-                selected_multi_genes = st.multiselect(
-                    "Select Genes to Compare along Pseudotime:",
-                    options=display_options[1:],
+                selected_multi_features = st.multiselect(
+                    "Select Genes and/or Pathway Scores to Compare along Pseudotime:",
+                    options=all_feature_options,
                     default=default_disp[:4],
-                    key="traj_multi_genes"
+                    key="traj_multi_features"
                 )
                 
-                if selected_multi_genes:
-                    with st.spinner("Generating multi-gene trajectory kinetics..."):
-                        n_mg = len(selected_multi_genes)
-                        n_cols_mg = mg_grid_cols
-                        n_rows_mg = (n_mg + n_cols_mg - 1) // n_cols_mg
+                if selected_multi_features:
+                    with st.spinner("Generating multi-feature trajectory kinetics..."):
+                        n_mg = len(selected_multi_features)
+                        n_cols_mg = int(mg_grid_cols)
+                        if mg_grid_rows == "Auto" or mg_grid_rows is None:
+                            n_rows_mg = (n_mg + n_cols_mg - 1) // n_cols_mg
+                        else:
+                            n_rows_mg = int(mg_grid_rows)
                         
                         fig_mg, axes_mg = plt.subplots(n_rows_mg, n_cols_mg, figsize=(6.8 * n_cols_mg, 4.6 * n_rows_mg), dpi=200)
                         axes_mg_flat = axes_mg.flatten() if hasattr(axes_mg, 'flatten') else [axes_mg]
                         
-                        for idx_g, g_disp in enumerate(selected_multi_genes):
-                            ax_g = axes_mg_flat[idx_g]
-                            var_g = resolve_gene_var_name(adata, g_disp, sym_to_display, display_to_var)
-                            clean_g_sym = g_disp.split(" (")[0]
-                            
-                            if var_g and var_g in adata.var_names:
-                                if scipy.sparse.issparse(adata.X):
-                                    raw_g = adata[:, var_g].X.toarray().flatten()
-                                else:
-                                    raw_g = adata[:, var_g].X.flatten()
-                                    
-                                expr_g = np.log2(raw_g + 1) if use_log2 else raw_g
+                        for idx_g, feat_name in enumerate(selected_multi_features):
+                            if idx_g < len(axes_mg_flat):
+                                ax_g = axes_mg_flat[idx_g]
+                                feat_vals, clean_feat_title, feat_y_lbl = get_feature_kinetics_data(feat_name)
+                                
                                 df_g = pd.DataFrame({
                                     "Pseudotime": adata.obs[selected_pt_col].values,
-                                    "Expression": expr_g,
+                                    "Value": feat_vals,
                                     "Sample": adata.obs[sample_col].astype(str) if (sample_col and sample_col in adata.obs.columns) else "All"
                                 }).dropna(subset=["Pseudotime"]).sort_values("Pseudotime")
                                 
@@ -2313,15 +2372,15 @@ if app_mode == "Gene Expression UMAP":
                                             if len(df_gs) > 10:
                                                 s_col = sample_color_map.get(s, "#3498db")
                                                 if traj_show_scatter:
-                                                    ax_g.scatter(df_gs["Pseudotime"], df_gs["Expression"], color=s_col, s=1.2, alpha=0.2)
-                                                num_gs = df_gs[['Pseudotime', 'Expression']].copy()
+                                                    ax_g.scatter(df_gs["Pseudotime"], df_gs["Value"], color=s_col, s=1.2, alpha=0.2)
+                                                num_gs = df_gs[['Pseudotime', 'Value']].copy()
                                                 roll_win = max(min(traj_smooth_window, len(df_gs)//2), 5)
-                                                df_gs_roll = num_gs.rolling(window=roll_win, min_periods=5)['Expression'].mean()
+                                                df_gs_roll = num_gs.rolling(window=roll_win, min_periods=5)['Value'].mean()
                                                 ax_g.plot(df_gs["Pseudotime"], df_gs_roll, label=s, color=s_col, lw=2.8)
                                                 
-                                ax_g.set_title(f"{clean_g_sym} along Pseudotime", fontsize=13, fontweight='bold')
+                                ax_g.set_title(f"{clean_feat_title} along Pseudotime", fontsize=13, fontweight='bold')
                                 ax_g.set_xlabel(pt_label_str, fontsize=11, fontweight='bold')
-                                ax_g.set_ylabel(f"Expression ({chosen_scale_label})", fontsize=11)
+                                ax_g.set_ylabel(feat_y_lbl, fontsize=11)
                                 ax_g.tick_params(axis='both', which='major', labelsize=10)
                                 ax_g.grid(True, linestyle=':', alpha=0.5)
                                 ax_g.legend(title="Cohort", fontsize=9.5, frameon=True, facecolor='white', framealpha=0.9)
@@ -2333,187 +2392,73 @@ if app_mode == "Gene Expression UMAP":
                         st.pyplot(fig_mg)
                         plt.close(fig_mg)
                 else:
-                    st.info("Please select at least one gene to display.")
+                    st.info("Please select at least one gene or pathway score to display.")
                     
             else:
-                # Single-gene detailed dual view
+                # Single-feature detailed dual view (works for any gene or score)
                 c_sg1, c_sg2 = st.columns([2, 1])
                 with c_sg1:
-                    traj_gene_choice = st.selectbox(
-                        "Select Gene for Trajectory Plot:", 
-                        display_options[1:], 
-                        index=display_options[1:].index(st.session_state.selected_gene_display) if st.session_state.selected_gene_display in display_options[1:] else 0,
-                        key="traj_gene_sel"
+                    traj_feat_choice = st.selectbox(
+                        "Select Gene or Pathway Score for Trajectory Plot:", 
+                        all_feature_options, 
+                        index=all_feature_options.index(st.session_state.selected_gene_display) if st.session_state.selected_gene_display in all_feature_options else 0,
+                        key="traj_single_feat"
                     )
                     
-                resolved_traj_var = resolve_gene_var_name(adata, traj_gene_choice, sym_to_display, display_to_var)
-                
-                if resolved_traj_var and resolved_traj_var in adata.var_names:
-                    with st.spinner("Plotting gene dynamics along pseudotime..."):
-                        if scipy.sparse.issparse(adata.X):
-                            g_raw = adata[:, resolved_traj_var].X.toarray().flatten()
-                        else:
-                            g_raw = adata[:, resolved_traj_var].X.flatten()
-                        g_vals = np.log2(g_raw + 1) if use_log2 else g_raw
-                        clean_traj_sym = traj_gene_choice.split(" (")[0]
-                        
-                        df_traj = pd.DataFrame({
-                            "Pseudotime": adata.obs[selected_pt_col].values,
-                            "Expression": g_vals,
-                            "Sample": adata.obs[sample_col].astype(str) if (sample_col and sample_col in adata.obs.columns) else "All",
-                            "Cell State": adata.obs[selected_col].astype(str) if (selected_col and selected_col in adata.obs.columns) else "All"
-                        }).dropna(subset=["Pseudotime"]).sort_values("Pseudotime")
-                        
-                        fig_dyn, (ax_dyn1, ax_dyn2) = plt.subplots(1, 2, figsize=(14, 5.0), dpi=200)
-                        
-                        # Subplot 1: Split by Condition / Sample
-                        if sample_col and sample_col in adata.obs.columns:
-                            for s in ordered_samples:
-                                if s in df_traj["Sample"].values:
-                                    df_s = df_traj[df_traj["Sample"] == s]
-                                    if len(df_s) > 10:
-                                        s_col = sample_color_map.get(s, "#3498db")
-                                        if traj_show_scatter:
-                                            ax_dyn1.scatter(df_s["Pseudotime"], df_s["Expression"], color=s_col, s=1.5, alpha=0.25)
-                                        num_s = df_s[['Pseudotime', 'Expression']].copy()
-                                        roll_win = max(min(traj_smooth_window, len(df_s)//2), 5)
-                                        df_s_roll = num_s.rolling(window=roll_win, min_periods=5)['Expression'].mean()
-                                        ax_dyn1.plot(df_s["Pseudotime"], df_s_roll, label=s, color=s_col, lw=2.8)
-                        ax_dyn1.set_title(f"{clean_traj_sym} Kinetics by Sample", fontsize=12.5, fontweight='bold')
-                        ax_dyn1.set_xlabel(pt_label_str, fontsize=11, fontweight='bold')
-                        ax_dyn1.set_ylabel(f"{clean_traj_sym} Expression ({chosen_scale_label})", fontsize=11)
-                        ax_dyn1.tick_params(axis='both', which='major', labelsize=10)
-                        ax_dyn1.legend(title="Cohort", fontsize=10, frameon=True, facecolor='white', framealpha=0.9)
-                        ax_dyn1.grid(True, linestyle=':', alpha=0.5)
-                        
-                        # Subplot 2: Split by Cell State / Global Trend
-                        if selected_col and selected_col in adata.obs.columns:
-                            categories = adata.obs[selected_col].cat.categories.tolist() if hasattr(adata.obs[selected_col], "cat") else sorted(adata.obs[selected_col].dropna().unique().tolist())
-                            if traj_show_scatter:
-                                for cat in categories:
-                                    df_c = df_traj[df_traj["Cell State"] == cat]
-                                    if len(df_c) > 0:
-                                        ax_dyn2.scatter(df_c["Pseudotime"], df_c["Expression"], label=cat, color=color_map.get(cat, "#7f8c8d"), s=2.0, alpha=0.45)
-                        num_glob = df_traj[['Pseudotime', 'Expression']].copy()
-                        df_glob_roll = num_glob.rolling(window=max(traj_smooth_window, 10), min_periods=5)['Expression'].mean()
-                        ax_dyn2.plot(df_traj["Pseudotime"], df_glob_roll, color="black", lw=3.2, label="Global Trend", ls="--")
-                        ax_dyn2.set_title(f"{clean_traj_sym} Kinetics by Cell State", fontsize=12.5, fontweight='bold')
-                        ax_dyn2.set_xlabel(pt_label_str, fontsize=11, fontweight='bold')
-                        ax_dyn2.set_ylabel(f"{clean_traj_sym} Expression ({chosen_scale_label})", fontsize=11)
-                        ax_dyn2.tick_params(axis='both', which='major', labelsize=10)
-                        ax_dyn2.legend(title="Cell State / Trend", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=4, fontsize=9.0, frameon=False)
-                        ax_dyn2.grid(True, linestyle=':', alpha=0.5)
-                        
-                        plt.tight_layout()
-                        st.pyplot(fig_dyn)
-                        plt.close(fig_dyn)
-            
-            # 3. Dynamic Pathway & Signature Scores along Pseudotime
-            st.markdown("---")
-            st.markdown("### 🧬 Dynamic Pathway & Signature Scores along Pseudotime")
-            st.caption(f"ℹ️ Evaluate multi-gene module, pathway, and stratum signature kinetics along **{pt_label_str}** across cohorts.")
-            
-            # Detect available scores in adata.obs and DEFAULT_SIGNATURES
-            obs_scores = [c for c in adata.obs.columns if (c.startswith('score_') or 'score' in c.lower()) and pd.api.types.is_numeric_dtype(adata.obs[c])]
-            available_signatures = list(DEFAULT_SIGNATURES.keys()) if 'DEFAULT_SIGNATURES' in globals() or 'DEFAULT_SIGNATURES' in locals() else []
-            
-            all_score_options = obs_scores + [f"Sig: {s}" for s in available_signatures if s not in obs_scores]
-            
-            if not all_score_options:
-                st.info("ℹ️ No precomputed pathway scores found in this dataset. You can compute gene signatures in Tab 4 (Signature Scoring).")
-            else:
-                with st.expander("⚙️ Pathway Score Plot Controls & Layout", expanded=True):
-                    c_pw1, c_pw2, c_pw3 = st.columns([1.5, 1.0, 1.2])
-                    with c_pw1:
-                        pw_smooth_window = st.slider("Score Smoothing Window (Cells):", min_value=10, max_value=400, value=80, step=10, key="pw_smooth_win")
-                    with c_pw2:
-                        pw_grid_cols = st.selectbox("Score Grid Columns:", [1, 2, 3, 4], index=1, key="pw_grid_cols")
-                    with c_pw3:
-                        pw_show_scatter = st.checkbox("Show Single-Cell Score Points", value=False, key="pw_show_scat")
-                
-                # Default selected scores
-                def_scores = [s for s in ["score_Basal_1", "score_Basal_2", "score_Spinous", "score_Granular", "score_Mitotic", "score_WNTI_Bulge"] if s in all_score_options]
-                if not def_scores and all_score_options:
-                    def_scores = all_score_options[:4]
+                with st.spinner("Plotting feature dynamics along pseudotime..."):
+                    single_vals, single_title, single_y_lbl = get_feature_kinetics_data(traj_feat_choice)
                     
-                selected_pw_scores = st.multiselect(
-                    "Select Pathway / Module Scores to Plot along Pseudotime:",
-                    options=all_score_options,
-                    default=def_scores[:4],
-                    key="traj_pathway_scores"
-                )
-                
-                if selected_pw_scores:
-                    with st.spinner("Rendering pathway score kinetics along pseudotime..."):
-                        n_pw = len(selected_pw_scores)
-                        n_cols_pw = pw_grid_cols
-                        n_rows_pw = (n_pw + n_cols_pw - 1) // n_cols_pw
-                        
-                        fig_pw, axes_pw = plt.subplots(n_rows_pw, n_cols_pw, figsize=(6.8 * n_cols_pw, 4.6 * n_rows_pw), dpi=200)
-                        axes_pw_flat = axes_pw.flatten() if hasattr(axes_pw, 'flatten') else [axes_pw]
-                        
-                        for idx_s, score_item in enumerate(selected_pw_scores):
-                            ax_pw = axes_pw_flat[idx_s]
-                            
-                            # Retrieve or compute score values
-                            if score_item in adata.obs.columns:
-                                s_vals = adata.obs[score_item].values
-                                clean_title = score_item.replace('score_', '').replace('_', ' ') + " Score"
-                            elif score_item.startswith("Sig: "):
-                                sig_real_name = score_item.replace("Sig: ", "")
-                                sig_genes = DEFAULT_SIGNATURES.get(sig_real_name, [])
-                                sig_vars = [resolve_gene_var_name(adata, g, sym_to_display, display_to_var) for g in sig_genes]
-                                sig_vars = [v for v in sig_vars if v and v in adata.var_names]
-                                if sig_vars:
-                                    if scipy.sparse.issparse(adata.X):
-                                        sub_m = adata[:, sig_vars].X.toarray()
-                                    else:
-                                        sub_m = adata[:, sig_vars].X
-                                    s_vals = np.mean(sub_m, axis=1)
-                                    clean_title = sig_real_name + " Signature"
-                                else:
-                                    s_vals = np.zeros(adata.n_obs)
-                                    clean_title = sig_real_name
-                            else:
-                                s_vals = np.zeros(adata.n_obs)
-                                clean_title = score_item
-                                
-                            df_pw = pd.DataFrame({
-                                "Pseudotime": adata.obs[selected_pt_col].values,
-                                "Score": s_vals,
-                                "Sample": adata.obs[sample_col].astype(str) if (sample_col and sample_col in adata.obs.columns) else "All"
-                            }).dropna(subset=["Pseudotime"]).sort_values("Pseudotime")
-                            
-                            if sample_col and sample_col in adata.obs.columns:
-                                for s in ordered_samples:
-                                    if s in df_pw["Sample"].values:
-                                        df_pws = df_pw[df_pw["Sample"] == s]
-                                        if len(df_pws) > 10:
-                                            s_col = sample_color_map.get(s, "#3498db")
-                                            if pw_show_scatter:
-                                                ax_pw.scatter(df_pws["Pseudotime"], df_pws["Score"], color=s_col, s=1.2, alpha=0.2)
-                                            num_pws = df_pws[['Pseudotime', 'Score']].copy()
-                                            roll_win = max(min(pw_smooth_window, len(df_pws)//2), 5)
-                                            df_pws_roll = num_pws.rolling(window=roll_win, min_periods=5)['Score'].mean()
-                                            ax_pw.plot(df_pws["Pseudotime"], df_pws_roll, label=s, color=s_col, lw=2.8)
-                                            
-                            ax_pw.set_title(f"{clean_title} along Pseudotime", fontsize=13, fontweight='bold')
-                            ax_pw.set_xlabel(pt_label_str, fontsize=11, fontweight='bold')
-                            ax_pw.set_ylabel(f"{clean_title}", fontsize=11)
-                            ax_pw.tick_params(axis='both', which='major', labelsize=10)
-                            ax_pw.grid(True, linestyle=':', alpha=0.5)
-                            ax_pw.legend(title="Cohort", fontsize=9.5, frameon=True, facecolor='white', framealpha=0.9)
-                            
-                        for extra in range(n_pw, len(axes_pw_flat)):
-                            axes_pw_flat[extra].axis('off')
-                            
-                        plt.tight_layout()
-                        st.pyplot(fig_pw)
-                        plt.close(fig_pw)
-                else:
-                    st.info("Please select at least one pathway/signature score to display.")
-
-
+                    df_traj = pd.DataFrame({
+                        "Pseudotime": adata.obs[selected_pt_col].values,
+                        "Value": single_vals,
+                        "Sample": adata.obs[sample_col].astype(str) if (sample_col and sample_col in adata.obs.columns) else "All",
+                        "Cell State": adata.obs[selected_col].astype(str) if (selected_col and selected_col in adata.obs.columns) else "All"
+                    }).dropna(subset=["Pseudotime"]).sort_values("Pseudotime")
+                    
+                    fig_dyn, (ax_dyn1, ax_dyn2) = plt.subplots(1, 2, figsize=(14, 5.0), dpi=200)
+                    
+                    # Subplot 1: Split by Condition / Sample
+                    if sample_col and sample_col in adata.obs.columns:
+                        for s in ordered_samples:
+                            if s in df_traj["Sample"].values:
+                                df_s = df_traj[df_traj["Sample"] == s]
+                                if len(df_s) > 10:
+                                    s_col = sample_color_map.get(s, "#3498db")
+                                    if traj_show_scatter:
+                                        ax_dyn1.scatter(df_s["Pseudotime"], df_s["Value"], color=s_col, s=1.5, alpha=0.25)
+                                    num_s = df_s[['Pseudotime', 'Value']].copy()
+                                    roll_win = max(min(traj_smooth_window, len(df_s)//2), 5)
+                                    df_s_roll = num_s.rolling(window=roll_win, min_periods=5)['Value'].mean()
+                                    ax_dyn1.plot(df_s["Pseudotime"], df_s_roll, label=s, color=s_col, lw=2.8)
+                    ax_dyn1.set_title(f"{single_title} Kinetics by Sample", fontsize=12.5, fontweight='bold')
+                    ax_dyn1.set_xlabel(pt_label_str, fontsize=11, fontweight='bold')
+                    ax_dyn1.set_ylabel(single_y_lbl, fontsize=11)
+                    ax_dyn1.tick_params(axis='both', which='major', labelsize=10)
+                    ax_dyn1.legend(title="Cohort", fontsize=10, frameon=True, facecolor='white', framealpha=0.9)
+                    ax_dyn1.grid(True, linestyle=':', alpha=0.5)
+                    
+                    # Subplot 2: Split by Cell State / Global Trend
+                    if selected_col and selected_col in adata.obs.columns:
+                        categories = adata.obs[selected_col].cat.categories.tolist() if hasattr(adata.obs[selected_col], "cat") else sorted(adata.obs[selected_col].dropna().unique().tolist())
+                        if traj_show_scatter:
+                            for cat in categories:
+                                df_c = df_traj[df_traj["Cell State"] == cat]
+                                if len(df_c) > 0:
+                                    ax_dyn2.scatter(df_c["Pseudotime"], df_c["Value"], label=cat, color=color_map.get(cat, "#7f8c8d"), s=2.0, alpha=0.45)
+                    num_glob = df_traj[['Pseudotime', 'Value']].copy()
+                    df_glob_roll = num_glob.rolling(window=max(traj_smooth_window, 10), min_periods=5)['Value'].mean()
+                    ax_dyn2.plot(df_traj["Pseudotime"], df_glob_roll, color="black", lw=3.2, label="Global Trend", ls="--")
+                    ax_dyn2.set_title(f"{single_title} Kinetics by Cell State", fontsize=12.5, fontweight='bold')
+                    ax_dyn2.set_xlabel(pt_label_str, fontsize=11, fontweight='bold')
+                    ax_dyn2.set_ylabel(single_y_lbl, fontsize=11)
+                    ax_dyn2.tick_params(axis='both', which='major', labelsize=10)
+                    ax_dyn2.legend(title="Cell State / Trend", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=4, fontsize=9.0, frameon=False)
+                    ax_dyn2.grid(True, linestyle=':', alpha=0.5)
+                    
+                    plt.tight_layout()
+                    st.pyplot(fig_dyn)
+                    plt.close(fig_dyn)
+            
             # 3. Precomputed Pipeline Trajectory Figures Gallery
             data_folder = os.path.dirname(h5ad_path)
             traj_pngs = [f for f in sorted(os.listdir(data_folder)) if f.endswith('.png') and any(k in f.lower() for k in ['trajectory', 'pseudotime', 'paga'])] if os.path.exists(data_folder) else []
