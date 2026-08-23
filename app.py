@@ -2235,7 +2235,7 @@ if app_mode == "Gene Expression UMAP":
                 with st.expander("🖼️ View Pre-computed Pipeline Trajectory & PAGA Figures", expanded=False):
                     sel_fig = st.selectbox("Select Precomputed Figure:", traj_pngs)
                     full_fig_path = sel_fig if os.path.isabs(sel_fig) else os.path.join(data_folder, sel_fig)
-                    st.image(full_fig_path, caption=os.path.basename(full_fig_path), use_column_width=True)
+                    st.image(full_fig_path, caption=os.path.basename(full_fig_path), use_container_width=True)
 
 # ----------------- PAGE 2: MARKER EDITOR -----------------
 elif app_mode == "Cell-Type Marker Editor":
