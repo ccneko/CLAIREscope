@@ -1123,14 +1123,14 @@ if app_mode == "Gene Expression UMAP":
                     num_s = len(selected_comp_samples)
                     if num_s <= 4:
                         n_rows, n_cols = 1, num_s
-                        donut_height = 480
+                        donut_height = 520
                     else:
                         n_cols = min(num_s, 3)
                         n_rows = (num_s + n_cols - 1) // n_cols
-                        donut_height = 250 * n_rows
+                        donut_height = 270 * n_rows
                         
                     donut_specs = [[{"type": "domain"} for _ in range(n_cols)] for _ in range(n_rows)]
-                    subplot_titles = [f"<b>{s}</b><br><sub>Total: {sample_totals[s]:,} cells</sub>" for s in selected_comp_samples]
+                    subplot_titles = [f"<b>{s}</b><br><span style='font-size: 13px; color: #64748b;'>Total: {sample_totals[s]:,} cells</span>" for s in selected_comp_samples]
                     
                     fig_donuts = make_subplots(
                         rows=n_rows, cols=n_cols,
@@ -1149,13 +1149,16 @@ if app_mode == "Gene Expression UMAP":
                             go.Pie(
                                 labels=categories,
                                 values=s_counts,
-                                hole=0.55,
+                                hole=0.48,
                                 marker=dict(
                                     colors=[color_map.get(c, "#7f8c8d") for c in categories],
                                     line=dict(color='#FFFFFF', width=1.5)
                                 ),
                                 textinfo='percent' if show_donut_pct else 'none',
                                 textposition='inside',
+                                insidetextfont=dict(size=18, family="Segoe UI, Arial, sans-serif", color="#FFFFFF"),
+                                textfont=dict(size=18, family="Segoe UI, Arial, sans-serif"),
+                                insidetextorientation='horizontal',
                                 hovertemplate='<b>%{label}</b><br>Sample: ' + s + '<br>Count: %{value:,} cells<br>Percentage: %{percent}<extra></extra>',
                                 showlegend=False,
                                 sort=False
@@ -1166,8 +1169,13 @@ if app_mode == "Gene Expression UMAP":
                     fig_donuts.update_layout(
                         template='plotly_white',
                         height=donut_height,
-                        margin=dict(l=10, r=10, t=50, b=10)
+                        margin=dict(l=10, r=10, t=65, b=10),
+                        uniformtext_minsize=14,
+                        uniformtext_mode='hide',
+                        hoverlabel=dict(font_size=14)
                     )
+                    for annotation in fig_donuts['layout']['annotations']:
+                        annotation['font'] = dict(size=18, family="Segoe UI, Arial, sans-serif", color="#1e293b")
                     st.plotly_chart(fig_donuts, use_container_width=True)
                     
                 with st.expander("📊 View Composition Data Tables & Export"):
