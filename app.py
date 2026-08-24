@@ -983,7 +983,7 @@ if app_mode == "Gene Expression UMAP":
                 
                 col_f1, col_f2 = st.columns(2)
                 with col_f1:
-                    selected_samples = st.multiselect(
+                    selected_samples = draggable_multiselect(
                         "Filter / Highlight Samples:",
                         options=all_samples,
                         default=all_samples,
@@ -1488,7 +1488,7 @@ if app_mode == "Gene Expression UMAP":
                     include_all_cells = st.checkbox("Include 'All Cells (Global)' as 1st Plot", value=True, key="v_include_all")
                     filter_zeros_v = st.checkbox("Remove Expression = 0 Cells", value=False, help="Restricts violin analysis and statistical testing to expressing cells only (>0).", key="v_filter_zeros")
                 with c_v1:
-                    selected_states_v = st.multiselect("Select Cell States to Include:", options=all_states, default=all_states, key="v_gene_states")
+                    selected_states_v = draggable_multiselect("Select & Reorder Cell States to Include:", options=all_states, default=all_states, key="v_gene_states")
                 with c_v2:
                     plot_ncols = st.selectbox("Subplot Grid Columns:", [2, 3, 4], index=1, key="v_gene_ncols")
                 with c_v3:
@@ -1517,7 +1517,7 @@ if app_mode == "Gene Expression UMAP":
                 pair_options = [f"{p[0]} vs {p[1]}" for p in candidate_pairs]
                 default_pair_strs = [f"{p[0]} vs {p[1]}" for p in valid_default_pairs]
                 
-                selected_pair_strs = st.multiselect("Select Comparison Pairs for Significance Brackets (S1 vs S2):", options=pair_options, default=default_pair_strs, key="v_gene_pairs")
+                selected_pair_strs = draggable_multiselect("Select Comparison Pairs for Significance Brackets (S1 vs S2):", options=pair_options, default=default_pair_strs, key="v_gene_pairs")
                 active_pairs = [tuple(s.split(" vs ")) for s in selected_pair_strs]
 
             plots_to_generate = (["All Cells (Global)"] if include_all_cells else []) + selected_states_v
@@ -1760,7 +1760,7 @@ if app_mode == "Gene Expression UMAP":
                 with c_sv0:
                     include_all_cells_s = st.checkbox("Include 'All Cells (Global)' as 1st Plot", value=True, key="sv_include_all")
                 with c_sv1:
-                    selected_states_sv = st.multiselect("Select Cell States for Scoring Violins:", options=all_states_s, default=all_states_s, key="sv_states")
+                    selected_states_sv = draggable_multiselect("Select & Reorder Cell States for Scoring Violins:", options=all_states_s, default=all_states_s, key="sv_states")
                 with c_sv2:
                     plot_ncols_s = st.selectbox("Subplot Grid Columns:", [2, 3, 4], index=1, key="sv_ncols")
                 with c_sv3:
@@ -1786,7 +1786,7 @@ if app_mode == "Gene Expression UMAP":
                 pair_options_s = [f"{p[0]} vs {p[1]}" for p in candidate_pairs_s]
                 default_pair_strs_s = [f"{p[0]} vs {p[1]}" for p in valid_default_pairs_s]
                 
-                selected_pair_strs_s = st.multiselect("Select Comparison Pairs for Significance Brackets (S1 vs S2):", options=pair_options_s, default=default_pair_strs_s, key="sv_pairs")
+                selected_pair_strs_s = draggable_multiselect("Select Comparison Pairs for Significance Brackets (S1 vs S2):", options=pair_options_s, default=default_pair_strs_s, key="sv_pairs")
                 active_pairs_s = [tuple(s.split(" vs ")) for s in selected_pair_strs_s]
                 
             score_plots_to_generate = (["All Cells (Global)"] if include_all_cells_s else []) + selected_states_sv
@@ -2076,9 +2076,9 @@ if app_mode == "Gene Expression UMAP":
             with st.expander("Scatter Plot Display & Subsetting Options", expanded=True):
                 c_sc1, c_sc2, c_sc3, c_sc4 = st.columns([1.5, 1.5, 1.2, 1.2])
                 with c_sc1:
-                    filter_scat_samples = st.multiselect("Filter Samples:", options=all_scat_samples, default=all_scat_samples, key="scat_filter_s")
+                    filter_scat_samples = draggable_multiselect("Filter & Reorder Samples:", options=all_scat_samples, default=all_scat_samples, key="scat_filter_s")
                 with c_sc2:
-                    filter_scat_states = st.multiselect("Filter Cell States / Populations:", options=all_scat_states, default=all_scat_states, key="scat_filter_st")
+                    filter_scat_states = draggable_multiselect("Filter & Reorder Cell States / Populations:", options=all_scat_states, default=all_scat_states, key="scat_filter_st")
                 with c_sc3:
                     split_mode = st.selectbox("Subplot Layout:", ["Split by Sample", "Split by Cell State", "Single Combined Overlay"], index=0, key="scat_split_mode")
                 with c_sc4:
@@ -2560,8 +2560,8 @@ if app_mode == "Gene Expression UMAP":
                 if not default_disp:
                     default_disp = all_feature_options[:4]
                     
-                selected_multi_features = st.multiselect(
-                    "Select Genes and/or Pathway Scores to Compare along Pseudotime:",
+                selected_multi_features = draggable_multiselect(
+                    "Select & Reorder Features (Genes and/or Pathway Scores) along Pseudotime:",
                     options=all_feature_options,
                     default=default_disp[:4],
                     key="traj_multi_features"
