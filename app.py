@@ -835,16 +835,8 @@ if app_mode == "Gene Expression UMAP":
                 fig_grid.savefig(svg_grid_buf, format="svg", bbox_inches="tight")
                 clean_sym_name = resolved_display_name.split(" (")[0] if resolved_display_name else "gene"
                 
-                c_dl1, c_dl2 = st.columns([1.2, 1.4])
+                c_dl1, c_dl2, _ = st.columns([0.28, 0.28, 0.44])
                 with c_dl1:
-                    st.download_button(
-                        label="📥 Download Grid Plot as SVG",
-                        data=svg_grid_buf.getvalue(),
-                        file_name=f"{selected_dataset_name}_{clean_sym_name}_static_grid.svg",
-                        mime="image/svg+xml",
-                        key="dl_tab1_grid_svg"
-                    )
-                with c_dl2:
                     csv_data_t1 = get_umap_embeddings_csv(adata, sample_col, selected_col, resolved_var_name, resolved_display_name)
                     if csv_data_t1:
                         st.download_button(
@@ -854,6 +846,14 @@ if app_mode == "Gene Expression UMAP":
                             mime="text/csv",
                             key="dl_tab1_umap_csv"
                         )
+                with c_dl2:
+                    st.download_button(
+                        label="📥 Download Grid Plot as SVG",
+                        data=svg_grid_buf.getvalue(),
+                        file_name=f"{selected_dataset_name}_{clean_sym_name}_static_grid.svg",
+                        mime="image/svg+xml",
+                        key="dl_tab1_grid_svg"
+                    )
                 plt.close(fig_grid)
         else:
             st.info("💡 Select or search a gene above from the dropdown to view the expression comparison grid.")
@@ -909,25 +909,8 @@ if app_mode == "Gene Expression UMAP":
                             fig_ref.savefig(svg_c_buf, format="svg", bbox_inches="tight")
                             plt.close(fig_ref)
 
-                    c_r_dl1, c_r_dl2, c_r_dl3 = st.columns([1.2, 1.2, 1.4])
+                    c_r_dl1, c_r_dl2, c_r_dl3, _ = st.columns([0.28, 0.25, 0.25, 0.22])
                     with c_r_dl1:
-                        st.download_button(
-                            label="📥 Download Sample UMAP (SVG)",
-                            data=svg_s_buf.getvalue(),
-                            file_name=f"{selected_dataset_name}_sample_umap.svg",
-                            mime="image/svg+xml",
-                            key="dl_tab1_sample_svg"
-                        )
-                    with c_r_dl2:
-                        if selected_col:
-                            st.download_button(
-                                label="📥 Download Cell State UMAP (SVG)",
-                                data=svg_c_buf.getvalue(),
-                                file_name=f"{selected_dataset_name}_cell_state_umap.svg",
-                                mime="image/svg+xml",
-                                key="dl_tab1_cellstate_svg"
-                            )
-                    with c_r_dl3:
                         csv_data_t1 = get_umap_embeddings_csv(adata, sample_col, selected_col, resolved_var_name, resolved_display_name)
                         if csv_data_t1:
                             st.download_button(
@@ -936,6 +919,23 @@ if app_mode == "Gene Expression UMAP":
                                 file_name=f"{selected_dataset_name}_umap_embeddings.csv",
                                 mime="text/csv",
                                 key="dl_tab1_umap_csv_ref"
+                            )
+                    with c_r_dl2:
+                        st.download_button(
+                            label="📥 Download Sample UMAP (SVG)",
+                            data=svg_s_buf.getvalue(),
+                            file_name=f"{selected_dataset_name}_sample_umap.svg",
+                            mime="image/svg+xml",
+                            key="dl_tab1_sample_svg"
+                        )
+                    with c_r_dl3:
+                        if selected_col:
+                            st.download_button(
+                                label="📥 Download Cell State UMAP (SVG)",
+                                data=svg_c_buf.getvalue(),
+                                file_name=f"{selected_dataset_name}_cell_state_umap.svg",
+                                mime="image/svg+xml",
+                                key="dl_tab1_cellstate_svg"
                             )
             
     # ---------------- TAB 2: INTERACTIVE UMAP ----------------
@@ -1264,13 +1264,15 @@ if app_mode == "Gene Expression UMAP":
             csv_data_t2 = get_umap_embeddings_csv(adata, sample_col, selected_col, resolved_var_name, resolved_display_name)
             if csv_data_t2:
                 st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-                st.download_button(
-                    label="📥 Download UMAP Embeddings (CSV)",
-                    data=csv_data_t2,
-                    file_name=f"{selected_dataset_name}_umap_embeddings.csv",
-                    mime="text/csv",
-                    key="dl_tab2_umap_csv"
-                )
+                c_t2_dl, _ = st.columns([0.28, 0.72])
+                with c_t2_dl:
+                    st.download_button(
+                        label="📥 Download UMAP Embeddings (CSV)",
+                        data=csv_data_t2,
+                        file_name=f"{selected_dataset_name}_umap_embeddings.csv",
+                        mime="text/csv",
+                        key="dl_tab2_umap_csv"
+                    )
 
     # ---------------- TAB 3: SAMPLE COMPOSITION ----------------
     with tab_composition:
