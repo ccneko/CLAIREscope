@@ -546,6 +546,27 @@ if app_mode == "Gene Expression UMAP":
         chosen_vmax = float(custom_vmax)
         chosen_scale_label = "Log2(Norm+1)" if use_log2 else "Linear"
 
+    def rank_cell_state(c):
+        c_low = str(c).lower()
+        if "basal 1" in c_low or "basal_1" in c_low:
+            return (0, c)
+        elif "basal 2" in c_low or "basal_2" in c_low:
+            return (1, c)
+        elif "spinous" in c_low:
+            return (2, c)
+        elif "granular" in c_low:
+            return (3, c)
+        elif "mitotic" in c_low:
+            return (4, c)
+        elif "channel" in c_low:
+            return (5, c)
+        elif "wnti" in c_low or "bulge" in c_low:
+            return (6, c)
+        elif "follicular" in c_low or "sebaceous" in c_low:
+            return (7, c)
+        else:
+            return (8, str(c))
+
     def get_cluster_color_map(adata_obj, col_name):
         if not col_name or col_name not in adata_obj.obs.columns:
             return {}, []
@@ -553,6 +574,9 @@ if app_mode == "Gene Expression UMAP":
             categories = adata_obj.obs[col_name].cat.categories.tolist()
         else:
             categories = sorted(adata_obj.obs[col_name].dropna().unique().tolist())
+            
+        if any("basal" in str(c).lower() or "spinous" in str(c).lower() or "granular" in str(c).lower() for c in categories):
+            categories = sorted(categories, key=rank_cell_state)
         
         color_key = f"{col_name}_colors"
         if col_name == 'predicted_labels':
@@ -571,6 +595,34 @@ if app_mode == "Gene Expression UMAP":
             except Exception:
                 pass
             return pred_map, categories
+
+        if any("basal" in str(c).lower() or "spinous" in str(c).lower() or "granular" in str(c).lower() for c in categories):
+            fixed_palette = {
+                'Basal 1': '#1f77b4',
+                'Basal 2': '#ff7f0e',
+                'Spinous': '#f1c40f',
+                'Granular': '#2ca02c',
+                'Mitotic': '#d62728',
+                'Channel': '#9467bd',
+                'Bulge': '#8c564b',
+                'Follicular': '#e377c2'
+            }
+            colors = []
+            for cat in categories:
+                c_low = str(cat).lower()
+                matched = False
+                for k, v in fixed_palette.items():
+                    if k.lower() in c_low:
+                        colors.append(v)
+                        matched = True
+                        break
+                if not matched:
+                    colors.append('#7f8c8d')
+            try:
+                adata_obj.uns[color_key] = colors
+            except Exception:
+                pass
+            return dict(zip(categories, colors)), categories
 
         if color_key in adata_obj.uns and len(adata_obj.uns[color_key]) >= len(categories):
             colors = list(adata_obj.uns[color_key])[:len(categories)]
@@ -1137,6 +1189,9 @@ if app_mode == "Gene Expression UMAP":
                     bar_metric = st.radio("Stacked Bar Metric:", ["Percentage (%)", "Absolute Counts"], horizontal=True, key="comp_bar_metric")
                 with c_samp_filter:
                     selected_comp_samples = st.multiselect("Select Samples to Display:", options=all_dataset_samples, default=all_dataset_samples, key="comp_samples_filter")
+                    if len(selected_comp_samples) > 1:
+                        with st.expander("↕️ Drag & Drop to Rearrange Sample Order", expanded=False):
+                            selected_comp_samples = sort_items(selected_comp_samples, direction="horizontal", key="drag_sort_comp_samples")
                 with c_donut_opt:
                     show_donut_pct = st.checkbox("Show % in Donut Slices", value=True, key="comp_show_pct")
                     
