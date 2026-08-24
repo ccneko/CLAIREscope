@@ -1,0 +1,57 @@
+site_name: CLAIREscope Documentation
+site_description: Cellular Landscape Analysis, Interpretation & Results Explorer - Single Cell Analysis Viewer
+site_author: Claire Chung, Research Lab A
+repo_url: https://github.com/ccneko/sc-expression-viewer
+repo_name: ccneko/sc-expression-viewer
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: red
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: red
+      accent: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - User Guide:
+      - Overview: user_guide/00_overview.md
+      - Single-Cell Landscapes & Violins: user_guide/01_landscapes_and_violins.md
+      - Trajectory Kinetics Studio: user_guide/02_trajectory_kinetics.md
+      - Differential Expression & Volcano: user_guide/03_differential_expression.md
+      - Expression Heatmap Studio: user_guide/04_expression_heatmaps.md
+      - Pathway Enrichment (ORA): user_guide/05_pathway_enrichment.md
+      - Bulk Export & Config Import: user_guide/06_bulk_export_studio.md
+  - Data & Formats: data_formats.md
+  - Roadmap & Extensibility: roadmap.md
+  - API & Development: developer_guide/architecture.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
