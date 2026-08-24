@@ -136,6 +136,34 @@ matplotlib.rcParams.update({
 # Global Streamlit Typography & Readability CSS
 st.markdown("""
 <style>
+    
+    /* CLAIREscope Brand Typography with !important */
+    .clairescope-title, h1.clairescope-brand {
+        color: #B32141 !important;
+        font-size: 26px !important;
+        font-weight: 800 !important;
+        letter-spacing: -0.5px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    .clairescope-h1-main {
+        color: #B32141 !important;
+        font-size: 2.1rem !important;
+        font-weight: 800 !important;
+        margin-bottom: 8px !important;
+    }
+    .clairescope-badge {
+        background-color: #FDF2F4 !important;
+        color: #B32141 !important;
+        border: 1px solid #F5C6CB !important;
+        padding: 2px 10px !important;
+        border-radius: 12px !important;
+        font-size: 11.5px !important;
+        font-weight: 700 !important;
+        display: inline-block !important;
+        margin-top: 5px !important;
+    }
+
     /* Restore Page Title & Heading Hierarchy */
     h1, div[data-testid="stMarkdownContainer"] h1 {
         font-size: 2.35rem !important;
@@ -337,6 +365,67 @@ def scan_datasets(data_dir):
                     active_datasets[ds_name] = filepath
     return active_datasets, all_datasets
 
+
+# -------------------------------------------------------------
+# CURATED PATHWAYS & FUNCTIONAL GENOMICS ENRICHMENT ENGINE
+# -------------------------------------------------------------
+CURATED_PATHWAY_DB = {
+    "Hallmark: Epithelial Mesenchymal Transition": ["CDH2", "FN1", "VIM", "MMP2", "MMP9", "SNAI1", "SNAI2", "TWIST1", "ZEB1", "ZEB2", "ACTA2", "TGFB1", "COL1A1", "COL3A1"],
+    "Hallmark: G2M Checkpoint / Proliferation": ["MKI67", "TOP2A", "CCNB1", "CCNB2", "CDK1", "AURKA", "AURKB", "PLK1", "CENPE", "CENPF", "UBE2C", "BIRC5", "NUSAP1"],
+    "Hallmark: E2F Targets": ["PCNA", "MCM2", "MCM3", "MCM4", "MCM5", "MCM6", "MCM7", "TYMS", "RRM1", "RRM2", "E2F1", "E2F2", "CDK2"],
+    "Hallmark: TNF-alpha Signaling via NF-kB": ["NFKB1", "NFKB2", "RELA", "RELB", "JUN", "JUNB", "FOS", "FOSB", "IL6", "CXCL8", "TNFAIP3", "NFKBIA", "ICAM1"],
+    "Hallmark: Hypoxia Response": ["HIF1A", "VEGFA", "SLC2A1", "LDHA", "ENO1", "PGK1", "PDK1", "BNIP3", "CA9", "ADM", "DDIT4"],
+    "Hallmark: Inflammatory Response": ["IL1A", "IL1B", "IL6", "CXCL1", "CXCL2", "CXCL3", "CXCL8", "CCL2", "CCL20", "S100A8", "S100A9", "PTGS2"],
+    "Hallmark: Apoptosis": ["CASP3", "CASP7", "CASP8", "CASP9", "BAX", "BAK1", "BCL2L11", "BID", "PMAIP1", "BBC3", "FAS", "FASLG"],
+    "Epidermal: Basal Stem & Hemidesmosome": ["COL17A1", "ITGA6", "ITGB4", "LAMA3", "LAMB3", "LAMC2", "DST", "KRT14", "KRT5", "TP63", "BCAM"],
+    "Epidermal: Suprabasal & Spinous Differentiation": ["KRT1", "KRT10", "DSG1", "DSC1", "DMKN", "SBSN", "KRTDAP", "CALML5", "SPINK5"],
+    "Epidermal: Granular & Cornified Envelope": ["FLG", "FLG2", "LOR", "IVL", "TGM1", "TGM3", "LCE1A", "LCE2A", "LCE3D", "SPRR1A", "SPRR1B", "SPRR2A"],
+    "Junction: Adherens Junction Complex": ["CDH1", "CTNNB1", "CTNNA1", "CTNND1", "JUP", "CDH2", "CTNNA2", "PLEKHA7", "PNN"],
+    "Junction: Desmosome Architecture": ["DSP", "PKP1", "PKP3", "DSG1", "DSG3", "DSC1", "DSC3", "PPL", "EVPL", "PKP2", "JUP"],
+    "Wound Healing: Activation & Migration": ["KRT6A", "KRT6B", "KRT16", "KRT17", "ITGB6", "MMP1", "MMP3", "MMP10", "LAMB3", "SERPINE1", "TGFB1"]
+}
+
+def run_hypergeometric_enrichment(query_genes, background_genes, pathway_dict=CURATED_PATHWAY_DB, min_overlap=2):
+    import scipy.stats as stats
+    q_set = set([str(g).upper() for g in query_genes])
+    bg_set = set([str(g).upper() for g in background_genes])
+    N = len(bg_set) if len(bg_set) > 0 else 18000
+    n = len(q_set.intersection(bg_set))
+    if n == 0:
+        return pd.DataFrame()
+    
+    records = []
+    for p_name, p_genes in pathway_dict.items():
+        p_set = set([str(g).upper() for g in p_genes])
+        K = len(p_set.intersection(bg_set))
+        if K < 2:
+            continue
+        overlap = q_set.intersection(p_set)
+        k = len(overlap)
+        if k >= min_overlap:
+            p_val = stats.hypergeom.sf(k - 1, N, K, n)
+            expected = (n * K) / N
+            enrichment_ratio = (k / expected) if expected > 0 else 1.0
+            records.append({
+                "Pathway": p_name,
+                "Overlap_Count": k,
+                "Pathway_Size": K,
+                "Query_Size": n,
+                "Overlap_Genes": ", ".join(sorted(list(overlap))),
+                "Enrichment_Fold": np.round(enrichment_ratio, 2),
+                "p_value": p_val,
+                "neg_log10_p": -np.log10(p_val) if p_val > 0 else 16.0
+            })
+            
+    df_res = pd.DataFrame(records)
+    if not df_res.empty:
+        df_res = df_res.sort_values("p_value").reset_index(drop=True)
+        m = len(df_res)
+        df_res["p_adj"] = np.minimum(1.0, df_res["p_value"] * m / (np.arange(1, m + 1)))
+        for i in range(m - 2, -1, -1):
+            df_res.loc[i, "p_adj"] = min(df_res.loc[i, "p_adj"], df_res.loc[i + 1, "p_adj"])
+    return df_res
+
 # Cache data loading
 @st.cache_resource
 def load_adata(h5ad_path):
@@ -448,13 +537,13 @@ def resolve_gene_var_name(adata, gene_name, sym_to_display, display_to_var):
 with st.sidebar:
     st.markdown("""
     <div style="padding: 4px 0 10px 0;">
-        <h1 style="font-size: 26px; font-weight: 800; color: #B32141; margin: 0; padding: 0; letter-spacing: -0.5px;">
+        <div class="clairescope-title">
             🔬 CLAIREscope
-        </h1>
-        <div style="font-size: 11.5px; font-weight: 600; color: #475569; line-height: 1.25; margin-top: 2px;">
+        </div>
+        <div style="font-size: 11.5px; font-weight: 600; color: #475569; line-height: 1.25; margin-top: 3px;">
             Cellular Landscape Analysis, Interpretation & Results Explorer
         </div>
-        <div style="display: inline-block; background-color: #FDF2F4; border: 1px solid #F5C6CB; color: #B32141; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; margin-top: 5px;">
+        <div class="clairescope-badge">
             Single Cell Analysis Viewer
         </div>
     </div>
@@ -562,20 +651,13 @@ for idx, s in enumerate(ordered_samples):
 
 # ----------------- PAGE 1: EXPRESSION VIEWER & ANALYSIS TABS -----------------
 if app_mode == "Single Cell Analysis Viewer":
-    st.title("🔬 CLAIREscope Single Cell Analysis Viewer")
-    st.markdown(f"""
-    <div style="background: linear-gradient(90deg, #FFF1F2 0%, #FFFFFF 100%); border-left: 5px solid #B32141; padding: 10px 16px; border-radius: 6px; margin-bottom: 14px;">
-        <div style="font-size: 16px; font-weight: 700; color: #B32141; margin-bottom: 2px;">
-            Active Project: {curr_proj['name']}
-        </div>
-        <div style="font-size: 13px; color: #475569;">
-            {curr_proj['desc']}
-        </div>
-        <div style="font-size: 12.5px; color: #334155; margin-top: 6px;">
-            Active Dataset: <code>{selected_dataset_name}</code> | Total Cells: <code>{adata.n_obs:,}</code> | Total Genes: <code>{adata.n_vars:,}</code> | Sample Column: <code>{sample_col if sample_col else 'None'}</code>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="clairescope-h1-main">🔬 CLAIREscope Single Cell Analysis Viewer</div>', unsafe_allow_html=True)
+    with st.expander(f"ℹ️ Active Project & Dataset Information: {curr_proj['name']}", expanded=False):
+        st.markdown(f"""
+**Active Project:** {curr_proj['name']}  
+{curr_proj['desc']}  
+**Active Dataset:** `{selected_dataset_name}` | **Total Cells:** `{adata.n_obs:,}` | **Total Genes:** `{adata.n_vars:,}` | **Sample Column:** `{sample_col if sample_col else 'None'}`
+        """)
     
     # Initialize session state for selected gene display string
     if "selected_gene_display" not in st.session_state:
@@ -916,20 +998,47 @@ if app_mode == "Single Cell Analysis Viewer":
             df_out[f"Expression_{clean_sym}_Log2"] = np.log2(g_raw + 1)
         return df_out.to_csv(index=False).encode('utf-8')
 
-    # 8 Main Tabs
-    tab_static, tab_interactive, tab_composition, tab_gene_violin, tab_score_violin, tab_scatter, tab_trajectory, tab_bulk_download = st.tabs([
-        "Static UMAP", 
-        "Interactive UMAP", 
-        "Sample Composition",
-        "Gene Expression Violins",
-        "Signature & Pathway Scoring",
-        "Correlation & Scatter Plots",
-        "Trajectory Analysis",
-        "Bulk Download & Export"
-    ])
+    # Two-Row Analysis Mode Selection & Navigation Tabs
+    st.markdown("""
+    <div style="font-size: 15px; font-weight: 700; color: #334155; margin-top: 6px; margin-bottom: 4px;">
+        📑 Analysis Workspaces & Modules
+    </div>
+    """, unsafe_allow_html=True)
+    
+    analysis_group = st.radio(
+        "Select Workspace Row:",
+        [
+            "Row 1: 🗺️ Single-Cell Landscapes & Kinetics (7 Tabs)",
+            "Row 2: 🔬 Comparative, Heatmaps & Functional Genomics (4 Tabs)"
+        ],
+        horizontal=True,
+        key="analysis_group_radio"
+    )
+        
+    if "Row 1" in analysis_group:
+        tab_static, tab_interactive, tab_composition, tab_gene_violin, tab_score_violin, tab_scatter, tab_trajectory = st.tabs([
+            "Static UMAP", 
+            "Interactive UMAP", 
+            "Sample Composition",
+            "Gene Expression Violins",
+            "Signature & Pathway Scoring",
+            "Correlation & Scatter Plots",
+            "Trajectory Analysis"
+        ])
+        tab_de, tab_heatmap, tab_enrichment, tab_bulk_download = None, None, None, None
+    else:
+        tab_de, tab_heatmap, tab_enrichment, tab_bulk_download = st.tabs([
+            "Differential Expression",
+            "Expression Heatmap",
+            "Pathway Enrichment",
+            "Bulk Download & Export"
+        ])
+        tab_static, tab_interactive, tab_composition, tab_gene_violin, tab_score_violin, tab_scatter, tab_trajectory = None, None, None, None, None, None, None
+
     
     # ---------------- TAB 1: STATIC UMAP ----------------
-    with tab_static:
+    if tab_static is not None:
+        with tab_static:
         with st.expander("🎨 Colormap, Scale & Contrast Controls", expanded=bool(resolved_var_name)):
             c_scale, c_cmap, c_pct, c_vmax = st.columns([1.2, 1.0, 1.8, 1.0])
             with c_scale:
@@ -1088,7 +1197,8 @@ if app_mode == "Single Cell Analysis Viewer":
                             )
             
     # ---------------- TAB 2: INTERACTIVE UMAP ----------------
-    with tab_interactive:
+    if tab_interactive is not None:
+        with tab_interactive:
         if 'X_umap' not in adata.obsm:
             st.warning("This dataset does not contain UMAP coordinates ('X_umap').")
         else:
@@ -1424,7 +1534,8 @@ if app_mode == "Single Cell Analysis Viewer":
                     )
 
     # ---------------- TAB 3: SAMPLE COMPOSITION ----------------
-    with tab_composition:
+    if tab_composition is not None:
+        with tab_composition:
         if not selected_col or not sample_col:
             st.warning("Please select an Annotation Column in the sidebar to view cell population compositions.")
         else:
@@ -1588,7 +1699,8 @@ if app_mode == "Single Cell Analysis Viewer":
                     )
 
     # ---------------- TAB 4: GENE EXPRESSION VIOLINS (WITH STATS) ----------------
-    with tab_gene_violin:
+    if tab_gene_violin is not None:
+        with tab_gene_violin:
         st.markdown("### Gene Expression Significance Violins across Conditions")
         if not resolved_var_name:
             st.info("💡 Please select or search a gene above from the dropdown to generate expression violin plots with statistical significance testing.")
@@ -1836,7 +1948,8 @@ if app_mode == "Single Cell Analysis Viewer":
                         )
 
     # ---------------- TAB 5: SIGNATURE & PATHWAY SCORING (WITH STATS) ----------------
-    with tab_score_violin:
+    if tab_score_violin is not None:
+        with tab_score_violin:
         st.markdown("### Gene Signature & Pathway Scoring Violins (with Stats)")
         st.write("Calculate dynamic gene set scores (`sc.tl.score_genes`) and perform statistical comparisons across condition groups per cell state.")
         
@@ -2106,7 +2219,8 @@ if app_mode == "Single Cell Analysis Viewer":
                         )
 
     # ---------------- TAB 6: CORRELATION & SCATTER PLOTS (WITH STATS) ----------------
-    with tab_scatter:
+    if tab_scatter is not None:
+        with tab_scatter:
         st.markdown("### Co-expression & Correlation Scatter Plots (with Statistical Testing)")
         st.write("Analyze co-expression relationships between any two genes, gene signatures/pathways, or a gene vs. a pathway score across conditions and cell populations.")
         
@@ -2432,7 +2546,8 @@ if app_mode == "Single Cell Analysis Viewer":
 
 
     # ---------------- TAB 7: TRAJECTORY ANALYSIS ----------------
-    with tab_trajectory:
+    if tab_trajectory is not None:
+        with tab_trajectory:
         st.markdown("### Lineage Trajectory & Pseudotime Dynamics")
         st.write("Explore continuous differentiation trajectories, PAGA connectivity, and dynamic gene & pathway expression kinetics along developmental pseudotime.")
         
@@ -2834,8 +2949,312 @@ if app_mode == "Single Cell Analysis Viewer":
 
 # ----------------- PAGE 2: MARKER EDITOR -----------------
 
+    
+    # ---------------- TAB 9: DIFFERENTIAL EXPRESSION (VOLCANO & TABLE) ----------------
+    if tab_de is not None:
+        with tab_de:
+            st.markdown("### 🌋 Differential Expression Analysis & Volcano Studio")
+            st.caption("Calculate Wilcoxon rank-sum differential expression between cohorts or cell state clusters, visualize interactive Volcano plots, and export ranked gene lists.")
+            
+            c_de1, c_de2, c_de3, c_de4 = st.columns([1.2, 1.2, 1.2, 1.0])
+            with c_de1:
+                de_group_col = st.selectbox("Group By Column:", [c for c in [sample_col, selected_col, 'state_group', 'predicted_labels', 'leiden_r02', 'kmeans_k4'] if c and c in adata.obs.columns], key="de_groupby_col")
+            
+            unique_de_groups = adata.obs[de_group_col].dropna().unique().tolist()
+            if de_group_col == sample_col and ordered_samples:
+                unique_de_groups = [s for s in ordered_samples if s in unique_de_groups] + [s for s in unique_de_groups if s not in ordered_samples]
+                
+            with c_de2:
+                de_target = st.selectbox("Target Group (Foreground):", unique_de_groups, index=0 if len(unique_de_groups) > 0 else 0, key="de_target_group")
+            with c_de3:
+                de_ref_opts = ["Rest of Cells"] + [g for g in unique_de_groups if g != de_target]
+                de_reference = st.selectbox("Reference Group (Background):", de_ref_opts, index=0, key="de_ref_group")
+            with c_de4:
+                de_n_genes = st.selectbox("Number of Top Genes:", [100, 250, 500, 1000, "All Genes"], index=1, key="de_n_genes_select")
+                
+            c_vol1, c_vol2, c_vol3 = st.columns(3)
+            with c_vol1:
+                lfc_cutoff = st.slider("Log2 Fold-Change Cutoff:", min_value=0.25, max_value=3.0, value=1.0, step=0.25, key="volc_lfc_cut")
+            with c_vol2:
+                padj_cutoff = st.selectbox("Adjusted p-value (FDR) Cutoff:", [0.05, 0.01, 0.001, 0.0001], index=1, key="volc_padj_cut")
+            with c_vol3:
+                top_label_n = st.slider("Number of Top Genes to Label:", min_value=5, max_value=30, value=15, step=5, key="volc_label_n")
+                
+            @st.cache_data
+            def compute_cached_de(_adata, groupby_col, target_grp, ref_grp, max_g):
+                adata_copy = _adata.copy()
+                n_g = None if max_g == "All Genes" else max_g
+                if ref_grp == "Rest of Cells":
+                    sc.tl.rank_genes_groups(adata_copy, groupby=groupby_col, groups=[target_grp], reference='rest', method='wilcoxon', n_genes=n_g)
+                else:
+                    sc.tl.rank_genes_groups(adata_copy, groupby=groupby_col, groups=[target_grp], reference=ref_grp, method='wilcoxon', n_genes=n_g)
+                df_res = sc.get.rank_genes_groups_df(adata_copy, group=target_grp)
+                return df_res
+                
+            with st.spinner(f"Computing Wilcoxon differential expression for {de_target} vs {de_reference}..."):
+                df_de_res = compute_cached_de(adata, de_group_col, de_target, de_reference, de_n_genes)
+                
+            if not df_de_res.empty:
+                # Add Gene Symbol resolution and -log10(p_adj)
+                df_de_res["Gene_Symbol"] = [var_to_display.get(g, g).split(" (")[0] for g in df_de_res["names"]]
+                df_de_res["log10_padj"] = -np.log10(np.maximum(df_de_res["pvals_adj"], 1e-300))
+                df_de_res["Significance"] = "Not Significant"
+                
+                m_up = (df_de_res["logfoldchanges"] >= lfc_cutoff) & (df_de_res["pvals_adj"] <= padj_cutoff)
+                m_down = (df_de_res["logfoldchanges"] <= -lfc_cutoff) & (df_de_res["pvals_adj"] <= padj_cutoff)
+                df_de_res.loc[m_up, "Significance"] = f"Upregulated in {de_target} (N={np.sum(m_up)})"
+                df_de_res.loc[m_down, "Significance"] = f"Downregulated in {de_target} (N={np.sum(m_down)})"
+                
+                # Interactive Volcano Plot
+                fig_volc = px.scatter(
+                    df_de_res,
+                    x="logfoldchanges",
+                    y="log10_padj",
+                    color="Significance",
+                    color_discrete_map={
+                        f"Upregulated in {de_target} (N={np.sum(m_up)})": "#EF4444",
+                        f"Downregulated in {de_target} (N={np.sum(m_down)})": "#3B82F6",
+                        "Not Significant": "#CBD5E1"
+                    },
+                    hover_data=["Gene_Symbol", "names", "logfoldchanges", "pvals_adj", "scores"],
+                    title=f"🌋 Volcano Plot: {de_target} vs {de_reference} ({de_group_col})",
+                    labels={"logfoldchanges": "Log2 Fold Change", "log10_padj": "-Log10 Adjusted p-value"},
+                    template="plotly_white",
+                    height=550
+                )
+                
+                fig_volc.add_vline(x=lfc_cutoff, line_dash="dash", line_color="#F87171", line_width=1.5)
+                fig_volc.add_vline(x=-lfc_cutoff, line_dash="dash", line_color="#60A5FA", line_width=1.5)
+                fig_volc.add_hline(y=-np.log10(padj_cutoff), line_dash="dash", line_color="#94A3B8", line_width=1.5)
+                
+                top_sig = df_de_res[df_de_res["Significance"] != "Not Significant"].sort_values("scores", key=abs, ascending=False).head(top_label_n)
+                for _, r in top_sig.iterrows():
+                    fig_volc.add_annotation(
+                        x=r["logfoldchanges"], y=r["log10_padj"],
+                        text=r["Gene_Symbol"], showarrow=True, arrowhead=1,
+                        font=dict(size=12, color="#0F172A", family="Segoe UI, sans-serif"),
+                        arrowcolor="#64748B", arrowsize=0.8
+                    )
+                st.plotly_chart(fig_volc, use_container_width=True)
+                
+                # Top DE Tables
+                st.markdown("#### 📋 Top Differentially Expressed Genes")
+                c_tbl1, c_tbl2 = st.columns(2)
+                with c_tbl1:
+                    st.markdown(f"**Top Upregulated Genes in `{de_target}`**")
+                    df_up = df_de_res[m_up].sort_values("logfoldchanges", ascending=False)[["Gene_Symbol", "names", "logfoldchanges", "pvals_adj", "scores"]].rename(columns={"names": "Gene_ID", "logfoldchanges": "Log2FC", "pvals_adj": "FDR (p-adj)", "scores": "Z-score"})
+                    st.dataframe(df_up.head(50), height=300, use_container_width=True)
+                with c_tbl2:
+                    st.markdown(f"**Top Downregulated Genes in `{de_target}`**")
+                    df_down = df_de_res[m_down].sort_values("logfoldchanges", ascending=True)[["Gene_Symbol", "names", "logfoldchanges", "pvals_adj", "scores"]].rename(columns={"names": "Gene_ID", "logfoldchanges": "Log2FC", "pvals_adj": "FDR (p-adj)", "scores": "Z-score"})
+                    st.dataframe(df_down.head(50), height=300, use_container_width=True)
+                    
+                st.download_button(
+                    label=f"📥 Download Full DE Results Table ({de_target}_vs_{de_reference}.csv)",
+                    data=df_de_res.to_csv(index=False).encode('utf-8'),
+                    file_name=f"DE_{de_target}_vs_{de_reference}_{de_group_col}.csv",
+                    mime="text/csv",
+                    key="btn_download_de_csv"
+                )
+
+    # ---------------- TAB 10: EXPRESSION HEATMAP STUDIO ----------------
+    if tab_heatmap is not None:
+        with tab_heatmap:
+            st.markdown("### 🔥 High-Resolution Expression Heatmap Studio")
+            st.caption("Generate publication-grade hierarchical clustered or group-sorted heatmaps across samples, cell states, or custom gene sets.")
+            
+            c_hm1, c_hm2, c_hm3 = st.columns([1.2, 1.2, 1.0])
+            with c_hm1:
+                hm_group_col = st.selectbox("Heatmap Grouping Column:", [c for c in [sample_col, selected_col, 'state_group', 'predicted_labels'] if c and c in adata.obs.columns], key="hm_grp_col")
+            with c_hm2:
+                hm_mode = st.selectbox("Heatmap Type:", ["Group Mean Expression (Summary)", "Single Cells (Subsampled 2,000 cells)"], key="hm_disp_mode")
+            with c_hm3:
+                hm_scale = st.selectbox("Value Scaling:", ["Z-score (Standardized per Gene)", "Log2(Norm + 1)", "Raw Normalized"], key="hm_val_scale")
+                
+            c_hm_opt1, c_hm_opt2 = st.columns(2)
+            with c_hm_opt1:
+                hm_cluster_genes = st.checkbox("Hierarchically Cluster Genes (Rows)", value=True, key="hm_clust_genes")
+            with c_hm_opt2:
+                hm_cluster_cols = st.checkbox("Hierarchically Cluster Groups / Cells (Columns)", value=False, key="hm_clust_cols")
+                
+            hm_groups_avail = adata.obs[hm_group_col].dropna().unique().tolist()
+            if hm_group_col == sample_col and ordered_samples:
+                def_hm_order = [s for s in ordered_samples if s in hm_groups_avail] + [s for s in hm_groups_avail if s not in ordered_samples]
+            else:
+                def_hm_order = sorted(hm_groups_avail)
+                
+            hm_ordered_groups = draggable_multiselect(
+                "Sortable Group Order (X-axis):",
+                options=hm_groups_avail,
+                default=def_hm_order,
+                key="hm_sortable_groups"
+            )
+            
+            def_hm_genes = ["COL17A1", "KRT14", "KRT5", "TP63", "ITGA6", "ITGB4", "KRT1", "KRT10", "DSG1", "DSC1", "FLG", "LOR", "IVL", "CDH1", "CTNNB1", "DSP", "PKP1", "MKI67", "TOP2A"]
+            valid_hm_genes = [sym_to_display[g.upper()] for g in def_hm_genes if g.upper() in sym_to_display]
+            all_disp_clean = [o for o in display_options if o != "None"]
+            
+            hm_selected_genes = draggable_multiselect(
+                "Select & Reorder Genes to Display in Heatmap:",
+                options=all_disp_clean,
+                default=valid_hm_genes if valid_hm_genes else all_disp_clean[:15],
+                key="hm_genes_select"
+            )
+            
+            if hm_selected_genes and hm_ordered_groups:
+                gene_vars = [resolve_gene_var_name(adata, g, sym_to_display, display_to_var) for g in hm_selected_genes]
+                gene_clean_names = [g.split(" (")[0] for g in hm_selected_genes]
+                valid_pairs = [(v, n) for v, n in zip(gene_vars, gene_clean_names) if v is not None]
+                
+                if valid_pairs:
+                    v_list = [p[0] for p in valid_pairs]
+                    lbl_list = [p[1] for p in valid_pairs]
+                    
+                    if hm_mode.startswith("Group Mean"):
+                        mean_mat = []
+                        for grp in hm_ordered_groups:
+                            m = adata.obs[hm_group_col] == grp
+                            sub_raw = adata[m, v_list].X
+                            sub_dense = sub_raw.toarray() if scipy.sparse.issparse(sub_raw) else np.array(sub_raw)
+                            sub_log2 = np.log2(sub_dense + 1)
+                            mean_mat.append(np.mean(sub_log2, axis=0))
+                        df_hm = pd.DataFrame(np.column_stack(mean_mat), index=lbl_list, columns=hm_ordered_groups)
+                        
+                        if hm_scale.startswith("Z-score"):
+                            df_hm_scaled = df_hm.apply(lambda x: (x - x.mean()) / (x.std() + 1e-9), axis=1)
+                            v_min, v_max = -2.0, 2.0
+                            c_map = "vlag"
+                        else:
+                            df_hm_scaled = df_hm
+                            v_min, v_max = 0.0, float(df_hm.max().max())
+                            c_map = "viridis"
+                            
+                        fig_hm, ax_hm = plt.subplots(figsize=(1.2 * len(hm_ordered_groups) + 3.0, 0.45 * len(lbl_list) + 2.0), dpi=200)
+                        if hm_cluster_genes or hm_cluster_cols:
+                            import scipy.cluster.hierarchy as sch
+                            row_linkage = sch.linkage(sch.distance.pdist(df_hm_scaled), method='average') if hm_cluster_genes and len(df_hm_scaled) > 1 else None
+                            col_linkage = sch.linkage(sch.distance.pdist(df_hm_scaled.T), method='average') if hm_cluster_cols and len(df_hm_scaled.columns) > 1 else None
+                            g_hm = sns.clustermap(df_hm_scaled, row_linkage=row_linkage, col_linkage=col_linkage, cmap=c_map, vmin=v_min, vmax=v_max, figsize=(1.2 * len(hm_ordered_groups) + 3.5, 0.45 * len(lbl_list) + 2.5), cbar_kws={'label': hm_scale}, linewidths=0.5, linecolor='#FFFFFF')
+                            g_hm.fig.suptitle(f"Expression Heatmap ({hm_group_col})", fontsize=14, fontweight='bold', y=1.02)
+                            st.pyplot(g_hm.fig)
+                            hm_out_fig = g_hm.fig
+                        else:
+                            sns.heatmap(df_hm_scaled, cmap=c_map, vmin=v_min, vmax=v_max, ax=ax_hm, cbar_kws={'label': hm_scale}, linewidths=0.5, linecolor='#FFFFFF', annot=True if len(lbl_list) <= 15 and len(hm_ordered_groups) <= 6 else False, fmt=".2f")
+                            ax_hm.set_title(f"Expression Heatmap ({hm_group_col})", fontsize=14, fontweight='bold')
+                            ax_hm.set_ylabel("Genes", fontsize=12, fontweight='bold')
+                            ax_hm.set_xlabel(hm_group_col, fontsize=12, fontweight='bold')
+                            fig_hm.tight_layout()
+                            st.pyplot(fig_hm)
+                            hm_out_fig = fig_hm
+                            
+                        buf_hm = io.BytesIO()
+                        hm_out_fig.savefig(buf_hm, format="svg", bbox_inches="tight")
+                        st.download_button(
+                            label="📥 Download Heatmap as SVG",
+                            data=buf_hm.getvalue(),
+                            file_name=f"CLAIREscope_Heatmap_{hm_group_col}_{curr_proj['id']}.svg",
+                            mime="image/svg+xml",
+                            key="btn_download_heatmap_svg"
+                        )
+                        plt.close('all')
+
+    # ---------------- TAB 11: PATHWAY ENRICHMENT STUDIO ----------------
+    if tab_enrichment is not None:
+        with tab_enrichment:
+            st.markdown("### 🧬 Functional Genomics & Pathway Enrichment Studio")
+            st.caption("Perform Over-Representation Analysis (ORA) across Hallmark Pathways, Epidermal Differentiation, Desmosomes & Adherens Junction signatures for Up- and Down-regulated gene cohorts.")
+            
+            c_en1, c_en2, c_en3 = st.columns([1.2, 1.2, 1.0])
+            with c_en1:
+                en_group_col = st.selectbox("Enrichment Comparison Column:", [c for c in [sample_col, selected_col, 'state_group', 'predicted_labels'] if c and c in adata.obs.columns], key="en_grp_col")
+            
+            en_avail = adata.obs[en_group_col].dropna().unique().tolist()
+            if en_group_col == sample_col and ordered_samples:
+                en_avail = [s for s in ordered_samples if s in en_avail] + [s for s in en_avail if s not in ordered_samples]
+                
+            with c_en2:
+                en_target = st.selectbox("Target Cohort / Cluster:", en_avail, index=0, key="en_target_grp")
+            with c_en3:
+                en_ref_opts = ["Rest of Cells"] + [g for g in en_avail if g != en_target]
+                en_ref = st.selectbox("Reference Cohort:", en_ref_opts, index=0, key="en_ref_grp")
+                
+            c_tun1, c_tun2 = st.columns(2)
+            with c_tun1:
+                top_x_genes = st.slider("Top Differentially Expressed Genes to Query (Tunable X genes):", min_value=10, max_value=300, value=100, step=10, key="en_top_x_slider")
+            with c_tun2:
+                en_fdr_cut = st.selectbox("Enrichment FDR Threshold (p-adj):", [0.05, 0.01, 0.001, 0.10, "No Filter (All Overlaps)"], index=0, key="en_fdr_select")
+                
+            with st.spinner(f"Computing enrichment for top {top_x_genes} up/down genes in {en_target}..."):
+                adata_de_sub = adata.copy()
+                if en_ref == "Rest of Cells":
+                    sc.tl.rank_genes_groups(adata_de_sub, groupby=en_group_col, groups=[en_target], reference='rest', method='wilcoxon', n_genes=top_x_genes * 2)
+                else:
+                    sc.tl.rank_genes_groups(adata_de_sub, groupby=en_group_col, groups=[en_target], reference=en_ref, method='wilcoxon', n_genes=top_x_genes * 2)
+                df_rank = sc.get.rank_genes_groups_df(adata_de_sub, group=en_target)
+                
+                # Resolve symbols for enrichment query
+                df_rank["Gene_Symbol"] = [var_to_display.get(g, g).split(" (")[0] for g in df_rank["names"]]
+                genes_up = df_rank[df_rank["logfoldchanges"] > 0]["Gene_Symbol"].head(top_x_genes).tolist()
+                genes_down = df_rank[df_rank["logfoldchanges"] < 0]["Gene_Symbol"].head(top_x_genes).tolist()
+                bg_all = [var_to_display.get(g, g).split(" (")[0] for g in adata.var_names]
+                
+                df_en_up = run_hypergeometric_enrichment(genes_up, bg_all)
+                df_en_down = run_hypergeometric_enrichment(genes_down, bg_all)
+                
+            c_en_res1, c_en_res2 = st.columns(2)
+            with c_en_res1:
+                st.markdown(f"#### 📈 Enriched Pathways: Upregulated in `{en_target}`")
+                if not df_en_up.empty:
+                    df_plot_up = df_en_up if en_fdr_cut == "No Filter (All Overlaps)" else df_en_up[df_en_up["p_adj"] <= float(en_fdr_cut)]
+                    if not df_plot_up.empty:
+                        fig_up = px.bar(
+                            df_plot_up.head(12),
+                            x="neg_log10_p",
+                            y="Pathway",
+                            orientation="h",
+                            color="Enrichment_Fold",
+                            color_continuous_scale="Reds",
+                            hover_data=["Overlap_Count", "Pathway_Size", "p_adj", "Overlap_Genes"],
+                            labels={"neg_log10_p": "-Log10(p-value)", "Enrichment_Fold": "Fold Enrichment"},
+                            title=f"Top Enriched Pathways (Upregulated in {en_target})",
+                            template="plotly_white"
+                        )
+                        fig_up.update_layout(yaxis=dict(autorange="reversed"), height=420)
+                        st.plotly_chart(fig_up, use_container_width=True)
+                        st.dataframe(df_plot_up[["Pathway", "Overlap_Count", "Enrichment_Fold", "p_adj", "Overlap_Genes"]], height=220, use_container_width=True)
+                    else:
+                        st.info("No significantly enriched pathways at the selected FDR cutoff.")
+                else:
+                    st.info("No overlapping pathway terms found.")
+                    
+            with c_en_res2:
+                st.markdown(f"#### 📉 Enriched Pathways: Downregulated in `{en_target}`")
+                if not df_en_down.empty:
+                    df_plot_down = df_en_down if en_fdr_cut == "No Filter (All Overlaps)" else df_en_down[df_en_down["p_adj"] <= float(en_fdr_cut)]
+                    if not df_plot_down.empty:
+                        fig_down = px.bar(
+                            df_plot_down.head(12),
+                            x="neg_log10_p",
+                            y="Pathway",
+                            orientation="h",
+                            color="Enrichment_Fold",
+                            color_continuous_scale="Blues",
+                            hover_data=["Overlap_Count", "Pathway_Size", "p_adj", "Overlap_Genes"],
+                            labels={"neg_log10_p": "-Log10(p-value)", "Enrichment_Fold": "Fold Enrichment"},
+                            title=f"Top Enriched Pathways (Downregulated in {en_target})",
+                            template="plotly_white"
+                        )
+                        fig_down.update_layout(yaxis=dict(autorange="reversed"), height=420)
+                        st.plotly_chart(fig_down, use_container_width=True)
+                        st.dataframe(df_plot_down[["Pathway", "Overlap_Count", "Enrichment_Fold", "p_adj", "Overlap_Genes"]], height=220, use_container_width=True)
+                    else:
+                        st.info("No significantly enriched pathways at the selected FDR cutoff.")
+                else:
+                    st.info("No overlapping pathway terms found.")
+
     # ---------------- TAB 8: BULK DOWNLOAD & EXPORT STUDIO ----------------
-    with tab_bulk_download:
+    if tab_bulk_download is not None:
+        with tab_bulk_download:
         st.markdown("""
         <div style="background-color: #FEF3C7; border-left: 5px solid #F59E0B; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px;">
             <div style="font-size: 15px; font-weight: 700; color: #92400E;">
