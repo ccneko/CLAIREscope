@@ -547,6 +547,7 @@ with st.sidebar:
     st.markdown("### 🧭 Navigation")
     app_mode = st.selectbox("Choose the page:", [
         "Single Cell Analysis Viewer", 
+        "Single-Cell Preprocessing & Scanpy Pipeline",
         "Cell-Type Marker Editor",
         "Bulk Download & Export Studio",
         "Dataset Management & Launch Settings"
