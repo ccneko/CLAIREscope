@@ -146,12 +146,7 @@ st.markdown("""
         margin: 0 !important;
         padding: 0 !important;
     }
-    .clairescope-h1-main {
-        color: #B32141 !important;
-        font-size: 2.1rem !important;
-        font-weight: 800 !important;
-        margin-bottom: 8px !important;
-    }
+
     .clairescope-badge {
         background-color: #FDF2F4 !important;
         color: #B32141 !important;
@@ -651,7 +646,7 @@ for idx, s in enumerate(ordered_samples):
 
 # ----------------- PAGE 1: EXPRESSION VIEWER & ANALYSIS TABS -----------------
 if app_mode == "Single Cell Analysis Viewer":
-    st.markdown('<div class="clairescope-h1-main">🔬 CLAIREscope Single Cell Analysis Viewer</div>', unsafe_allow_html=True)
+    st.title("🔬 CLAIREscope Single Cell Analysis Viewer")
     with st.expander(f"ℹ️ Active Project & Dataset Information: {curr_proj['name']}", expanded=False):
         st.markdown(f"""
 **Active Project:** {curr_proj['name']}  
@@ -2926,7 +2921,7 @@ if app_mode == "Single Cell Analysis Viewer":
             st.markdown("### 🌋 Differential Expression Analysis & Volcano Studio")
             st.caption("Calculate Wilcoxon rank-sum differential expression between cohorts or cell state clusters, visualize interactive Volcano plots, and export ranked gene lists.")
             
-            c_de1, c_de2, c_de3, c_de4 = st.columns([1.2, 1.2, 1.2, 1.0])
+            c_de1, c_de2, c_de3 = st.columns([1.2, 1.2, 1.2])
             with c_de1:
                 de_group_col = st.selectbox("Group By Column:", [c for c in [sample_col, selected_col, 'state_group', 'predicted_labels', 'leiden_r02', 'kmeans_k4'] if c and c in adata.obs.columns], key="de_groupby_col")
             
@@ -2939,8 +2934,6 @@ if app_mode == "Single Cell Analysis Viewer":
             with c_de3:
                 de_ref_opts = ["Rest of Cells"] + [g for g in unique_de_groups if g != de_target]
                 de_reference = st.selectbox("Reference Group (Background):", de_ref_opts, index=0, key="de_ref_group")
-            with c_de4:
-                de_n_genes = st.selectbox("Number of Top Genes:", [100, 250, 500, 1000, "All Genes"], index=1, key="de_n_genes_select")
                 
             c_vol1, c_vol2, c_vol3 = st.columns(3)
             with c_vol1:
@@ -2951,18 +2944,17 @@ if app_mode == "Single Cell Analysis Viewer":
                 top_label_n = st.slider("Number of Top Genes to Label:", min_value=5, max_value=30, value=15, step=5, key="volc_label_n")
                 
             @st.cache_data
-            def compute_cached_de(_adata, groupby_col, target_grp, ref_grp, max_g):
+            def compute_cached_de(_adata, groupby_col, target_grp, ref_grp):
                 adata_copy = _adata.copy()
-                n_g = None if max_g == "All Genes" else max_g
                 if ref_grp == "Rest of Cells":
-                    sc.tl.rank_genes_groups(adata_copy, groupby=groupby_col, groups=[target_grp], reference='rest', method='wilcoxon', n_genes=n_g)
+                    sc.tl.rank_genes_groups(adata_copy, groupby=groupby_col, groups=[target_grp], reference='rest', method='wilcoxon', n_genes=None)
                 else:
-                    sc.tl.rank_genes_groups(adata_copy, groupby=groupby_col, groups=[target_grp], reference=ref_grp, method='wilcoxon', n_genes=n_g)
+                    sc.tl.rank_genes_groups(adata_copy, groupby=groupby_col, groups=[target_grp], reference=ref_grp, method='wilcoxon', n_genes=None)
                 df_res = sc.get.rank_genes_groups_df(adata_copy, group=target_grp)
                 return df_res
                 
             with st.spinner(f"Computing Wilcoxon differential expression for {de_target} vs {de_reference}..."):
-                df_de_res = compute_cached_de(adata, de_group_col, de_target, de_reference, de_n_genes)
+                df_de_res = compute_cached_de(adata, de_group_col, de_target, de_reference)
                 
             if not df_de_res.empty:
                 # Add Gene Symbol resolution and -log10(p_adj)
