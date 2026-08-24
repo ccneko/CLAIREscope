@@ -1,8 +1,8 @@
 site_name: CLAIREscope Documentation
 site_description: Cellular Landscape Analysis, Interpretation & Results Explorer - Single Cell Analysis Viewer
 site_author: Claire Chung, Natsuga Lab
-repo_url: https://github.com/ccneko/sc-expression-viewer
-repo_name: ccneko/sc-expression-viewer
+repo_url: https://github.com/ccneko/CLAIREscope
+repo_name: ccneko/CLAIREscope
 
 theme:
   name: material
