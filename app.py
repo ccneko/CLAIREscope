@@ -462,8 +462,9 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 🧭 Navigation")
     app_mode = st.selectbox("Choose the page:", [
-        "Gene Expression UMAP", 
+        "SC Analysis Viewer", 
         "Cell-Type Marker Editor",
+        "Bulk Download & Export Studio",
         "Dataset Management & Launch Settings"
     ], key="page_navigation_mode")
     
@@ -560,7 +561,7 @@ for idx, s in enumerate(ordered_samples):
         sample_color_map[s] = matplotlib.colors.to_hex(cmap(idx % 10))
 
 # ----------------- PAGE 1: EXPRESSION VIEWER & ANALYSIS TABS -----------------
-if app_mode == "Gene Expression UMAP":
+if app_mode == "SC Analysis Viewer":
     st.title("Single-Cell RNA-seq Expression, Scoring & Correlation Viewer")
     st.markdown(f'<div style="font-size: 20px; font-weight: 500; margin-top: 4px; margin-bottom: 18px; color: #1e293b; line-height: 1.5;">Active Dataset: <code>{selected_dataset_name}</code> | Total Cells: <code>{adata.n_obs:,}</code> | Total Genes: <code>{adata.n_vars:,}</code> | Sample Column: <code>{sample_col}</code></div>', unsafe_allow_html=True)
     
@@ -1285,7 +1286,7 @@ if app_mode == "Gene Expression UMAP":
                     else:
                         fig_states = px.scatter(
                             df_plotly, x="UMAP 1", y="UMAP 2",
-                            color=selected_col,
+                            color="Cell State",
                             hover_data=["Sample", "Expression"],
                             color_discrete_map=color_discrete_map,
                             title=f"{state_title} (All Cells)",
@@ -3162,6 +3163,304 @@ elif app_mode == "Cell-Type Marker Editor":
                 st.rerun()
 
 # ----------------- PAGE 3: DATASET MANAGEMENT & SETTINGS -----------------
+elif app_mode == "Bulk Download & Export Studio":
+    st.title("📦 CLAIREscope Bulk Download & Export Studio")
+    st.markdown(f"""
+    <div style="background: linear-gradient(90deg, #FFF1F2 0%, #FFFFFF 100%); border-left: 5px solid #E11D48; padding: 10px 16px; border-radius: 6px; margin-bottom: 14px;">
+        <div style="font-size: 16px; font-weight: 700; color: #9F1239; margin-bottom: 2px;">
+            Active Project: {curr_proj['name']}
+        </div>
+        <div style="font-size: 13px; color: #475569;">
+            {curr_proj['desc']}
+        </div>
+        <div style="font-size: 12.5px; color: #334155; margin-top: 6px;">
+            Active Dataset: <code>{selected_dataset_name}</code> | Total Cells: <code>{adata.n_obs:,}</code> | Total Genes: <code>{adata.n_vars:,}</code> | Sample Column: <code>{sample_col if sample_col else 'None'}</code>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div style="background-color: #FEF3C7; border-left: 5px solid #F59E0B; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px;">
+        <div style="font-size: 15px; font-weight: 700; color: #92400E;">
+            ⚠️ Bulk Generation & Package Export Studio
+        </div>
+        <div style="font-size: 13px; color: #78350F; margin-top: 2px;">
+            Exporting high-resolution multi-panel figures and structured tabular datasets across multiple genes and pathways may take a few moments. All assets will be packaged into a single clean <code>.zip</code> file.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 1. Feature Selections
+    st.markdown("### 1️⃣ Features to Include in Bulk Export")
+    c_b1, c_b2 = st.columns(2)
+    def_bulk_genes = ["COL17A1", "Col17a1", "KRT14", "Krt14", "KRT10", "Krt10", "CDH1", "Cdh1", "DSP", "Dsp"]
+    valid_bulk_genes = [sym_to_display[g.upper()] for g in def_bulk_genes if g.upper() in sym_to_display]
+    all_display_clean = [o for o in display_options if o != "None"]
+    
+    with c_b1:
+        bulk_selected_genes = draggable_multiselect(
+            "Genes to Export (One row per gene in table & individual plots):",
+            options=all_display_clean,
+            default=valid_bulk_genes[:6] if valid_bulk_genes else all_display_clean[:4],
+            key="bulk_genes_input_page"
+        )
+    with c_b2:
+        bulk_selected_pathways = draggable_multiselect(
+            "Pathways / Signatures to Export:",
+            options=list(DEFAULT_SIGNATURES.keys()),
+            default=list(DEFAULT_SIGNATURES.keys())[:4],
+            key="bulk_pathways_input_page"
+        )
+        
+    st.markdown("---")
+    st.markdown("### 2️⃣ Select Figures & Formats to Export")
+    c_fig1, c_fig2, c_fig3 = st.columns(3)
+    with c_fig1:
+        inc_grid_umap = st.checkbox("Multi-Condition UMAP Expression Grids", value=True, key="b_inc_grid_page")
+        inc_ref_umap = st.checkbox("Sample & Cell State Reference UMAPs", value=True, key="b_inc_ref_page")
+    with c_fig2:
+        inc_violins = st.checkbox("Gene Expression Statistical Violins", value=True, key="b_inc_violins_page")
+        inc_sig_violins = st.checkbox("Signature & Pathway Score Violins", value=True, key="b_inc_sig_violins_page")
+    with c_fig3:
+        inc_comp_plots = st.checkbox("Population Composition (Bars & Donuts)", value=True, key="b_inc_comp_page")
+        pt_cols_avail = [c for c in adata.obs.columns if 'pseudotime' in c.lower() or 'dpt' in c.lower() or 'latent_time' in c.lower()]
+        inc_traj_plots = st.checkbox("Trajectory Kinetics Curves", value=True if pt_cols_avail else False, key="b_inc_traj_page")
+        
+    img_formats = st.multiselect("Image Formats to Generate:", ["SVG", "PNG", "PDF"], default=["SVG", "PNG"], key="bulk_img_formats_page")
+    
+    st.markdown("---")
+    st.markdown("### 3️⃣ Select Tabular Summary Datasets")
+    c_tab1, c_tab2 = st.columns(2)
+    with c_tab1:
+        inc_table_gene = st.checkbox("📊 Gene Expression Summary (1 row per gene, samples & cell states in columns)", value=True, key="b_tbl_gene_page")
+        inc_table_sig = st.checkbox("📈 Pathway Score Summary (1 row per pathway, samples & cell states in columns)", value=True, key="b_tbl_sig_page")
+    with c_tab2:
+        inc_table_comp = st.checkbox("🥧 Cell Type Composition Table (Counts & Percentages)", value=True, key="b_tbl_comp_page")
+        inc_table_umap = st.checkbox("🗺️ Full UMAP Embeddings & Coordinates Table (CSV)", value=True, key="b_tbl_umap_page")
+        
+    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+    
+    if st.button("⚡ Generate & Build Bulk Export Package (.ZIP)", type="primary", key="btn_run_bulk_export_page"):
+        import zipfile
+        import datetime
+        zip_buffer = io.BytesIO()
+        progress_bar = st.progress(0, text="Initializing export package...")
+        
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            if inc_table_gene and bulk_selected_genes:
+                progress_bar.progress(10, text="Building Gene Expression Summary Table...")
+                gene_rows = []
+                for g_disp in bulk_selected_genes:
+                    g_var = resolve_gene_var_name(adata, g_disp, sym_to_display, display_to_var)
+                    if g_var:
+                        clean_sym = g_disp.split(" (")[0]
+                        expr_raw_vec = adata[:, g_var].X
+                        g_vals = expr_raw_vec.toarray().flatten() if scipy.sparse.issparse(expr_raw_vec) else np.array(expr_raw_vec).flatten()
+                        g_log2 = np.log2(g_vals + 1)
+                        
+                        row = {
+                            "Gene_Symbol": clean_sym,
+                            "Gene_ID": g_var,
+                            "Global_Mean_Raw": np.round(np.mean(g_vals), 4),
+                            "Global_Mean_Log2": np.round(np.mean(g_log2), 4),
+                            "Global_Pct_Expressing": np.round(np.mean(g_vals > 0) * 100, 2)
+                        }
+                        
+                        if sample_col and sample_col in adata.obs.columns:
+                            for s in ordered_samples:
+                                m_s = (adata.obs[sample_col] == s)
+                                row[f"Sample_{s}_Mean_Log2"] = np.round(np.mean(g_log2[m_s]), 4) if np.sum(m_s) > 0 else 0.0
+                                row[f"Sample_{s}_Pct_Expr"] = np.round(np.mean(g_vals[m_s] > 0) * 100, 2) if np.sum(m_s) > 0 else 0.0
+                                
+                        if selected_col and selected_col in adata.obs.columns:
+                            _, state_cats = get_cluster_color_map(adata, selected_col)
+                            for st_name in state_cats:
+                                m_st = (adata.obs[selected_col] == st_name)
+                                clean_st = str(st_name).replace(" ", "_")
+                                row[f"State_{clean_st}_Mean_Log2"] = np.round(np.mean(g_log2[m_st]), 4) if np.sum(m_st) > 0 else 0.0
+                                row[f"State_{clean_st}_Pct_Expr"] = np.round(np.mean(g_vals[m_st] > 0) * 100, 2) if np.sum(m_st) > 0 else 0.0
+                                
+                        gene_rows.append(row)
+                        
+                df_gene_summary = pd.DataFrame(gene_rows)
+                zip_file.writestr("tables/gene_expression_summary.csv", df_gene_summary.to_csv(index=False))
+                
+            if inc_table_sig and bulk_selected_pathways:
+                progress_bar.progress(25, text="Building Pathway Score Summary Table...")
+                pathway_rows = []
+                for p_name in bulk_selected_pathways:
+                    if p_name in DEFAULT_SIGNATURES:
+                        p_genes = DEFAULT_SIGNATURES[p_name]
+                        p_vars = [resolve_gene_var_name(adata, g, sym_to_display, display_to_var) for g in p_genes]
+                        p_vars = [v for v in p_vars if v is not None]
+                        if p_vars:
+                            p_mat_list = []
+                            for g_v in p_vars:
+                                v_raw = adata[:, g_v].X
+                                p_mat_list.append(v_raw.toarray().flatten() if scipy.sparse.issparse(v_raw) else np.array(v_raw).flatten())
+                            p_mat = np.column_stack(p_mat_list)
+                            p_score = np.mean(np.log2(p_mat + 1), axis=1)
+                            
+                            p_row = {
+                                "Pathway_Name": p_name,
+                                "Genes_Included_Count": len(p_vars),
+                                "Genes_List": "; ".join(p_genes),
+                                "Global_Mean_Score": np.round(np.mean(p_score), 4)
+                            }
+                            
+                            if sample_col and sample_col in adata.obs.columns:
+                                for s in ordered_samples:
+                                    m_s = (adata.obs[sample_col] == s)
+                                    p_row[f"Sample_{s}_Mean_Score"] = np.round(np.mean(p_score[m_s]), 4) if np.sum(m_s) > 0 else 0.0
+                                    
+                            if selected_col and selected_col in adata.obs.columns:
+                                _, state_cats = get_cluster_color_map(adata, selected_col)
+                                for st_name in state_cats:
+                                    m_st = (adata.obs[selected_col] == st_name)
+                                    clean_st = str(st_name).replace(" ", "_")
+                                    p_row[f"State_{clean_st}_Mean_Score"] = np.round(np.mean(p_score[m_st]), 4) if np.sum(m_st) > 0 else 0.0
+                                    
+                            pathway_rows.append(p_row)
+                            
+                df_pathway_summary = pd.DataFrame(pathway_rows)
+                zip_file.writestr("tables/pathway_scores_summary.csv", df_pathway_summary.to_csv(index=False))
+
+            if inc_table_comp and sample_col and selected_col and sample_col in adata.obs.columns and selected_col in adata.obs.columns:
+                progress_bar.progress(35, text="Building Sample Composition Table...")
+                ct_counts = pd.crosstab(adata.obs[sample_col], adata.obs[selected_col])
+                ct_pct = pd.crosstab(adata.obs[sample_col], adata.obs[selected_col], normalize='index') * 100
+                df_comp_export = ct_counts.copy()
+                df_comp_export.columns = [f"{c}_Count" for c in df_comp_export.columns]
+                for c in ct_pct.columns:
+                    df_comp_export[f"{c}_Percentage"] = np.round(ct_pct[c], 2)
+                df_comp_export["Total_Cells"] = adata.obs[sample_col].value_counts()
+                zip_file.writestr("tables/sample_composition_summary.csv", df_comp_export.to_csv())
+
+            if inc_table_umap and 'X_umap' in adata.obsm:
+                progress_bar.progress(45, text="Exporting UMAP Coordinates & Metadata...")
+                umap_csv_bytes = get_umap_embeddings_csv(adata, sample_col, selected_col, resolved_var_name, resolved_display_name)
+                if umap_csv_bytes:
+                    zip_file.writestr("tables/umap_embeddings_and_metadata.csv", umap_csv_bytes)
+
+            def save_fig_to_zip(fig_obj, filename_base, fmts):
+                for fmt in fmts:
+                    buf = io.BytesIO()
+                    dpi_val = 300 if fmt in ['png', 'pdf'] else None
+                    fig_obj.savefig(buf, format=fmt.lower(), bbox_inches="tight", dpi=dpi_val)
+                    zip_file.writestr(f"figures/{filename_base}.{fmt.lower()}", buf.getvalue())
+
+            if inc_ref_umap and 'X_umap' in adata.obsm:
+                progress_bar.progress(55, text="Rendering Reference UMAP figures...")
+                fig_ref_all, (ax_r1, ax_r2) = plt.subplots(1, 2, figsize=(12, 5), dpi=200)
+                umap_xy = adata.obsm['X_umap']
+                if sample_col and sample_col in adata.obs.columns:
+                    for s in ordered_samples:
+                        m = adata.obs[sample_col] == s
+                        ax_r1.scatter(umap_xy[m, 0], umap_xy[m, 1], label=s, color=sample_color_map.get(s, "#7f8c8d"), s=2.0, alpha=0.85)
+                    ax_r1.set_title(f"Samples ({sample_col})", fontsize=12, fontweight='bold')
+                    ax_r1.legend(bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=4, fontsize=8.5, frameon=False)
+                ax_r1.set_aspect('equal', 'box')
+                ax_r1.set_xticks([])
+                ax_r1.set_yticks([])
+                
+                if selected_col and selected_col in adata.obs.columns:
+                    cmap_dict, cats = get_cluster_color_map(adata, selected_col)
+                    for cat in cats:
+                        m = adata.obs[selected_col] == cat
+                        ax_r2.scatter(umap_xy[m, 0], umap_xy[m, 1], label=cat, color=cmap_dict.get(cat, "#7f8c8d"), s=2.0, alpha=0.85)
+                    ax_r2.set_title(f"Cell States ({selected_col})", fontsize=12, fontweight='bold')
+                    ax_r2.legend(bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=4, fontsize=8, frameon=False)
+                ax_r2.set_aspect('equal', 'box')
+                ax_r2.set_xticks([])
+                ax_r2.set_yticks([])
+                fig_ref_all.tight_layout()
+                save_fig_to_zip(fig_ref_all, "reference_sample_and_cell_state_umaps", img_formats)
+                plt.close(fig_ref_all)
+
+            if inc_grid_umap and bulk_selected_genes and 'X_umap' in adata.obsm:
+                total_g = len(bulk_selected_genes)
+                for idx_g, g_disp in enumerate(bulk_selected_genes):
+                    progress_bar.progress(60 + int((idx_g / total_g) * 20), text=f"Rendering UMAP grid for {g_disp.split(' (')[0]}...")
+                    g_var = resolve_gene_var_name(adata, g_disp, sym_to_display, display_to_var)
+                    if g_var:
+                        clean_sym = g_disp.split(" (")[0]
+                        v_raw = adata[:, g_var].X
+                        g_raw = v_raw.toarray().flatten() if scipy.sparse.issparse(v_raw) else np.array(v_raw).flatten()
+                        g_scaled = np.log2(g_raw + 1)
+                        g_vmax = float(np.percentile(g_scaled, 99.0)) if len(g_scaled) > 0 else 3.5
+                        
+                        n_s = len(ordered_samples) if ordered_samples else 1
+                        n_cols = 3 if n_s >= 3 else n_s
+                        n_rows = (n_s + n_cols - 1) // n_cols
+                        
+                        fig_g, axes_g = plt.subplots(n_rows, n_cols, figsize=(4.8 * n_cols, 4.4 * n_rows), dpi=200)
+                        axes_g_flat = axes_g.flatten() if hasattr(axes_g, 'flatten') else [axes_g]
+                        
+                        for idx_s, s in enumerate(ordered_samples if ordered_samples else ["All"]):
+                            if idx_s < len(axes_g_flat):
+                                ax = axes_g_flat[idx_s]
+                                mask = (adata.obs[sample_col] == s) if (sample_col and s != "All" and sample_col in adata.obs.columns) else np.ones(adata.n_obs, dtype=bool)
+                                ax.scatter(umap_xy[~mask, 0], umap_xy[~mask, 1], c='#ECEFF1', s=1.2, alpha=0.5)
+                                ax.scatter(umap_xy[mask, 0], umap_xy[mask, 1], c=g_scaled[mask], cmap="viridis", vmin=0, vmax=g_vmax, s=2.2, alpha=0.85)
+                                ax.set_title(f"{s} (N={np.sum(mask):,})", fontsize=11, fontweight='bold', color=sample_color_map.get(s, "#333333"))
+                                ax.set_aspect('equal', 'box')
+                                ax.set_xticks([])
+                                ax.set_yticks([])
+                        for idx_rem in range(len(ordered_samples if ordered_samples else ["All"]), len(axes_g_flat)):
+                            axes_g_flat[idx_rem].axis('off')
+                        fig_g.suptitle(f"{clean_sym} [Log2(Norm+1)] (vmax={g_vmax:.2f})", fontsize=13, fontweight='bold', y=0.99)
+                        fig_g.tight_layout()
+                        save_fig_to_zip(fig_g, f"umap_grid_{clean_sym}", img_formats)
+                        plt.close(fig_g)
+
+            if inc_sig_violins and bulk_selected_pathways:
+                for p_name in bulk_selected_pathways:
+                    if p_name in DEFAULT_SIGNATURES:
+                        p_genes = DEFAULT_SIGNATURES[p_name]
+                        p_vars = [resolve_gene_var_name(adata, g, sym_to_display, display_to_var) for g in p_genes]
+                        p_vars = [v for v in p_vars if v is not None]
+                        if p_vars:
+                            p_mat_list = []
+                            for g_v in p_vars:
+                                v_raw = adata[:, g_v].X
+                                p_mat_list.append(v_raw.toarray().flatten() if scipy.sparse.issparse(v_raw) else np.array(v_raw).flatten())
+                            p_mat = np.column_stack(p_mat_list)
+                            p_score = np.mean(np.log2(p_mat + 1), axis=1)
+                            df_p_v = pd.DataFrame({
+                                "Sample": adata.obs[sample_col].values if sample_col and sample_col in adata.obs.columns else "All",
+                                "Cell State": adata.obs[selected_col].values if selected_col and selected_col in adata.obs.columns else "All",
+                                "Score": p_score
+                            })
+                            _, cats = get_cluster_color_map(adata, selected_col)
+                            plots_p = ["All Cells (Global)"] + cats
+                            fig_pv, axes_pv = plt.subplots(1, len(plots_p), figsize=(4.0 * len(plots_p), 4.2), dpi=200, sharey=True)
+                            axes_pv_flat = axes_pv if isinstance(axes_pv, np.ndarray) else [axes_pv]
+                            for idx_pv, state in enumerate(plots_p):
+                                ax = axes_pv_flat[idx_pv]
+                                sub = df_p_v if state == "All Cells (Global)" else df_p_v[df_p_v["Cell State"] == state]
+                                sns.violinplot(data=sub[sub["Sample"].isin(ordered_samples)], x="Sample", y="Score", order=ordered_samples, palette=sample_color_map, ax=ax, inner="quartile", cut=0)
+                                ax.set_title(state, fontsize=10, fontweight='bold')
+                                ax.set_xlabel("")
+                                ax.set_ylabel("Score" if idx_pv == 0 else "")
+                                ax.tick_params(axis='x', rotation=30)
+                            fig_pv.suptitle(f"Pathway Activity: {p_name}", fontsize=12, fontweight='bold', y=1.02)
+                            fig_pv.tight_layout()
+                            save_fig_to_zip(fig_pv, f"violin_pathway_{p_name.replace(' ', '_')}", img_formats)
+                            plt.close(fig_pv)
+
+            progress_bar.progress(100, text="Export package successfully created!")
+            
+        zip_buffer.seek(0)
+        st.success(f"🎉 Bulk export bundle generated successfully! (Archive contains figures in {', '.join(img_formats)} and structured summary tables)")
+        st.download_button(
+            label=f"📥 Download Complete {curr_proj['id']} Export Bundle (.ZIP)",
+            data=zip_buffer.getvalue(),
+            file_name=f"CLAIREscope_{curr_proj['id']}_BulkExport_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
+            mime="application/zip",
+            key="btn_download_zip_bundle_page"
+        )
+
+
 elif app_mode == "Dataset Management & Launch Settings":
     st.title("📁 Dataset Management & Launch Preferences")
     st.write("Configure which single-cell datasets are active in dropdowns, choose the default dataset to load automatically upon app launch, or hide unneeded `.h5ad` files.")
