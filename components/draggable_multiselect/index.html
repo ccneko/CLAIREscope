@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Draggable Multiselect</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      color: #1e293b;
+      background: transparent;
+      padding: 2px 2px 8px 2px;
+      overflow: visible;
+    }
+    .label {
+      font-size: 14px;
+      font-weight: 500;
+      color: #334155;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      background-color: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      min-height: 42px;
+      position: relative;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      cursor: text;
+    }
+    .container:focus-within {
+      border-color: #ff4b4b;
+      box-shadow: 0 0 0 1px #ff4b4b;
+    }
+    .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 3px 8px 3px 6px;
+      font-size: 13px;
+      font-weight: 500;
+      user-select: none;
+      cursor: grab;
+      transition: all 0.15s ease;
+    }
+    .chip:active {
+      cursor: grabbing;
+    }
+    .chip.dragging {
+      opacity: 0.4;
+      border: 1px dashed #64748b;
+      background-color: #e2e8f0;
+    }
+    .chip.drag-over {
+      border-left: 3px solid #ff4b4b;
+      padding-left: 4px;
+    }
+    .drag-handle {
+      margin-right: 5px;
+      color: #94a3b8;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+    }
+    .chip-text {
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .remove-btn {
+      margin-left: 6px;
+      color: #64748b;
+      font-size: 15px;
+      line-height: 1;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      transition: background-color 0.15s, color 0.15s;
+    }
+    .remove-btn:hover {
+      background-color: #cbd5e1;
+      color: #0f172a;
+    }
+    .input-wrapper {
+      flex: 1;
+      min-width: 120px;
+      position: relative;
+    }
+    .search-input {
+      width: 100%;
+      border: none;
+      outline: none;
+      background: transparent;
+      font-size: 13.5px;
+      color: #0f172a;
+      padding: 4px 0;
+    }
+    .search-input::placeholder {
+      color: #94a3b8;
+    }
+    .dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      max-height: 220px;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      display: none;
+    }
+    .dropdown.show {
+      display: block;
+    }
+    .dropdown-item {
+      padding: 7px 12px;
+      font-size: 13px;
+      color: #1e293b;
+      cursor: pointer;
+      transition: background-color 0.1s;
+    }
+    .dropdown-item:hover, .dropdown-item.active {
+      background-color: #f1f5f9;
+      color: #ff4b4b;
+      font-weight: 500;
+    }
+    .dropdown-empty {
+      padding: 8px 12px;
+      color: #94a3b8;
+      font-size: 12.5px;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <label class="label" id="label-text"></label>
+    <div class="container" id="container" onclick="focusInput()">
+      <ul class="chip-list" id="chip-list"></ul>
+      <div class="input-wrapper">
+        <input 
+          type="text" 
+          class="search-input" 
+          id="search-input" 
+          placeholder="Type to search & add..."
+          autocomplete="off"
+        />
+        <div class="dropdown" id="dropdown"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Streamlit communication boilerplate
+    function sendMessageToStreamlit(type, data) {
+      window.parent.postMessage({
+        isStreamlitMessage: true,
+        type: type,
+        ...data
+      }, "*");
+    }
+
+    const Streamlit = {
+      setComponentReady: () => sendMessageToStreamlit("streamlit:componentReady", { apiVersion: 1 }),
+      setFrameHeight: (height) => sendMessageToStreamlit("streamlit:setFrameHeight", { height: height || document.body.offsetHeight + 10 }),
+      setComponentValue: (value) => sendMessageToStreamlit("streamlit:setComponentValue", { value: value })
+    };
+
+    let allOptions = [];
+    let selectedItems = [];
+    let activeDropdownIndex = -1;
+    let isInitialized = false;
+
+    const labelText = document.getElementById("label-text");
+    const chipList = document.getElementById("chip-list");
+    const searchInput = document.getElementById("search-input");
+    const dropdown = document.getElementById("dropdown");
+    const container = document.getElementById("container");
+
+    function focusInput() {
+      searchInput.focus();
+    }
+
+    function renderChips() {
+      chipList.innerHTML = "";
+      selectedItems.forEach((item, index) => {
+        const li = document.createElement("li");
+        li.className = "chip";
+        li.draggable = true;
+        li.dataset.index = index;
+
+        li.innerHTML = `
+          <span class="drag-handle">⠿</span>
+          <span class="chip-text" title="${item}">${item}</span>
+          <button type="button" class="remove-btn" onclick="removeItem(event, ${index})">&times;</button>
+        `;
+
+        // Drag & drop event listeners
+        li.addEventListener("dragstart", handleDragStart);
+        li.addEventListener("dragover", handleDragOver);
+        li.addEventListener("dragleave", handleDragLeave);
+        li.addEventListener("drop", handleDrop);
+        li.addEventListener("dragend", handleDragEnd);
+
+        chipList.appendChild(li);
+      });
+
+      updateHeight();
+    }
+
+    let draggedItemIndex = null;
+
+    function handleDragStart(e) {
+      draggedItemIndex = parseInt(this.dataset.index);
+      this.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", draggedItemIndex);
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      const targetIndex = parseInt(this.dataset.index);
+      if (targetIndex !== draggedItemIndex) {
+        this.classList.add("drag-over");
+      }
+    }
+
+    function handleDragLeave() {
+      this.classList.remove("drag-over");
+    }
+
+    function handleDrop(e) {
+      e.preventDefault();
+      this.classList.remove("drag-over");
+      const targetIndex = parseInt(this.dataset.index);
+
+      if (draggedItemIndex !== null && draggedItemIndex !== targetIndex) {
+        const movedItem = selectedItems.splice(draggedItemIndex, 1)[0];
+        selectedItems.splice(targetIndex, 0, movedItem);
+        renderChips();
+        notifyStreamlit();
+      }
+    }
+
+    function handleDragEnd() {
+      this.classList.remove("dragging");
+      document.querySelectorAll(".chip").forEach(c => c.classList.remove("drag-over"));
+    }
+
+    function removeItem(e, index) {
+      e.stopPropagation();
+      selectedItems.splice(index, 1);
+      renderChips();
+      notifyStreamlit();
+      renderDropdown();
+    }
+
+    function addItem(item) {
+      if (!selectedItems.includes(item)) {
+        selectedItems.push(item);
+        searchInput.value = "";
+        renderChips();
+        notifyStreamlit();
+        hideDropdown();
+      }
+    }
+
+    function notifyStreamlit() {
+      Streamlit.setComponentValue([...selectedItems]);
+    }
+
+    function getFilteredOptions(query) {
+      const q = query.toLowerCase().trim();
+      return allOptions.filter(opt => !selectedItems.includes(opt) && (q === "" || opt.toLowerCase().includes(q)));
+    }
+
+    function renderDropdown() {
+      const query = searchInput.value;
+      const filtered = getFilteredOptions(query);
+
+      dropdown.innerHTML = "";
+      activeDropdownIndex = -1;
+
+      if (filtered.length === 0) {
+        if (query.trim() !== "") {
+          dropdown.innerHTML = '<div class="dropdown-empty">No matching options</div>';
+          dropdown.classList.add("show");
+        } else {
+          hideDropdown();
+        }
+      } else {
+        filtered.slice(0, 50).forEach((opt, idx) => {
+          const item = document.createElement("div");
+          item.className = "dropdown-item";
+          item.textContent = opt;
+          item.dataset.index = idx;
+          item.onmousedown = (e) => {
+            e.preventDefault();
+            addItem(opt);
+          };
+          dropdown.appendChild(item);
+        });
+        dropdown.classList.add("show");
+      }
+      updateHeight();
+    }
+
+    function hideDropdown() {
+      dropdown.classList.remove("show");
+      updateHeight();
+    }
+
+    function updateHeight() {
+      setTimeout(() => {
+        let h = document.getElementById("root").offsetHeight + 16;
+        if (dropdown.classList.contains("show")) {
+          h += dropdown.offsetHeight + 10;
+        }
+        Streamlit.setFrameHeight(Math.max(h, 55));
+      }, 30);
+    }
+
+    searchInput.addEventListener("input", () => {
+      renderDropdown();
+    });
+
+    searchInput.addEventListener("focus", () => {
+      renderDropdown();
+    });
+
+    searchInput.addEventListener("blur", () => {
+      setTimeout(hideDropdown, 200);
+    });
+
+    searchInput.addEventListener("keydown", (e) => {
+      const items = dropdown.querySelectorAll(".dropdown-item");
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (items.length > 0) {
+          activeDropdownIndex = (activeDropdownIndex + 1) % items.length;
+          updateActiveDropdownItem(items);
+        }
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (items.length > 0) {
+          activeDropdownIndex = (activeDropdownIndex - 1 + items.length) % items.length;
+          updateActiveDropdownItem(items);
+        }
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (activeDropdownIndex >= 0 && items[activeDropdownIndex]) {
+          items[activeDropdownIndex].onmousedown(e);
+        } else if (items.length > 0) {
+          items[0].onmousedown(e);
+        }
+      } else if (e.key === "Backspace" && searchInput.value === "" && selectedItems.length > 0) {
+        selectedItems.pop();
+        renderChips();
+        notifyStreamlit();
+        renderDropdown();
+      }
+    });
+
+    function updateActiveDropdownItem(items) {
+      items.forEach((item, idx) => {
+        if (idx === activeDropdownIndex) {
+          item.classList.add("active");
+          item.scrollIntoView({ block: "nearest" });
+        } else {
+          item.classList.remove("active");
+        }
+      });
+    }
+
+    function onRender(event) {
+      const { args } = event.detail;
+      
+      if (args.label) {
+        labelText.textContent = args.label;
+        labelText.style.display = "block";
+      } else {
+        labelText.style.display = "none";
+      }
+
+      allOptions = args.options || [];
+
+      if (!isInitialized || (args.default && JSON.stringify(args.default) !== JSON.stringify(selectedItems) && !window._userInteracted)) {
+        selectedItems = args.default ? [...args.default] : [];
+        isInitialized = true;
+        renderChips();
+      }
+      
+      updateHeight();
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      window.addEventListener("message", (event) => {
+        if (event.data && event.data.type === "streamlit:render") {
+          onRender({ detail: event.data });
+        }
+      });
+      Streamlit.setComponentReady();
+      updateHeight();
+    });
+  </script>
+</body>
+</html>

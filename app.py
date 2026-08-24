@@ -33,6 +33,24 @@ if "plotly_white" in pio.templates:
     pio.templates["plotly_white"].layout.yaxis.title.font.size = 16
 pio.templates.default = "plotly_white"
 import streamlit.components.v1 as components
+# Custom Draggable Multiselect Component
+COMPONENT_DIR = os.path.join(APP_DIR, "components", "draggable_multiselect")
+if os.path.exists(COMPONENT_DIR):
+    _draggable_multiselect_comp = components.declare_component("draggable_multiselect", path=COMPONENT_DIR)
+else:
+    _draggable_multiselect_comp = None
+
+def draggable_multiselect(label, options, default=None, key=None):
+    if default is None:
+        default = []
+    if _draggable_multiselect_comp is not None:
+        val = _draggable_multiselect_comp(label=label, options=options, default=default, key=key)
+        if val is None:
+            return list(default)
+        return list(val)
+    else:
+        return st.multiselect(label, options=options, default=default, key=key)
+
 
 # Setup paths
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -1298,10 +1316,7 @@ if app_mode == "Gene Expression UMAP":
                 with c_bar_metric:
                     bar_metric = st.radio("Stacked Bar Metric:", ["Percentage (%)", "Absolute Counts"], horizontal=True, key="comp_bar_metric")
                 with c_samp_filter:
-                    selected_comp_samples = st.multiselect("Select Samples to Display:", options=all_dataset_samples, default=all_dataset_samples, key="comp_samples_filter")
-                    if len(selected_comp_samples) > 1:
-                        st.caption("↕️ **Drag items below to rearrange sample display order:**")
-                        selected_comp_samples = sort_items(selected_comp_samples, direction="horizontal", key="drag_sort_comp_samples")
+                    selected_comp_samples = draggable_multiselect("Select & Reorder Samples to Display:", options=all_dataset_samples, default=all_dataset_samples, key="comp_samples_filter")
                 with c_donut_opt:
                     show_donut_pct = st.checkbox("Show % in Donut Slices", value=True, key="comp_show_pct")
                     
