@@ -745,10 +745,33 @@ if app_mode == "Gene Expression UMAP":
         plt.tight_layout()
         return fig
 
+    @st.cache_data
+    def get_umap_embeddings_csv(_adata, s_col, a_col, var_name, disp_name):
+        if 'X_umap' not in _adata.obsm:
+            return None
+        df_out = pd.DataFrame({
+            "Barcode": _adata.obs_names,
+            "UMAP_1": _adata.obsm['X_umap'][:, 0],
+            "UMAP_2": _adata.obsm['X_umap'][:, 1]
+        })
+        if s_col and s_col in _adata.obs:
+            df_out["Sample"] = _adata.obs[s_col].values
+        if a_col and a_col in _adata.obs:
+            df_out[a_col] = _adata.obs[a_col].values
+        if var_name and var_name in _adata.var_names:
+            if scipy.sparse.issparse(_adata.X):
+                g_raw = _adata[:, var_name].X.toarray().flatten()
+            else:
+                g_raw = _adata[:, var_name].X.flatten()
+            clean_sym = disp_name.split(" (")[0] if disp_name else "Gene"
+            df_out[f"Expression_{clean_sym}_Raw"] = g_raw
+            df_out[f"Expression_{clean_sym}_Log2"] = np.log2(g_raw + 1)
+        return df_out.to_csv(index=False).encode('utf-8')
+
     # 7 Main Tabs
     tab_static, tab_interactive, tab_composition, tab_gene_violin, tab_score_violin, tab_scatter, tab_trajectory = st.tabs([
-        "Static Plots", 
-        "Interactive Plots", 
+        "Static UMAP", 
+        "Interactive UMAP", 
         "Sample Composition",
         "Gene Expression Violins",
         "Signature & Pathway Scoring",
@@ -756,7 +779,7 @@ if app_mode == "Gene Expression UMAP":
         "Trajectory Analysis"
     ])
     
-    # ---------------- TAB 1: STATIC PLOTS ----------------
+    # ---------------- TAB 1: STATIC UMAP ----------------
     with tab_static:
         with st.expander("🎨 Colormap, Scale & Contrast Controls", expanded=bool(resolved_var_name)):
             c_scale, c_cmap, c_pct, c_vmax = st.columns([1.2, 1.0, 1.8, 1.0])
@@ -811,13 +834,25 @@ if app_mode == "Gene Expression UMAP":
                 svg_grid_buf = io.BytesIO()
                 fig_grid.savefig(svg_grid_buf, format="svg", bbox_inches="tight")
                 clean_sym_name = resolved_display_name.split(" (")[0] if resolved_display_name else "gene"
-                st.download_button(
-                    label="📥 Download Grid Plot as SVG",
-                    data=svg_grid_buf.getvalue(),
-                    file_name=f"{selected_dataset_name}_{clean_sym_name}_static_grid.svg",
-                    mime="image/svg+xml",
-                    key="dl_tab1_grid_svg"
-                )
+                c_dl1, c_dl2 = st.columns([1, 1])
+                with c_dl1:
+                    st.download_button(
+                        label="📥 Download Grid Plot as SVG",
+                        data=svg_grid_buf.getvalue(),
+                        file_name=f"{selected_dataset_name}_{clean_sym_name}_static_grid.svg",
+                        mime="image/svg+xml",
+                        key="dl_tab1_grid_svg"
+                    )
+                with c_dl2:
+                    csv_data_t1 = get_umap_embeddings_csv(adata, sample_col, selected_col, resolved_var_name, resolved_display_name)
+                    if csv_data_t1:
+                        st.download_button(
+                            label="📥 Download UMAP Embeddings (CSV)",
+                            data=csv_data_t1,
+                            file_name=f"{selected_dataset_name}_umap_embeddings.csv",
+                            mime="text/csv",
+                            key="dl_tab1_umap_csv"
+                        )
                 plt.close(fig_grid)
         else:
             st.info("💡 Select or search a gene above from the dropdown to view the expression comparison grid.")
@@ -878,7 +913,7 @@ if app_mode == "Gene Expression UMAP":
                             st.pyplot(fig_ref)
                             plt.close(fig_ref)
             
-    # ---------------- TAB 2: INTERACTIVE PLOTS ----------------
+    # ---------------- TAB 2: INTERACTIVE UMAP ----------------
     with tab_interactive:
         if 'X_umap' not in adata.obsm:
             st.warning("This dataset does not contain UMAP coordinates ('X_umap').")
@@ -891,6 +926,16 @@ if app_mode == "Gene Expression UMAP":
             else:
                 all_categories = []
             
+            csv_data_t2 = get_umap_embeddings_csv(adata, sample_col, selected_col, resolved_var_name, resolved_display_name)
+            if csv_data_t2:
+                st.download_button(
+                    label="📥 Download UMAP Embeddings (CSV)",
+                    data=csv_data_t2,
+                    file_name=f"{selected_dataset_name}_umap_embeddings.csv",
+                    mime="text/csv",
+                    key="dl_tab2_umap_csv"
+                )
+
             with st.expander("Filter & Highlight Controls", expanded=True):
                 c_mode, c_size = st.columns([2, 1])
                 with c_mode:
