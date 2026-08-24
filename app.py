@@ -998,47 +998,24 @@ if app_mode == "Single Cell Analysis Viewer":
             df_out[f"Expression_{clean_sym}_Log2"] = np.log2(g_raw + 1)
         return df_out.to_csv(index=False).encode('utf-8')
 
-    # Two-Row Analysis Mode Selection & Navigation Tabs
-    st.markdown("""
-    <div style="font-size: 15px; font-weight: 700; color: #334155; margin-top: 6px; margin-bottom: 4px;">
-        📑 Analysis Workspaces & Modules
-    </div>
-    """, unsafe_allow_html=True)
-    
-    analysis_group = st.radio(
-        "Select Workspace Row:",
-        [
-            "Row 1: 🗺️ Single-Cell Landscapes & Kinetics (7 Tabs)",
-            "Row 2: 🔬 Comparative, Heatmaps & Functional Genomics (4 Tabs)"
-        ],
-        horizontal=True,
-        key="analysis_group_radio"
-    )
-        
-    if "Row 1" in analysis_group:
-        tab_static, tab_interactive, tab_composition, tab_gene_violin, tab_score_violin, tab_scatter, tab_trajectory = st.tabs([
-            "Static UMAP", 
-            "Interactive UMAP", 
-            "Sample Composition",
-            "Gene Expression Violins",
-            "Signature & Pathway Scoring",
-            "Correlation & Scatter Plots",
-            "Trajectory Analysis"
-        ])
-        tab_de, tab_heatmap, tab_enrichment, tab_bulk_download = None, None, None, None
-    else:
-        tab_de, tab_heatmap, tab_enrichment, tab_bulk_download = st.tabs([
-            "Differential Expression",
-            "Expression Heatmap",
-            "Pathway Enrichment",
-            "Bulk Download & Export"
-        ])
-        tab_static, tab_interactive, tab_composition, tab_gene_violin, tab_score_violin, tab_scatter, tab_trajectory = None, None, None, None, None, None, None
+    # 11 Main Analysis Tabs
+    tab_static, tab_interactive, tab_composition, tab_gene_violin, tab_score_violin, tab_scatter, tab_trajectory, tab_de, tab_heatmap, tab_enrichment, tab_bulk_download = st.tabs([
+        "🗺️ Static UMAP", 
+        "✨ Interactive UMAP", 
+        "📊 Sample Composition",
+        "🎻 Gene Expression Violins",
+        "📈 Signature & Pathway Scoring",
+        "📉 Correlation & Scatter",
+        "🌿 Trajectory Analysis",
+        "🌋 Differential Expression",
+        "🔥 Expression Heatmap",
+        "🧬 Pathway Enrichment",
+        "📦 Bulk Download & Export"
+    ])
 
     
     # ---------------- TAB 1: STATIC UMAP ----------------
-    if tab_static is not None:
-        with tab_static:
+    with tab_static:
         with st.expander("🎨 Colormap, Scale & Contrast Controls", expanded=bool(resolved_var_name)):
             c_scale, c_cmap, c_pct, c_vmax = st.columns([1.2, 1.0, 1.8, 1.0])
             with c_scale:
@@ -1197,8 +1174,7 @@ if app_mode == "Single Cell Analysis Viewer":
                             )
             
     # ---------------- TAB 2: INTERACTIVE UMAP ----------------
-    if tab_interactive is not None:
-        with tab_interactive:
+    with tab_interactive:
         if 'X_umap' not in adata.obsm:
             st.warning("This dataset does not contain UMAP coordinates ('X_umap').")
         else:
@@ -1534,8 +1510,7 @@ if app_mode == "Single Cell Analysis Viewer":
                     )
 
     # ---------------- TAB 3: SAMPLE COMPOSITION ----------------
-    if tab_composition is not None:
-        with tab_composition:
+    with tab_composition:
         if not selected_col or not sample_col:
             st.warning("Please select an Annotation Column in the sidebar to view cell population compositions.")
         else:
@@ -1699,8 +1674,7 @@ if app_mode == "Single Cell Analysis Viewer":
                     )
 
     # ---------------- TAB 4: GENE EXPRESSION VIOLINS (WITH STATS) ----------------
-    if tab_gene_violin is not None:
-        with tab_gene_violin:
+    with tab_gene_violin:
         st.markdown("### Gene Expression Significance Violins across Conditions")
         if not resolved_var_name:
             st.info("💡 Please select or search a gene above from the dropdown to generate expression violin plots with statistical significance testing.")
@@ -1948,8 +1922,7 @@ if app_mode == "Single Cell Analysis Viewer":
                         )
 
     # ---------------- TAB 5: SIGNATURE & PATHWAY SCORING (WITH STATS) ----------------
-    if tab_score_violin is not None:
-        with tab_score_violin:
+    with tab_score_violin:
         st.markdown("### Gene Signature & Pathway Scoring Violins (with Stats)")
         st.write("Calculate dynamic gene set scores (`sc.tl.score_genes`) and perform statistical comparisons across condition groups per cell state.")
         
@@ -2219,8 +2192,7 @@ if app_mode == "Single Cell Analysis Viewer":
                         )
 
     # ---------------- TAB 6: CORRELATION & SCATTER PLOTS (WITH STATS) ----------------
-    if tab_scatter is not None:
-        with tab_scatter:
+    with tab_scatter:
         st.markdown("### Co-expression & Correlation Scatter Plots (with Statistical Testing)")
         st.write("Analyze co-expression relationships between any two genes, gene signatures/pathways, or a gene vs. a pathway score across conditions and cell populations.")
         
@@ -2546,8 +2518,7 @@ if app_mode == "Single Cell Analysis Viewer":
 
 
     # ---------------- TAB 7: TRAJECTORY ANALYSIS ----------------
-    if tab_trajectory is not None:
-        with tab_trajectory:
+    with tab_trajectory:
         st.markdown("### Lineage Trajectory & Pseudotime Dynamics")
         st.write("Explore continuous differentiation trajectories, PAGA connectivity, and dynamic gene & pathway expression kinetics along developmental pseudotime.")
         
@@ -2951,8 +2922,7 @@ if app_mode == "Single Cell Analysis Viewer":
 
     
     # ---------------- TAB 9: DIFFERENTIAL EXPRESSION (VOLCANO & TABLE) ----------------
-    if tab_de is not None:
-        with tab_de:
+    with tab_de:
             st.markdown("### 🌋 Differential Expression Analysis & Volcano Studio")
             st.caption("Calculate Wilcoxon rank-sum differential expression between cohorts or cell state clusters, visualize interactive Volcano plots, and export ranked gene lists.")
             
@@ -3058,8 +3028,7 @@ if app_mode == "Single Cell Analysis Viewer":
                 )
 
     # ---------------- TAB 10: EXPRESSION HEATMAP STUDIO ----------------
-    if tab_heatmap is not None:
-        with tab_heatmap:
+    with tab_heatmap:
             st.markdown("### 🔥 High-Resolution Expression Heatmap Studio")
             st.caption("Generate publication-grade hierarchical clustered or group-sorted heatmaps across samples, cell states, or custom gene sets.")
             
@@ -3159,8 +3128,7 @@ if app_mode == "Single Cell Analysis Viewer":
                         plt.close('all')
 
     # ---------------- TAB 11: PATHWAY ENRICHMENT STUDIO ----------------
-    if tab_enrichment is not None:
-        with tab_enrichment:
+    with tab_enrichment:
             st.markdown("### 🧬 Functional Genomics & Pathway Enrichment Studio")
             st.caption("Perform Over-Representation Analysis (ORA) across Hallmark Pathways, Epidermal Differentiation, Desmosomes & Adherens Junction signatures for Up- and Down-regulated gene cohorts.")
             
@@ -3253,8 +3221,7 @@ if app_mode == "Single Cell Analysis Viewer":
                     st.info("No overlapping pathway terms found.")
 
     # ---------------- TAB 8: BULK DOWNLOAD & EXPORT STUDIO ----------------
-    if tab_bulk_download is not None:
-        with tab_bulk_download:
+    with tab_bulk_download:
         st.markdown("""
         <div style="background-color: #FEF3C7; border-left: 5px solid #F59E0B; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px;">
             <div style="font-size: 15px; font-weight: 700; color: #92400E;">
