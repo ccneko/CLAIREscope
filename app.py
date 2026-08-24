@@ -3262,7 +3262,7 @@ if app_mode == "Single Cell Analysis Viewer":
                 else:
                     st.info("No overlapping pathway terms found.")
 
-    # ---------------- TAB 8: BULK DOWNLOAD & EXPORT STUDIO ----------------
+        # ---------------- TAB 8: BULK DOWNLOAD & EXPORT STUDIO ----------------
     with tab_bulk_download:
         st.markdown("""
         <div style="background-color: #FEF3C7; border-left: 5px solid #F59E0B; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px;">
@@ -3274,79 +3274,194 @@ if app_mode == "Single Cell Analysis Viewer":
             </div>
         </div>
         """, unsafe_allow_html=True)
-        
+        # ---------------- 0. CONFIG IMPORT & DEMO TEMPLATES ----------------
+        with st.expander("📥 Import Export Configuration from CSV or Excel (.xlsx)", expanded=False):
+            st.markdown("""
+**Supported File Formats & Specifications:**
+- **Genes List**: A `.csv` or `.xlsx` file with a column of gene names (e.g. `Gene`, `Symbol`, `Gene_ID`, or single column). Duplicates are automatically removed and matched against the active dataset.
+- **Custom Pathways**: A `.csv` or `.xlsx` file where each column header is a **Pathway Name**, and the rows below contain member genes.
+- **Multi-Sheet Excel**: A workbook with a **`Genes`** sheet and/or **`Pathways`** sheet.
+""")
+            c_demo1, c_demo2, c_demo3 = st.columns(3)
+            with c_demo1:
+                demo_genes_csv = "Gene\nCOL17A1\nKRT14\nKRT5\nKRT1\nKRT10\nDSG1\nDSC1\nFLG\nLOR\nIVL\nCDH1\nCTNNB1\nDSP\nPKP1\nMKI67\nTOP2A\nITGA6\nITGB4\nLAMA3\nLAMB3"
+                st.download_button(
+                    "📄 Example Gene List (.csv)",
+                    data=demo_genes_csv.encode('utf-8'),
+                    file_name="example_gene_list.csv",
+                    mime="text/csv",
+                    key="dl_demo_genes_csv_key_8"
+                )
+            with c_demo2:
+                demo_pathways_csv = "Basal_Stem_Adhesion,Suprabasal_Diff,Cell_Cycle_Prolif\nCOL17A1,KRT1,MKI67\nITGA6,KRT10,TOP2A\nITGB4,DSG1,CCNB1\nLAMA3,DSC1,CDK1\nLAMB3,FLG,PCNA\nCDH1,LOR,\nDSP,IVL,"
+                st.download_button(
+                    "📊 Example Custom Pathways (.csv)",
+                    data=demo_pathways_csv.encode('utf-8'),
+                    file_name="example_custom_pathways.csv",
+                    mime="text/csv",
+                    key="dl_demo_pathways_csv_key_8"
+                )
+            with c_demo3:
+                excel_demo_buf = io.BytesIO()
+                with pd.ExcelWriter(excel_demo_buf, engine='openpyxl') as writer:
+                    pd.DataFrame({"Gene": ["COL17A1", "KRT14", "KRT5", "KRT1", "KRT10", "DSG1", "FLG", "CDH1", "DSP", "MKI67", "TOP2A"]}).to_excel(writer, sheet_name="Genes", index=False)
+                    pd.DataFrame({
+                        "Basal_Stem_Adhesion": ["COL17A1", "ITGA6", "ITGB4", "LAMA3", "LAMB3", "CDH1", "DSP"],
+                        "Epidermal_Diff": ["KRT1", "KRT10", "DSG1", "DSC1", "FLG", "LOR", "IVL"],
+                        "Cell_Cycle": ["MKI67", "TOP2A", "CCNB1", "CDK1", "PCNA", "", ""]
+                    }).to_excel(writer, sheet_name="Pathways", index=False)
+                st.download_button(
+                    "📑 Example Multi-Sheet Config (.xlsx)",
+                    data=excel_demo_buf.getvalue(),
+                    file_name="example_export_config.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="dl_demo_excel_key_8"
+                )
+            uploaded_file = st.file_uploader(
+                "Upload Custom Export Configuration File (.csv, .xlsx, .xls):",
+                type=["csv", "xlsx", "xls"],
+                key="bulk_cfg_file_uploader_8"
+            )
+            if uploaded_file is not None:
+                try:
+                    imported_genes_list = []
+                    imported_pathways_dict = {}
+                    if uploaded_file.name.endswith(".csv"):
+                        df_up_raw = pd.read_csv(uploaded_file)
+                        if len(df_up_raw.columns) == 1 or "gene" in str(df_up_raw.columns[0]).lower():
+                            col_g = df_up_raw.columns[0]
+                            imported_genes_list = df_up_raw[col_g].dropna().astype(str).str.strip().tolist()
+                        else:
+                            for col in df_up_raw.columns:
+                                p_g = df_up_raw[col].dropna().astype(str).str.strip().tolist()
+                                p_g = [g for g in p_g if g and g != "nan"]
+                                if p_g:
+                                    imported_pathways_dict[str(col).strip()] = p_g
+                    else:
+                        xl = pd.ExcelFile(uploaded_file)
+                        for s_name in xl.sheet_names:
+                            df_s = xl.parse(s_name)
+                            if "gene" in s_name.lower():
+                                col_g = df_s.columns[0]
+                                imported_genes_list.extend(df_s[col_g].dropna().astype(str).str.strip().tolist())
+                            elif "pathway" in s_name.lower() or "sig" in s_name.lower():
+                                for col in df_s.columns:
+                                    p_g = df_s[col].dropna().astype(str).str.strip().tolist()
+                                    p_g = [g for g in p_g if g and g != "nan"]
+                                    if p_g:
+                                        imported_pathways_dict[str(col).strip()] = p_g
+                            else:
+                                if len(df_s.columns) == 1:
+                                    col_g = df_s.columns[0]
+                                    imported_genes_list.extend(df_s[col_g].dropna().astype(str).str.strip().tolist())
+                                else:
+                                    for col in df_s.columns:
+                                        p_g = df_s[col].dropna().astype(str).str.strip().tolist()
+                                        p_g = [g for g in p_g if g and g != "nan"]
+                                        if p_g:
+                                            imported_pathways_dict[str(col).strip()] = p_g
+                    if imported_genes_list:
+                        seen_g = set()
+                        unique_imp_genes = []
+                        for g in imported_genes_list:
+                            if g.upper() not in seen_g:
+                                seen_g.add(g.upper())
+                                unique_imp_genes.append(g)
+                        matched_display_genes = []
+                        not_found_genes = []
+                        for g in unique_imp_genes:
+                            m_disp = sym_to_display.get(g.upper(), None)
+                            if not m_disp:
+                                m_disp = display_to_var.get(g, None)
+                            if m_disp:
+                                matched_display_genes.append(m_disp if m_disp in display_to_var else var_to_display.get(m_disp, m_disp))
+                            else:
+                                not_found_genes.append(g)
+                        st.session_state["bulk_imported_matched_genes"] = matched_display_genes
+                        st.success(f"✅ **Imported {len(unique_imp_genes)} Unique Genes**: **{len(matched_display_genes)}** detected in active dataset ({len(not_found_genes)} not found in dataset: `{', '.join(not_found_genes[:8])}`{', ...' if len(not_found_genes) > 8 else ''}).")
+                    if imported_pathways_dict:
+                        if "custom_bulk_signatures" not in st.session_state:
+                            st.session_state["custom_bulk_signatures"] = {}
+                        st.session_state["custom_bulk_signatures"].update(imported_pathways_dict)
+                        st.success(f"✅ **Imported {len(imported_pathways_dict)} Custom Pathways**: `{', '.join(list(imported_pathways_dict.keys()))}`.")
+                except Exception as ex:
+                    st.error(f"Error parsing uploaded file: {ex}")
+        active_bulk_signatures = dict(DEFAULT_SIGNATURES)
+        if "custom_bulk_signatures" in st.session_state:
+            active_bulk_signatures.update(st.session_state["custom_bulk_signatures"])
         # 1. Feature Selections
         st.markdown("### 1️⃣ Features to Include in Bulk Export")
+        c_all_g, _ = st.columns([1.5, 1.0])
+        with c_all_g:
+            export_all_genes = st.checkbox(
+                f"🌐 Export Complete Genome Table: ALL {adata.n_vars:,} Genes in Dataset",
+                value=False,
+                help="When enabled, the tabular expression summary CSV will include every gene in the active dataset.",
+                key="bulk_export_all_genes_toggle_8"
+            )
         c_b1, c_b2 = st.columns(2)
         def_bulk_genes = ["COL17A1", "Col17a1", "KRT14", "Krt14", "KRT10", "Krt10", "CDH1", "Cdh1", "DSP", "Dsp"]
         valid_bulk_genes = [sym_to_display[g.upper()] for g in def_bulk_genes if g.upper() in sym_to_display]
         all_display_clean = [o for o in display_options if o != "None"]
-        
+        default_selected_genes = st.session_state.get("bulk_imported_matched_genes", valid_bulk_genes[:6] if valid_bulk_genes else all_display_clean[:4])
         with c_b1:
             bulk_selected_genes = draggable_multiselect(
-                "Genes to Export (One row per gene in table & individual plots):",
+                "Selected Genes to Export (One row per gene in table & individual plots):",
                 options=all_display_clean,
-                default=valid_bulk_genes[:6] if valid_bulk_genes else all_display_clean[:4],
-                key="bulk_genes_input"
+                default=default_selected_genes,
+                key="bulk_genes_input_final_8"
             )
         with c_b2:
+            default_pathways = list(active_bulk_signatures.keys())[:4]
+            if "custom_bulk_signatures" in st.session_state:
+                default_pathways = list(st.session_state["custom_bulk_signatures"].keys()) + [p for p in default_pathways if p not in st.session_state["custom_bulk_signatures"]]
             bulk_selected_pathways = draggable_multiselect(
                 "Pathways / Signatures to Export:",
-                options=list(DEFAULT_SIGNATURES.keys()),
-                default=list(DEFAULT_SIGNATURES.keys())[:4],
-                key="bulk_pathways_input"
+                options=list(active_bulk_signatures.keys()),
+                default=default_pathways,
+                key="bulk_pathways_input_final_8"
             )
-            
         st.markdown("---")
         st.markdown("### 2️⃣ Select Figures & Formats to Export")
         c_fig1, c_fig2, c_fig3 = st.columns(3)
         with c_fig1:
-            inc_grid_umap = st.checkbox("Multi-Condition UMAP Expression Grids", value=True, key="b_inc_grid")
-            inc_ref_umap = st.checkbox("Sample & Cell State Reference UMAPs", value=True, key="b_inc_ref")
+            inc_grid_umap = st.checkbox("Multi-Condition UMAP Expression Grids", value=True, key="b_inc_grid_8")
+            inc_ref_umap = st.checkbox("Sample & Cell State Reference UMAPs", value=True, key="b_inc_ref_8")
         with c_fig2:
-            inc_violins = st.checkbox("Gene Expression Statistical Violins", value=True, key="b_inc_violins")
-            inc_sig_violins = st.checkbox("Signature & Pathway Score Violins", value=True, key="b_inc_sig_violins")
+            inc_violins = st.checkbox("Gene Expression Statistical Violins", value=True, key="b_inc_violins_8")
+            inc_sig_violins = st.checkbox("Signature & Pathway Score Violins", value=True, key="b_inc_sig_violins_8")
         with c_fig3:
-            inc_comp_plots = st.checkbox("Population Composition (Bars & Donuts)", value=True, key="b_inc_comp")
+            inc_comp_plots = st.checkbox("Population Composition (Bars & Donuts)", value=True, key="b_inc_comp_8")
             pt_cols_avail = [c for c in adata.obs.columns if 'pseudotime' in c.lower() or 'dpt' in c.lower() or 'latent_time' in c.lower()]
-            inc_traj_plots = st.checkbox("Trajectory Kinetics Curves", value=True if pt_cols_avail else False, key="b_inc_traj")
-            
-        img_formats = st.multiselect("Image Formats to Generate:", ["SVG", "PNG", "PDF"], default=["SVG", "PNG"], key="bulk_img_formats")
-        
+            inc_traj_plots = st.checkbox("Trajectory Kinetics Curves", value=True if pt_cols_avail else False, key="b_inc_traj_8")
+        img_formats = st.multiselect("Image Formats to Generate:", ["SVG", "PNG", "PDF"], default=["SVG", "PNG"], key="bulk_img_formats_8")
         st.markdown("---")
         st.markdown("### 3️⃣ Select Tabular Summary Datasets")
         c_tab1, c_tab2 = st.columns(2)
         with c_tab1:
-            inc_table_gene = st.checkbox("📊 Gene Expression Summary (1 row per gene, samples & cell states in columns)", value=True, key="b_tbl_gene")
-            inc_table_sig = st.checkbox("📈 Pathway Score Summary (1 row per pathway, samples & cell states in columns)", value=True, key="b_tbl_sig")
+            inc_table_gene = st.checkbox("📊 Gene Expression Summary (1 row per gene, samples & cell states in columns)", value=True, key="b_tbl_gene_8")
+            inc_table_sig = st.checkbox("📈 Pathway Score Summary (1 row per pathway, samples & cell states in columns)", value=True, key="b_tbl_sig_8")
         with c_tab2:
-            inc_table_comp = st.checkbox("🥧 Cell Type Composition Table (Counts & Percentages)", value=True, key="b_tbl_comp")
-            inc_table_umap = st.checkbox("🗺️ Full UMAP Embeddings & Coordinates Table (CSV)", value=True, key="b_tbl_umap")
-            
-        st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-        
-        # ---------------------------------------------------------
-        # BULK GENERATION ENGINE
-        # ---------------------------------------------------------
-        if st.button("⚡ Generate & Build Bulk Export Package (.ZIP)", type="primary", key="btn_run_bulk_export"):
+            inc_table_comp = st.checkbox("🥧 Cell Type Composition Table (Counts & Percentages)", value=True, key="b_tbl_comp_8")
+            inc_table_umap = st.checkbox("🗺️ Full UMAP Embeddings & Coordinates Table (CSV)", value=True, key="b_tbl_umap_8")
+        st.markdown("<div style=\'margin-top: 10px;\'></div>", unsafe_allow_html=True)
+        if st.button("⚡ Generate & Build Bulk Export Package (.ZIP)", type="primary", key="btn_run_bulk_export_8"):
             import zipfile
             import datetime
             zip_buffer = io.BytesIO()
             progress_bar = st.progress(0, text="Initializing export package...")
-            
             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                # A. TABULAR EXPORT 1: GENE EXPRESSION SUMMARY (1 row per gene)
-                if inc_table_gene and bulk_selected_genes:
+                if inc_table_gene:
                     progress_bar.progress(10, text="Building Gene Expression Summary Table...")
+                    target_table_genes = display_options[1:] if export_all_genes else bulk_selected_genes
                     gene_rows = []
-                    for g_disp in bulk_selected_genes:
+                    for idx_tg, g_disp in enumerate(target_table_genes):
                         g_var = resolve_gene_var_name(adata, g_disp, sym_to_display, display_to_var)
                         if g_var:
                             clean_sym = g_disp.split(" (")[0]
                             expr_raw_vec = adata[:, g_var].X
                             g_vals = expr_raw_vec.toarray().flatten() if scipy.sparse.issparse(expr_raw_vec) else np.array(expr_raw_vec).flatten()
                             g_log2 = np.log2(g_vals + 1)
-                            
                             row = {
                                 "Gene_Symbol": clean_sym,
                                 "Gene_ID": g_var,
@@ -3354,15 +3469,11 @@ if app_mode == "Single Cell Analysis Viewer":
                                 "Global_Mean_Log2": np.round(np.mean(g_log2), 4),
                                 "Global_Pct_Expressing": np.round(np.mean(g_vals > 0) * 100, 2)
                             }
-                            
-                            # Per Sample columns
                             if sample_col and sample_col in adata.obs.columns:
                                 for s in ordered_samples:
                                     m_s = (adata.obs[sample_col] == s)
                                     row[f"Sample_{s}_Mean_Log2"] = np.round(np.mean(g_log2[m_s]), 4) if np.sum(m_s) > 0 else 0.0
                                     row[f"Sample_{s}_Pct_Expr"] = np.round(np.mean(g_vals[m_s] > 0) * 100, 2) if np.sum(m_s) > 0 else 0.0
-                                    
-                            # Per Cell State columns
                             if selected_col and selected_col in adata.obs.columns:
                                 _, state_cats = get_cluster_color_map(adata, selected_col)
                                 for st_name in state_cats:
@@ -3370,19 +3481,15 @@ if app_mode == "Single Cell Analysis Viewer":
                                     clean_st = str(st_name).replace(" ", "_")
                                     row[f"State_{clean_st}_Mean_Log2"] = np.round(np.mean(g_log2[m_st]), 4) if np.sum(m_st) > 0 else 0.0
                                     row[f"State_{clean_st}_Pct_Expr"] = np.round(np.mean(g_vals[m_st] > 0) * 100, 2) if np.sum(m_st) > 0 else 0.0
-                                    
                             gene_rows.append(row)
-                            
                     df_gene_summary = pd.DataFrame(gene_rows)
                     zip_file.writestr("tables/gene_expression_summary.csv", df_gene_summary.to_csv(index=False))
-                    
-                # B. TABULAR EXPORT 2: PATHWAY / SIGNATURE SUMMARY (1 row per pathway)
                 if inc_table_sig and bulk_selected_pathways:
                     progress_bar.progress(25, text="Building Pathway Score Summary Table...")
                     pathway_rows = []
                     for p_name in bulk_selected_pathways:
-                        if p_name in DEFAULT_SIGNATURES:
-                            p_genes = DEFAULT_SIGNATURES[p_name]
+                        if p_name in active_bulk_signatures:
+                            p_genes = active_bulk_signatures[p_name]
                             p_vars = [resolve_gene_var_name(adata, g, sym_to_display, display_to_var) for g in p_genes]
                             p_vars = [v for v in p_vars if v is not None]
                             if p_vars:
@@ -3392,32 +3499,25 @@ if app_mode == "Single Cell Analysis Viewer":
                                     p_mat_list.append(v_raw.toarray().flatten() if scipy.sparse.issparse(v_raw) else np.array(v_raw).flatten())
                                 p_mat = np.column_stack(p_mat_list)
                                 p_score = np.mean(np.log2(p_mat + 1), axis=1)
-                                
                                 p_row = {
                                     "Pathway_Name": p_name,
                                     "Genes_Included_Count": len(p_vars),
                                     "Genes_List": "; ".join(p_genes),
                                     "Global_Mean_Score": np.round(np.mean(p_score), 4)
                                 }
-                                
                                 if sample_col and sample_col in adata.obs.columns:
                                     for s in ordered_samples:
                                         m_s = (adata.obs[sample_col] == s)
                                         p_row[f"Sample_{s}_Mean_Score"] = np.round(np.mean(p_score[m_s]), 4) if np.sum(m_s) > 0 else 0.0
-                                        
                                 if selected_col and selected_col in adata.obs.columns:
                                     _, state_cats = get_cluster_color_map(adata, selected_col)
                                     for st_name in state_cats:
                                         m_st = (adata.obs[selected_col] == st_name)
                                         clean_st = str(st_name).replace(" ", "_")
                                         p_row[f"State_{clean_st}_Mean_Score"] = np.round(np.mean(p_score[m_st]), 4) if np.sum(m_st) > 0 else 0.0
-                                        
                                 pathway_rows.append(p_row)
-                                
                     df_pathway_summary = pd.DataFrame(pathway_rows)
                     zip_file.writestr("tables/pathway_scores_summary.csv", df_pathway_summary.to_csv(index=False))
-
-                # C. TABULAR EXPORT 3: SAMPLE COMPOSITION
                 if inc_table_comp and sample_col and selected_col and sample_col in adata.obs.columns and selected_col in adata.obs.columns:
                     progress_bar.progress(35, text="Building Sample Composition Table...")
                     ct_counts = pd.crosstab(adata.obs[sample_col], adata.obs[selected_col])
@@ -3428,23 +3528,17 @@ if app_mode == "Single Cell Analysis Viewer":
                         df_comp_export[f"{c}_Percentage"] = np.round(ct_pct[c], 2)
                     df_comp_export["Total_Cells"] = adata.obs[sample_col].value_counts()
                     zip_file.writestr("tables/sample_composition_summary.csv", df_comp_export.to_csv())
-
-                # D. TABULAR EXPORT 4: UMAP EMBEDDINGS
                 if inc_table_umap and 'X_umap' in adata.obsm:
                     progress_bar.progress(45, text="Exporting UMAP Coordinates & Metadata...")
                     umap_csv_bytes = get_umap_embeddings_csv(adata, sample_col, selected_col, resolved_var_name, resolved_display_name)
                     if umap_csv_bytes:
                         zip_file.writestr("tables/umap_embeddings_and_metadata.csv", umap_csv_bytes)
-
-                # Helper to save figures into zip in multiple formats
                 def save_fig_to_zip(fig_obj, filename_base, fmts):
                     for fmt in fmts:
                         buf = io.BytesIO()
                         dpi_val = 300 if fmt in ['png', 'pdf'] else None
                         fig_obj.savefig(buf, format=fmt.lower(), bbox_inches="tight", dpi=dpi_val)
                         zip_file.writestr(f"figures/{filename_base}.{fmt.lower()}", buf.getvalue())
-
-                # Figure 1: Reference UMAPs
                 if inc_ref_umap and 'X_umap' in adata.obsm:
                     progress_bar.progress(55, text="Rendering Reference UMAP figures...")
                     fig_ref_all, (ax_r1, ax_r2) = plt.subplots(1, 2, figsize=(12, 5), dpi=200)
@@ -3458,7 +3552,6 @@ if app_mode == "Single Cell Analysis Viewer":
                     ax_r1.set_aspect('equal', 'box')
                     ax_r1.set_xticks([])
                     ax_r1.set_yticks([])
-                    
                     if selected_col and selected_col in adata.obs.columns:
                         cmap_dict, cats = get_cluster_color_map(adata, selected_col)
                         for cat in cats:
@@ -3472,8 +3565,6 @@ if app_mode == "Single Cell Analysis Viewer":
                     fig_ref_all.tight_layout()
                     save_fig_to_zip(fig_ref_all, "reference_sample_and_cell_state_umaps", img_formats)
                     plt.close(fig_ref_all)
-
-                # Figure 2: Gene UMAP Grids
                 if inc_grid_umap and bulk_selected_genes and 'X_umap' in adata.obsm:
                     total_g = len(bulk_selected_genes)
                     for idx_g, g_disp in enumerate(bulk_selected_genes):
@@ -3483,16 +3574,13 @@ if app_mode == "Single Cell Analysis Viewer":
                             clean_sym = g_disp.split(" (")[0]
                             v_raw = adata[:, g_var].X
                             g_raw = v_raw.toarray().flatten() if scipy.sparse.issparse(v_raw) else np.array(v_raw).flatten()
-                            g_scaled = np.log2(g_raw + 1) if use_log2 else g_raw
+                            g_scaled = np.log2(g_raw + 1)
                             g_vmax = float(np.percentile(g_scaled, 99.0)) if len(g_scaled) > 0 else 3.5
-                            
                             n_s = len(ordered_samples) if ordered_samples else 1
                             n_cols = 3 if n_s >= 3 else n_s
                             n_rows = (n_s + n_cols - 1) // n_cols
-                            
                             fig_g, axes_g = plt.subplots(n_rows, n_cols, figsize=(4.8 * n_cols, 4.4 * n_rows), dpi=200)
                             axes_g_flat = axes_g.flatten() if hasattr(axes_g, 'flatten') else [axes_g]
-                            
                             for idx_s, s in enumerate(ordered_samples if ordered_samples else ["All"]):
                                 if idx_s < len(axes_g_flat):
                                     ax = axes_g_flat[idx_s]
@@ -3505,16 +3593,14 @@ if app_mode == "Single Cell Analysis Viewer":
                                     ax.set_yticks([])
                             for idx_rem in range(len(ordered_samples if ordered_samples else ["All"]), len(axes_g_flat)):
                                 axes_g_flat[idx_rem].axis('off')
-                            fig_g.suptitle(f"{clean_sym} [{chosen_scale_label}] (vmax={g_vmax:.2f})", fontsize=13, fontweight='bold', y=0.99)
+                            fig_g.suptitle(f"{clean_sym} [Log2(Norm+1)] (vmax={g_vmax:.2f})", fontsize=13, fontweight='bold', y=0.99)
                             fig_g.tight_layout()
                             save_fig_to_zip(fig_g, f"umap_grid_{clean_sym}", img_formats)
                             plt.close(fig_g)
-
-                # Figure 3: Pathway Violins
                 if inc_sig_violins and bulk_selected_pathways:
                     for p_name in bulk_selected_pathways:
-                        if p_name in DEFAULT_SIGNATURES:
-                            p_genes = DEFAULT_SIGNATURES[p_name]
+                        if p_name in active_bulk_signatures:
+                            p_genes = active_bulk_signatures[p_name]
                             p_vars = [resolve_gene_var_name(adata, g, sym_to_display, display_to_var) for g in p_genes]
                             p_vars = [v for v in p_vars if v is not None]
                             if p_vars:
@@ -3523,7 +3609,7 @@ if app_mode == "Single Cell Analysis Viewer":
                                     v_raw = adata[:, g_v].X
                                     p_mat_list.append(v_raw.toarray().flatten() if scipy.sparse.issparse(v_raw) else np.array(v_raw).flatten())
                                 p_mat = np.column_stack(p_mat_list)
-                                p_score = np.mean(np.log2(p_mat + 1), axis=1) if use_log2 else np.mean(p_mat, axis=1)
+                                p_score = np.mean(np.log2(p_mat + 1), axis=1)
                                 df_p_v = pd.DataFrame({
                                     "Sample": adata.obs[sample_col].values if sample_col and sample_col in adata.obs.columns else "All",
                                     "Cell State": adata.obs[selected_col].values if selected_col and selected_col in adata.obs.columns else "All",
@@ -3545,9 +3631,7 @@ if app_mode == "Single Cell Analysis Viewer":
                                 fig_pv.tight_layout()
                                 save_fig_to_zip(fig_pv, f"violin_pathway_{p_name.replace(' ', '_')}", img_formats)
                                 plt.close(fig_pv)
-
                 progress_bar.progress(100, text="Export package successfully created!")
-                
             zip_buffer.seek(0)
             st.success(f"🎉 Bulk export bundle generated successfully! (Archive contains figures in {', '.join(img_formats)} and structured summary tables)")
             st.download_button(
@@ -3555,8 +3639,9 @@ if app_mode == "Single Cell Analysis Viewer":
                 data=zip_buffer.getvalue(),
                 file_name=f"CLAIREscope_{curr_proj['id']}_BulkExport_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
                 mime="application/zip",
-                key="btn_download_zip_bundle"
+                key="btn_download_zip_bundle_8"
             )
+
 
 elif app_mode == "Cell-Type Marker Editor":
     st.title("Cell-Type Population & Marker Gene Editor")
@@ -3615,20 +3700,13 @@ elif app_mode == "Cell-Type Marker Editor":
 # ----------------- PAGE 3: DATASET MANAGEMENT & SETTINGS -----------------
 elif app_mode == "Bulk Download & Export Studio":
     st.title("📦 CLAIREscope Bulk Download & Export Studio")
-    st.markdown(f"""
-    <div style="background: linear-gradient(90deg, #FFF1F2 0%, #FFFFFF 100%); border-left: 5px solid #B32141; padding: 10px 16px; border-radius: 6px; margin-bottom: 14px;">
-        <div style="font-size: 16px; font-weight: 700; color: #B32141; margin-bottom: 2px;">
-            Active Project: {curr_proj['name']}
-        </div>
-        <div style="font-size: 13px; color: #475569;">
-            {curr_proj['desc']}
-        </div>
-        <div style="font-size: 12.5px; color: #334155; margin-top: 6px;">
-            Active Dataset: <code>{selected_dataset_name}</code> | Total Cells: <code>{adata.n_obs:,}</code> | Total Genes: <code>{adata.n_vars:,}</code> | Sample Column: <code>{sample_col if sample_col else 'None'}</code>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
+    with st.expander(f"ℹ️ Active Project & Dataset Information: {curr_proj['name']}", expanded=False):
+        st.markdown(f"""
+**Active Project:** {curr_proj['name']}  
+{curr_proj['desc']}  
+**Active Dataset:** `{selected_dataset_name}` | **Total Cells:** `{adata.n_obs:,}` | **Total Genes:** `{adata.n_vars:,}` | **Sample Column:** `{sample_col if sample_col else 'None'}`
+        """)
+        
     st.markdown("""
     <div style="background-color: #FEF3C7; border-left: 5px solid #F59E0B; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px;">
         <div style="font-size: 15px; font-weight: 700; color: #92400E;">
@@ -3639,75 +3717,194 @@ elif app_mode == "Bulk Download & Export Studio":
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
+    # ---------------- 0. CONFIG IMPORT & DEMO TEMPLATES ----------------
+    with st.expander("📥 Import Export Configuration from CSV or Excel (.xlsx)", expanded=False):
+        st.markdown("""
+**Supported File Formats & Specifications:**
+- **Genes List**: A `.csv` or `.xlsx` file with a column of gene names (e.g. `Gene`, `Symbol`, `Gene_ID`, or single column). Duplicates are automatically removed and matched against the active dataset.
+- **Custom Pathways**: A `.csv` or `.xlsx` file where each column header is a **Pathway Name**, and the rows below contain member genes.
+- **Multi-Sheet Excel**: A workbook with a **`Genes`** sheet and/or **`Pathways`** sheet.
+""")
+        c_demo1, c_demo2, c_demo3 = st.columns(3)
+        with c_demo1:
+            demo_genes_csv = "Gene\nCOL17A1\nKRT14\nKRT5\nKRT1\nKRT10\nDSG1\nDSC1\nFLG\nLOR\nIVL\nCDH1\nCTNNB1\nDSP\nPKP1\nMKI67\nTOP2A\nITGA6\nITGB4\nLAMA3\nLAMB3"
+            st.download_button(
+                "📄 Example Gene List (.csv)",
+                data=demo_genes_csv.encode('utf-8'),
+                file_name="example_gene_list.csv",
+                mime="text/csv",
+                key="dl_demo_genes_csv_key_4"
+            )
+        with c_demo2:
+            demo_pathways_csv = "Basal_Stem_Adhesion,Suprabasal_Diff,Cell_Cycle_Prolif\nCOL17A1,KRT1,MKI67\nITGA6,KRT10,TOP2A\nITGB4,DSG1,CCNB1\nLAMA3,DSC1,CDK1\nLAMB3,FLG,PCNA\nCDH1,LOR,\nDSP,IVL,"
+            st.download_button(
+                "📊 Example Custom Pathways (.csv)",
+                data=demo_pathways_csv.encode('utf-8'),
+                file_name="example_custom_pathways.csv",
+                mime="text/csv",
+                key="dl_demo_pathways_csv_key_4"
+            )
+        with c_demo3:
+            excel_demo_buf = io.BytesIO()
+            with pd.ExcelWriter(excel_demo_buf, engine='openpyxl') as writer:
+                pd.DataFrame({"Gene": ["COL17A1", "KRT14", "KRT5", "KRT1", "KRT10", "DSG1", "FLG", "CDH1", "DSP", "MKI67", "TOP2A"]}).to_excel(writer, sheet_name="Genes", index=False)
+                pd.DataFrame({
+                    "Basal_Stem_Adhesion": ["COL17A1", "ITGA6", "ITGB4", "LAMA3", "LAMB3", "CDH1", "DSP"],
+                    "Epidermal_Diff": ["KRT1", "KRT10", "DSG1", "DSC1", "FLG", "LOR", "IVL"],
+                    "Cell_Cycle": ["MKI67", "TOP2A", "CCNB1", "CDK1", "PCNA", "", ""]
+                }).to_excel(writer, sheet_name="Pathways", index=False)
+            st.download_button(
+                "📑 Example Multi-Sheet Config (.xlsx)",
+                data=excel_demo_buf.getvalue(),
+                file_name="example_export_config.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="dl_demo_excel_key_4"
+            )
+        uploaded_file = st.file_uploader(
+            "Upload Custom Export Configuration File (.csv, .xlsx, .xls):",
+            type=["csv", "xlsx", "xls"],
+            key="bulk_cfg_file_uploader_4"
+        )
+        if uploaded_file is not None:
+            try:
+                imported_genes_list = []
+                imported_pathways_dict = {}
+                if uploaded_file.name.endswith(".csv"):
+                    df_up_raw = pd.read_csv(uploaded_file)
+                    if len(df_up_raw.columns) == 1 or "gene" in str(df_up_raw.columns[0]).lower():
+                        col_g = df_up_raw.columns[0]
+                        imported_genes_list = df_up_raw[col_g].dropna().astype(str).str.strip().tolist()
+                    else:
+                        for col in df_up_raw.columns:
+                            p_g = df_up_raw[col].dropna().astype(str).str.strip().tolist()
+                            p_g = [g for g in p_g if g and g != "nan"]
+                            if p_g:
+                                imported_pathways_dict[str(col).strip()] = p_g
+                else:
+                    xl = pd.ExcelFile(uploaded_file)
+                    for s_name in xl.sheet_names:
+                        df_s = xl.parse(s_name)
+                        if "gene" in s_name.lower():
+                            col_g = df_s.columns[0]
+                            imported_genes_list.extend(df_s[col_g].dropna().astype(str).str.strip().tolist())
+                        elif "pathway" in s_name.lower() or "sig" in s_name.lower():
+                            for col in df_s.columns:
+                                p_g = df_s[col].dropna().astype(str).str.strip().tolist()
+                                p_g = [g for g in p_g if g and g != "nan"]
+                                if p_g:
+                                    imported_pathways_dict[str(col).strip()] = p_g
+                        else:
+                            if len(df_s.columns) == 1:
+                                col_g = df_s.columns[0]
+                                imported_genes_list.extend(df_s[col_g].dropna().astype(str).str.strip().tolist())
+                            else:
+                                for col in df_s.columns:
+                                    p_g = df_s[col].dropna().astype(str).str.strip().tolist()
+                                    p_g = [g for g in p_g if g and g != "nan"]
+                                    if p_g:
+                                        imported_pathways_dict[str(col).strip()] = p_g
+                if imported_genes_list:
+                    seen_g = set()
+                    unique_imp_genes = []
+                    for g in imported_genes_list:
+                        if g.upper() not in seen_g:
+                            seen_g.add(g.upper())
+                            unique_imp_genes.append(g)
+                    matched_display_genes = []
+                    not_found_genes = []
+                    for g in unique_imp_genes:
+                        m_disp = sym_to_display.get(g.upper(), None)
+                        if not m_disp:
+                            m_disp = display_to_var.get(g, None)
+                        if m_disp:
+                            matched_display_genes.append(m_disp if m_disp in display_to_var else var_to_display.get(m_disp, m_disp))
+                        else:
+                            not_found_genes.append(g)
+                    st.session_state["bulk_imported_matched_genes"] = matched_display_genes
+                    st.success(f"✅ **Imported {len(unique_imp_genes)} Unique Genes**: **{len(matched_display_genes)}** detected in active dataset ({len(not_found_genes)} not found in dataset: `{', '.join(not_found_genes[:8])}`{', ...' if len(not_found_genes) > 8 else ''}).")
+                if imported_pathways_dict:
+                    if "custom_bulk_signatures" not in st.session_state:
+                        st.session_state["custom_bulk_signatures"] = {}
+                    st.session_state["custom_bulk_signatures"].update(imported_pathways_dict)
+                    st.success(f"✅ **Imported {len(imported_pathways_dict)} Custom Pathways**: `{', '.join(list(imported_pathways_dict.keys()))}`.")
+            except Exception as ex:
+                st.error(f"Error parsing uploaded file: {ex}")
+    active_bulk_signatures = dict(DEFAULT_SIGNATURES)
+    if "custom_bulk_signatures" in st.session_state:
+        active_bulk_signatures.update(st.session_state["custom_bulk_signatures"])
     # 1. Feature Selections
     st.markdown("### 1️⃣ Features to Include in Bulk Export")
+    c_all_g, _ = st.columns([1.5, 1.0])
+    with c_all_g:
+        export_all_genes = st.checkbox(
+            f"🌐 Export Complete Genome Table: ALL {adata.n_vars:,} Genes in Dataset",
+            value=False,
+            help="When enabled, the tabular expression summary CSV will include every gene in the active dataset.",
+            key="bulk_export_all_genes_toggle_4"
+        )
     c_b1, c_b2 = st.columns(2)
     def_bulk_genes = ["COL17A1", "Col17a1", "KRT14", "Krt14", "KRT10", "Krt10", "CDH1", "Cdh1", "DSP", "Dsp"]
     valid_bulk_genes = [sym_to_display[g.upper()] for g in def_bulk_genes if g.upper() in sym_to_display]
     all_display_clean = [o for o in display_options if o != "None"]
-    
+    default_selected_genes = st.session_state.get("bulk_imported_matched_genes", valid_bulk_genes[:6] if valid_bulk_genes else all_display_clean[:4])
     with c_b1:
         bulk_selected_genes = draggable_multiselect(
-            "Genes to Export (One row per gene in table & individual plots):",
+            "Selected Genes to Export (One row per gene in table & individual plots):",
             options=all_display_clean,
-            default=valid_bulk_genes[:6] if valid_bulk_genes else all_display_clean[:4],
-            key="bulk_genes_input_page"
+            default=default_selected_genes,
+            key="bulk_genes_input_final_4"
         )
     with c_b2:
+        default_pathways = list(active_bulk_signatures.keys())[:4]
+        if "custom_bulk_signatures" in st.session_state:
+            default_pathways = list(st.session_state["custom_bulk_signatures"].keys()) + [p for p in default_pathways if p not in st.session_state["custom_bulk_signatures"]]
         bulk_selected_pathways = draggable_multiselect(
             "Pathways / Signatures to Export:",
-            options=list(DEFAULT_SIGNATURES.keys()),
-            default=list(DEFAULT_SIGNATURES.keys())[:4],
-            key="bulk_pathways_input_page"
+            options=list(active_bulk_signatures.keys()),
+            default=default_pathways,
+            key="bulk_pathways_input_final_4"
         )
-        
     st.markdown("---")
     st.markdown("### 2️⃣ Select Figures & Formats to Export")
     c_fig1, c_fig2, c_fig3 = st.columns(3)
     with c_fig1:
-        inc_grid_umap = st.checkbox("Multi-Condition UMAP Expression Grids", value=True, key="b_inc_grid_page")
-        inc_ref_umap = st.checkbox("Sample & Cell State Reference UMAPs", value=True, key="b_inc_ref_page")
+        inc_grid_umap = st.checkbox("Multi-Condition UMAP Expression Grids", value=True, key="b_inc_grid_4")
+        inc_ref_umap = st.checkbox("Sample & Cell State Reference UMAPs", value=True, key="b_inc_ref_4")
     with c_fig2:
-        inc_violins = st.checkbox("Gene Expression Statistical Violins", value=True, key="b_inc_violins_page")
-        inc_sig_violins = st.checkbox("Signature & Pathway Score Violins", value=True, key="b_inc_sig_violins_page")
+        inc_violins = st.checkbox("Gene Expression Statistical Violins", value=True, key="b_inc_violins_4")
+        inc_sig_violins = st.checkbox("Signature & Pathway Score Violins", value=True, key="b_inc_sig_violins_4")
     with c_fig3:
-        inc_comp_plots = st.checkbox("Population Composition (Bars & Donuts)", value=True, key="b_inc_comp_page")
+        inc_comp_plots = st.checkbox("Population Composition (Bars & Donuts)", value=True, key="b_inc_comp_4")
         pt_cols_avail = [c for c in adata.obs.columns if 'pseudotime' in c.lower() or 'dpt' in c.lower() or 'latent_time' in c.lower()]
-        inc_traj_plots = st.checkbox("Trajectory Kinetics Curves", value=True if pt_cols_avail else False, key="b_inc_traj_page")
-        
-    img_formats = st.multiselect("Image Formats to Generate:", ["SVG", "PNG", "PDF"], default=["SVG", "PNG"], key="bulk_img_formats_page")
-    
+        inc_traj_plots = st.checkbox("Trajectory Kinetics Curves", value=True if pt_cols_avail else False, key="b_inc_traj_4")
+    img_formats = st.multiselect("Image Formats to Generate:", ["SVG", "PNG", "PDF"], default=["SVG", "PNG"], key="bulk_img_formats_4")
     st.markdown("---")
     st.markdown("### 3️⃣ Select Tabular Summary Datasets")
     c_tab1, c_tab2 = st.columns(2)
     with c_tab1:
-        inc_table_gene = st.checkbox("📊 Gene Expression Summary (1 row per gene, samples & cell states in columns)", value=True, key="b_tbl_gene_page")
-        inc_table_sig = st.checkbox("📈 Pathway Score Summary (1 row per pathway, samples & cell states in columns)", value=True, key="b_tbl_sig_page")
+        inc_table_gene = st.checkbox("📊 Gene Expression Summary (1 row per gene, samples & cell states in columns)", value=True, key="b_tbl_gene_4")
+        inc_table_sig = st.checkbox("📈 Pathway Score Summary (1 row per pathway, samples & cell states in columns)", value=True, key="b_tbl_sig_4")
     with c_tab2:
-        inc_table_comp = st.checkbox("🥧 Cell Type Composition Table (Counts & Percentages)", value=True, key="b_tbl_comp_page")
-        inc_table_umap = st.checkbox("🗺️ Full UMAP Embeddings & Coordinates Table (CSV)", value=True, key="b_tbl_umap_page")
-        
-    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-    
-    if st.button("⚡ Generate & Build Bulk Export Package (.ZIP)", type="primary", key="btn_run_bulk_export_page"):
+        inc_table_comp = st.checkbox("🥧 Cell Type Composition Table (Counts & Percentages)", value=True, key="b_tbl_comp_4")
+        inc_table_umap = st.checkbox("🗺️ Full UMAP Embeddings & Coordinates Table (CSV)", value=True, key="b_tbl_umap_4")
+    st.markdown("<div style=\'margin-top: 10px;\'></div>", unsafe_allow_html=True)
+    if st.button("⚡ Generate & Build Bulk Export Package (.ZIP)", type="primary", key="btn_run_bulk_export_4"):
         import zipfile
         import datetime
         zip_buffer = io.BytesIO()
         progress_bar = st.progress(0, text="Initializing export package...")
-        
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-            if inc_table_gene and bulk_selected_genes:
+            if inc_table_gene:
                 progress_bar.progress(10, text="Building Gene Expression Summary Table...")
+                target_table_genes = display_options[1:] if export_all_genes else bulk_selected_genes
                 gene_rows = []
-                for g_disp in bulk_selected_genes:
+                for idx_tg, g_disp in enumerate(target_table_genes):
                     g_var = resolve_gene_var_name(adata, g_disp, sym_to_display, display_to_var)
                     if g_var:
                         clean_sym = g_disp.split(" (")[0]
                         expr_raw_vec = adata[:, g_var].X
                         g_vals = expr_raw_vec.toarray().flatten() if scipy.sparse.issparse(expr_raw_vec) else np.array(expr_raw_vec).flatten()
                         g_log2 = np.log2(g_vals + 1)
-                        
                         row = {
                             "Gene_Symbol": clean_sym,
                             "Gene_ID": g_var,
@@ -3715,13 +3912,11 @@ elif app_mode == "Bulk Download & Export Studio":
                             "Global_Mean_Log2": np.round(np.mean(g_log2), 4),
                             "Global_Pct_Expressing": np.round(np.mean(g_vals > 0) * 100, 2)
                         }
-                        
                         if sample_col and sample_col in adata.obs.columns:
                             for s in ordered_samples:
                                 m_s = (adata.obs[sample_col] == s)
                                 row[f"Sample_{s}_Mean_Log2"] = np.round(np.mean(g_log2[m_s]), 4) if np.sum(m_s) > 0 else 0.0
                                 row[f"Sample_{s}_Pct_Expr"] = np.round(np.mean(g_vals[m_s] > 0) * 100, 2) if np.sum(m_s) > 0 else 0.0
-                                
                         if selected_col and selected_col in adata.obs.columns:
                             _, state_cats = get_cluster_color_map(adata, selected_col)
                             for st_name in state_cats:
@@ -3729,18 +3924,15 @@ elif app_mode == "Bulk Download & Export Studio":
                                 clean_st = str(st_name).replace(" ", "_")
                                 row[f"State_{clean_st}_Mean_Log2"] = np.round(np.mean(g_log2[m_st]), 4) if np.sum(m_st) > 0 else 0.0
                                 row[f"State_{clean_st}_Pct_Expr"] = np.round(np.mean(g_vals[m_st] > 0) * 100, 2) if np.sum(m_st) > 0 else 0.0
-                                
                         gene_rows.append(row)
-                        
                 df_gene_summary = pd.DataFrame(gene_rows)
                 zip_file.writestr("tables/gene_expression_summary.csv", df_gene_summary.to_csv(index=False))
-                
             if inc_table_sig and bulk_selected_pathways:
                 progress_bar.progress(25, text="Building Pathway Score Summary Table...")
                 pathway_rows = []
                 for p_name in bulk_selected_pathways:
-                    if p_name in DEFAULT_SIGNATURES:
-                        p_genes = DEFAULT_SIGNATURES[p_name]
+                    if p_name in active_bulk_signatures:
+                        p_genes = active_bulk_signatures[p_name]
                         p_vars = [resolve_gene_var_name(adata, g, sym_to_display, display_to_var) for g in p_genes]
                         p_vars = [v for v in p_vars if v is not None]
                         if p_vars:
@@ -3750,31 +3942,25 @@ elif app_mode == "Bulk Download & Export Studio":
                                 p_mat_list.append(v_raw.toarray().flatten() if scipy.sparse.issparse(v_raw) else np.array(v_raw).flatten())
                             p_mat = np.column_stack(p_mat_list)
                             p_score = np.mean(np.log2(p_mat + 1), axis=1)
-                            
                             p_row = {
                                 "Pathway_Name": p_name,
                                 "Genes_Included_Count": len(p_vars),
                                 "Genes_List": "; ".join(p_genes),
                                 "Global_Mean_Score": np.round(np.mean(p_score), 4)
                             }
-                            
                             if sample_col and sample_col in adata.obs.columns:
                                 for s in ordered_samples:
                                     m_s = (adata.obs[sample_col] == s)
                                     p_row[f"Sample_{s}_Mean_Score"] = np.round(np.mean(p_score[m_s]), 4) if np.sum(m_s) > 0 else 0.0
-                                    
                             if selected_col and selected_col in adata.obs.columns:
                                 _, state_cats = get_cluster_color_map(adata, selected_col)
                                 for st_name in state_cats:
                                     m_st = (adata.obs[selected_col] == st_name)
                                     clean_st = str(st_name).replace(" ", "_")
                                     p_row[f"State_{clean_st}_Mean_Score"] = np.round(np.mean(p_score[m_st]), 4) if np.sum(m_st) > 0 else 0.0
-                                    
                             pathway_rows.append(p_row)
-                            
                 df_pathway_summary = pd.DataFrame(pathway_rows)
                 zip_file.writestr("tables/pathway_scores_summary.csv", df_pathway_summary.to_csv(index=False))
-
             if inc_table_comp and sample_col and selected_col and sample_col in adata.obs.columns and selected_col in adata.obs.columns:
                 progress_bar.progress(35, text="Building Sample Composition Table...")
                 ct_counts = pd.crosstab(adata.obs[sample_col], adata.obs[selected_col])
@@ -3785,20 +3971,17 @@ elif app_mode == "Bulk Download & Export Studio":
                     df_comp_export[f"{c}_Percentage"] = np.round(ct_pct[c], 2)
                 df_comp_export["Total_Cells"] = adata.obs[sample_col].value_counts()
                 zip_file.writestr("tables/sample_composition_summary.csv", df_comp_export.to_csv())
-
             if inc_table_umap and 'X_umap' in adata.obsm:
                 progress_bar.progress(45, text="Exporting UMAP Coordinates & Metadata...")
                 umap_csv_bytes = get_umap_embeddings_csv(adata, sample_col, selected_col, resolved_var_name, resolved_display_name)
                 if umap_csv_bytes:
                     zip_file.writestr("tables/umap_embeddings_and_metadata.csv", umap_csv_bytes)
-
             def save_fig_to_zip(fig_obj, filename_base, fmts):
                 for fmt in fmts:
                     buf = io.BytesIO()
                     dpi_val = 300 if fmt in ['png', 'pdf'] else None
                     fig_obj.savefig(buf, format=fmt.lower(), bbox_inches="tight", dpi=dpi_val)
                     zip_file.writestr(f"figures/{filename_base}.{fmt.lower()}", buf.getvalue())
-
             if inc_ref_umap and 'X_umap' in adata.obsm:
                 progress_bar.progress(55, text="Rendering Reference UMAP figures...")
                 fig_ref_all, (ax_r1, ax_r2) = plt.subplots(1, 2, figsize=(12, 5), dpi=200)
@@ -3812,7 +3995,6 @@ elif app_mode == "Bulk Download & Export Studio":
                 ax_r1.set_aspect('equal', 'box')
                 ax_r1.set_xticks([])
                 ax_r1.set_yticks([])
-                
                 if selected_col and selected_col in adata.obs.columns:
                     cmap_dict, cats = get_cluster_color_map(adata, selected_col)
                     for cat in cats:
@@ -3826,7 +4008,6 @@ elif app_mode == "Bulk Download & Export Studio":
                 fig_ref_all.tight_layout()
                 save_fig_to_zip(fig_ref_all, "reference_sample_and_cell_state_umaps", img_formats)
                 plt.close(fig_ref_all)
-
             if inc_grid_umap and bulk_selected_genes and 'X_umap' in adata.obsm:
                 total_g = len(bulk_selected_genes)
                 for idx_g, g_disp in enumerate(bulk_selected_genes):
@@ -3838,14 +4019,11 @@ elif app_mode == "Bulk Download & Export Studio":
                         g_raw = v_raw.toarray().flatten() if scipy.sparse.issparse(v_raw) else np.array(v_raw).flatten()
                         g_scaled = np.log2(g_raw + 1)
                         g_vmax = float(np.percentile(g_scaled, 99.0)) if len(g_scaled) > 0 else 3.5
-                        
                         n_s = len(ordered_samples) if ordered_samples else 1
                         n_cols = 3 if n_s >= 3 else n_s
                         n_rows = (n_s + n_cols - 1) // n_cols
-                        
                         fig_g, axes_g = plt.subplots(n_rows, n_cols, figsize=(4.8 * n_cols, 4.4 * n_rows), dpi=200)
                         axes_g_flat = axes_g.flatten() if hasattr(axes_g, 'flatten') else [axes_g]
-                        
                         for idx_s, s in enumerate(ordered_samples if ordered_samples else ["All"]):
                             if idx_s < len(axes_g_flat):
                                 ax = axes_g_flat[idx_s]
@@ -3862,11 +4040,10 @@ elif app_mode == "Bulk Download & Export Studio":
                         fig_g.tight_layout()
                         save_fig_to_zip(fig_g, f"umap_grid_{clean_sym}", img_formats)
                         plt.close(fig_g)
-
             if inc_sig_violins and bulk_selected_pathways:
                 for p_name in bulk_selected_pathways:
-                    if p_name in DEFAULT_SIGNATURES:
-                        p_genes = DEFAULT_SIGNATURES[p_name]
+                    if p_name in active_bulk_signatures:
+                        p_genes = active_bulk_signatures[p_name]
                         p_vars = [resolve_gene_var_name(adata, g, sym_to_display, display_to_var) for g in p_genes]
                         p_vars = [v for v in p_vars if v is not None]
                         if p_vars:
@@ -3897,9 +4074,7 @@ elif app_mode == "Bulk Download & Export Studio":
                             fig_pv.tight_layout()
                             save_fig_to_zip(fig_pv, f"violin_pathway_{p_name.replace(' ', '_')}", img_formats)
                             plt.close(fig_pv)
-
             progress_bar.progress(100, text="Export package successfully created!")
-            
         zip_buffer.seek(0)
         st.success(f"🎉 Bulk export bundle generated successfully! (Archive contains figures in {', '.join(img_formats)} and structured summary tables)")
         st.download_button(
@@ -3907,7 +4082,7 @@ elif app_mode == "Bulk Download & Export Studio":
             data=zip_buffer.getvalue(),
             file_name=f"CLAIREscope_{curr_proj['id']}_BulkExport_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
             mime="application/zip",
-            key="btn_download_zip_bundle_page"
+            key="btn_download_zip_bundle_4"
         )
 
 
