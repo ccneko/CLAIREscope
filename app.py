@@ -3643,6 +3643,328 @@ if app_mode == "Single Cell Analysis Viewer":
             )
 
 
+
+# ----------------- PAGE 2: SCANPY PREPROCESSING & PIPELINE STUDIO -----------------
+elif app_mode == "Single-Cell Preprocessing & Scanpy Pipeline":
+    st.title("🧪 Single-Cell Preprocessing & Scanpy Pipeline Studio")
+    st.caption("Standardized, publication-grade computational workflow checklist for single-cell AnnData (.h5ad) object creation and parameter tuning.")
+    
+    with st.expander(f"ℹ️ Active Project & Dataset Context: {curr_proj['name']}", expanded=False):
+        st.markdown(f"""
+**Active Project:** {curr_proj['name']}  
+{curr_proj['desc']}  
+**Active Dataset:** `{selected_dataset_name}` | **Total Cells:** `{adata.n_obs:,}` | **Total Genes:** `{adata.n_vars:,}` | **Sample Column:** `{sample_col if sample_col else 'None'}`
+        """)
+        
+    # --- SECTION 1: DUMMY DATA DOWNLOAD & COMPATIBILITY CHECK ---
+    st.markdown("### 📥 1. Workable Input Data Template & Format Specifications")
+    c_fmt1, c_fmt2 = st.columns([1.6, 1.0])
+    with c_fmt1:
+        st.markdown("""
+        **What CLAIREscope expects in an `.h5ad` file:**
+        - **`adata.X`**: Log-normalized expression matrix ($\\log_2(\\text{CP10k}+1)$ or $\\log 1p$).
+        - **`adata.obs`**: Cell metadata table containing at least one **Sample Column** (e.g. `sample`) and one **Annotation Column** (e.g. `cell_type`, `leiden`).
+        - **`adata.var`**: Gene metadata table containing `gene_symbols` and/or Ensembl `gene_ids`.
+        - **`adata.obsm['X_umap']`**: $N \\times 2$ array of UMAP coordinates.
+        - **`adata.obs['dpt_pseudotime']`** *(Optional)*: Continuous trajectory pseudotime values.
+        """)
+    with c_fmt2:
+        st.markdown("**Download Example Compatible File:**")
+        
+        @st.cache_data
+        def generate_dummy_h5ad_bytes():
+            import tempfile
+            import anndata as ad
+            np.random.seed(42)
+            n_c, n_g = 250, 300
+            X_syn = np.random.poisson(lam=1.5, size=(n_c, n_g)).astype(np.float32)
+            g_names = [f"GENE_{i:03d}" for i in range(n_g)]
+            known_m = ["COL17A1", "KRT14", "KRT5", "KRT10", "DSG1", "FLG", "CDH1", "DSP", "MKI67", "TOP2A", "ITGA6", "ITGB4", "LAMA3", "LAMB3"]
+            for idx_k, g_k in enumerate(known_m):
+                if idx_k < n_g:
+                    g_names[idx_k] = g_k
+            obs_df = pd.DataFrame({
+                "sample": np.random.choice(["Control", "Disease_A", "Disease_B", "Rescued"], size=n_c),
+                "cell_type": np.random.choice(["Basal_1", "Basal_2", "Spinous", "Granular"], size=n_c),
+                "leiden_r05": np.random.choice(["0", "1", "2", "3"], size=n_c),
+                "dpt_pseudotime": np.linspace(0.0, 1.0, n_c)
+            }, index=[f"Cell_{i:04d}" for i in range(n_c)])
+            var_df = pd.DataFrame({
+                "gene_symbols": g_names,
+                "gene_ids": [f"ENSG{i:011d}" for i in range(n_g)]
+            }, index=g_names)
+            obsm_dict = {
+                "X_umap": np.random.normal(size=(n_c, 2)).astype(np.float32),
+                "X_pca": np.random.normal(size=(n_c, 20)).astype(np.float32)
+            }
+            demo_ad = ad.AnnData(X=X_syn, obs=obs_df, var=var_df, obsm=obsm_dict)
+            sc.pp.normalize_total(demo_ad, target_sum=1e4)
+            sc.pp.log1p(demo_ad)
+            
+            with tempfile.NamedTemporaryFile(suffix=".h5ad", delete=False) as tmp_f:
+                tmp_p = tmp_f.name
+            demo_ad.write_h5ad(tmp_p)
+            with open(tmp_p, "rb") as f_in:
+                b_data = f_in.read()
+            os.unlink(tmp_p)
+            return b_data
+            
+        dummy_h5ad_data = generate_dummy_h5ad_bytes()
+        st.download_button(
+            label="💾 Download Demo AnnData (.h5ad)",
+            data=dummy_h5ad_data,
+            file_name="CLAIREscope_compatible_demo_dataset.h5ad",
+            mime="application/x-hdf5",
+            key="dl_demo_h5ad_btn"
+        )
+        st.caption("A lightweight 250-cell synthetic dataset ready to test all 11 viewer tabs.")
+
+    # --- SECTION 2: AI AGENT PROMPT & DATA CONVERSION GUIDE ---
+    st.markdown("---")
+    st.markdown("### 🤖 2. Data Conversion & Integration Prompt (for AI Coding Assistants & Scripts)")
+    st.markdown("""
+    Use the copy-pasteable prompt template below in your AI assistant (e.g. Antigravity, Claude, ChatGPT) or execute it directly as a Python script to convert raw 10x Genomics Cell Ranger outputs, Seurat `.rds` objects, or heterogeneous AnnData files into the standardized format:
+    """)
+    
+    conversion_prompt = """# ==============================================================================
+# PROMPT FOR AI ASSISTANT / STANDALONE CONVERSION SCRIPT
+# Goal: Convert raw/unprocessed scRNA-seq matrices into a CLAIREscope-ready AnnData object
+# ==============================================================================
+
+Please write a Python script using Scanpy and AnnData to convert and preprocess our single-cell dataset for CLAIREscope:
+
+1. INPUT DATA LOADING:
+   - Load raw 10x feature matrix (sc.read_10x_mtx or sc.read_10x_h5) OR convert from Seurat RDS using sc.read_h5ad(anndata2ri / rpy2).
+   - Ensure cell metadata (sample IDs, cohort groups, batches) are stored in `adata.obs`.
+
+2. QUALITY CONTROL & NORMALIZATION:
+   - Calculate QC metrics (sc.pp.calculate_qc_metrics with mito genes qc_vars=['mt']).
+   - Filter low quality cells (min_genes=200, min_cells=3, pct_counts_mt < 15%).
+   - Library size normalize to 10,000 counts per cell (sc.pp.normalize_total(adata, target_sum=1e4)).
+   - Log-transform with natural logarithm (sc.pp.log1p(adata)).
+   - Save the normalized matrix in `adata.raw = adata` or `adata.X`.
+
+3. DIMENSIONALITY REDUCTION & BATCH INTEGRATION:
+   - Select 2,000-3,000 Highly Variable Genes (sc.pp.highly_variable_genes(adata, flavor='seurat_v3' or 'seurat')).
+   - Compute PCA (sc.tl.pca(adata, n_comps=50)).
+   - If multi-condition/multi-donor: Run Harmony integration (sc.external.pp.harmony_integrate(adata, key='sample', basis='X_pca')).
+   - Construct KNN neighborhood graph (sc.pp.neighbors(adata, n_neighbors=20, n_pcs=30, use_rep='X_pca_harmony' if batched else 'X_pca')).
+
+4. CLUSTERING & EMBEDDINGS:
+   - Compute 2D UMAP embedding (sc.tl.umap(adata, min_dist=0.3, spread=1.0)).
+   - Perform Leiden clustering at multiple resolutions (sc.tl.leiden(adata, resolution=0.2, key_added='leiden_r02'), sc.tl.leiden(adata, resolution=0.5, key_added='leiden_r05')).
+   - Assign biologically meaningful cell type labels to `adata.obs['cell_type']`.
+
+5. EXPORT FOR CLAIRESCOPE:
+   - Store official gene symbols in `adata.var['gene_symbols']` and Ensembl IDs in `adata.var['gene_ids']`.
+   - Save the finalized object: `adata.write_h5ad('final_processed_for_clairescope.h5ad', compression='gzip')`.
+"""
+    st.code(conversion_prompt, language="python")
+    
+    st.warning("⚠️ **Data Governance & Governance Disclaimer**: Ensure all raw patient identifiers are de-identified before processing. Keep gene expressions in $\\log 1p$ normalized scale (`target_sum=1e4`) for linear and $\\log_2$ viewer compatibility.")
+
+    # --- SECTION 3: STEP-BY-STEP SCANPY PIPELINE CHECKLIST ---
+    st.markdown("---")
+    st.markdown("### 📋 3. Step-by-Step Scanpy Processing Checklist & Parameter Tuning Guide")
+    st.caption("Each step below represents a critical milestone in the single-cell preprocessing pipeline. Adjust parameters to inspect the generated code.")
+
+    # Step 1: QC & Cell Filtering
+    with st.expander("✅ Step 1: Quality Control & Filtering [MANDATORY]", expanded=True):
+        st.markdown("**Purpose**: Eliminate apoptotic cells, broken cell fragments, and doublets based on library complexity and mitochondrial read fraction.")
+        c_qc1, c_qc2, c_qc3 = st.columns(3)
+        with c_qc1:
+            p_min_genes = st.number_input("Minimum Detected Genes per Cell (`min_genes`):", min_value=50, max_value=2000, value=200, step=50, key="p_qc_min_genes")
+        with c_qc2:
+            p_min_cells = st.number_input("Minimum Cells per Gene (`min_cells`):", min_value=1, max_value=50, value=3, step=1, key="p_qc_min_cells")
+        with c_qc3:
+            p_max_mt = st.slider("Maximum Mitochondrial Read Fraction (`% MT`):", min_value=1.0, max_value=30.0, value=15.0, step=0.5, key="p_qc_max_mt")
+            
+        st.markdown(f"""
+        💡 **Parameter Tuning Guide**:
+        - **`min_genes` ({p_min_genes})**: Higher values ($>500$) remove empty droplets and low-complexity debris, but may discard small, quiescent cell types (e.g. quiescent stem cells, T cells).
+        - **`pct_counts_mt` ({p_max_mt}%)**: High mitochondrial percentages reflect cellular stress or membrane lysis. For skin and solid tissues, $10-15\%$ is standard; for sensitive tissues, $5-8\%$ is typical.
+        """)
+        st.code(f"""# Step 1: QC & Cell Filtering
+adata.var['mt'] = adata.var_names.str.startswith(('MT-', 'mt-'))
+sc.pp.calculate_qc_metrics(adata, qc_vars=['mt'], percent_top=None, log1p=False, inplace=True)
+sc.pp.filter_cells(adata, min_genes={p_min_genes})
+sc.pp.filter_genes(adata, min_cells={p_min_cells})
+adata = adata[adata.obs['pct_counts_mt'] < {p_max_mt}].copy()""", language="python")
+
+    # Step 2: Normalization & Log Transformation
+    with st.expander("✅ Step 2: Depth Normalization & Log1p Transformation [MANDATORY]", expanded=False):
+        st.markdown("**Purpose**: Remove cell-to-cell sequencing depth bias by scaling total counts per cell and stabilizing variance with natural $\\log(X + 1)$.")
+        c_n1, _ = st.columns([1.5, 1.0])
+        with c_n1:
+            p_target_sum = st.selectbox("Target Total Counts per Cell (`target_sum`):", [1e4, 1e5, 1e6, "Median per Cell"], index=0, key="p_norm_target_sum")
+            
+        st.markdown("""
+        💡 **Parameter Tuning Guide**:
+        - **`target_sum=10,000` (CP10k)**: Standard for single-cell transcriptomics. Compresses extreme dynamic ranges of structural keratins and actins while preserving subtle relative fold changes.
+        - **`sc.pp.log1p`**: Converts counts to $\\log(1 + x)$, essential for Gaussian assumptions in PCA and linear models.
+        """)
+        st.code(f"""# Step 2: Normalization
+sc.pp.normalize_total(adata, target_sum={p_target_sum if p_target_sum != "Median per Cell" else "None"})
+sc.pp.log1p(adata)
+adata.raw = adata  # Preserve normalized full transcriptome in .raw""", language="python")
+
+    # Step 3: Highly Variable Genes (HVG)
+    with st.expander("✅ Step 3: Highly Variable Gene (HVG) Selection [MANDATORY]", expanded=False):
+        st.markdown("**Purpose**: Identify genes with high biological variance above Poisson noise to focus downstream PCA on meaningful signal.")
+        c_hvg1, c_hvg2 = st.columns(2)
+        with c_hvg1:
+            p_n_hvg = st.slider("Number of Highly Variable Genes (`n_top_genes`):", min_value=1000, max_value=5000, value=2500, step=250, key="p_hvg_n")
+        with c_hvg2:
+            p_hvg_flavor = st.selectbox("HVG Selection Algorithm (`flavor`):", ["seurat_v3", "seurat", "cell_ranger"], index=0, key="p_hvg_flavor")
+            
+        st.markdown(f"""
+        💡 **Parameter Tuning Guide**:
+        - **`n_top_genes` ({p_n_hvg})**: 
+          - **Lower ($\\le 1,500$)**: Emphasizes dominant cell types and major lineages; suppresses technical noise.
+          - **Higher ($2,500-3,500$)**: Recommended for subclustering and continuous differentiation trajectories to capture subtle transition markers (e.g. Basal 1 $\\rightarrow$ Basal 2 transition).
+        """)
+        st.code(f"""# Step 3: Highly Variable Genes
+sc.pp.highly_variable_genes(
+    adata, 
+    n_top_genes={p_n_hvg}, 
+    flavor='{p_hvg_flavor}', 
+    subset=False
+)""", language="python")
+
+    # Step 4: Principal Component Analysis (PCA)
+    with st.expander("✅ Step 4: Dimensionality Reduction via PCA [MANDATORY]", expanded=False):
+        st.markdown("**Purpose**: Project 2,500+ HVGs into orthogonal variance components to denoise the data.")
+        p_n_pcs = st.slider("Number of Principal Components (`n_comps`):", min_value=10, max_value=100, value=50, step=5, key="p_pca_n_pcs")
+        
+        st.markdown(f"""
+        💡 **Parameter Tuning Guide**:
+        - **`n_comps` ({p_n_pcs})**: 
+          - Selecting 30-50 PCs typically captures $>95\%$ of structured biological variance in human epidermal tissues.
+          - Use `sc.pl.pca_variance_ratio(adata, log=True)` to identify the 'elbow' point where eigenvalues flatten.
+        """)
+        st.code(f"""# Step 4: PCA
+sc.tl.pca(adata, n_comps={p_n_pcs}, use_highly_variable=True, svd_solver='arpack')""", language="python")
+
+    # Step 5: Multi-Cohort Batch Integration (Harmony)
+    with st.expander("✨ Step 5: Multi-Cohort Batch Integration via Harmony [STRONGLY RECOMMENDED]", expanded=False):
+        st.markdown("**Purpose**: Correct technical batch effects and donor-specific baseline shifts across distinct sequencing runs without obscuring true biological divergence.")
+        c_harm1, c_harm2 = st.columns(2)
+        with c_harm1:
+            p_harm_key = st.text_input("Batch / Cohort Column in `.obs` (`key`):", value=sample_col if sample_col else "sample", key="p_harm_key_input")
+        with c_harm2:
+            p_harm_theta = st.slider("Diversity Clustering Penalty (`theta`):", min_value=1.0, max_value=4.0, value=2.0, step=0.5, key="p_harm_theta_slider")
+            
+        st.markdown(f"""
+        💡 **Parameter Tuning Guide**:
+        - **`key='{p_harm_key}'`**: The grouping metadata representing technical batches or experimental cohorts.
+        - **`theta` ({p_harm_theta})**: Higher $\\theta$ forces more aggressive mixing across batches; lower $\\theta$ ($1.0-1.5$) preserves condition-specific states (e.g. disease-specific activated basal cells).
+        """)
+        st.code(f"""# Step 5: Harmony Batch Integration
+import scanpy.external as sce
+sce.pp.harmony_integrate(
+    adata, 
+    key='{p_harm_key}', 
+    basis='X_pca', 
+    adjusted_basis='X_pca_harmony',
+    theta={p_harm_theta}
+)""", language="python")
+
+    # Step 6: Neighborhood Graph Construction (KNN)
+    with st.expander("✅ Step 6: K-Nearest Neighbor (KNN) Graph Construction [MANDATORY]", expanded=False):
+        st.markdown("**Purpose**: Construct a cell-cell adjacency graph representing topological manifold proximities.")
+        c_knn1, c_knn2 = st.columns(2)
+        with c_knn1:
+            p_knn_k = st.slider("Number of Neighbors (`n_neighbors`):", min_value=5, max_value=100, value=20, step=5, key="p_knn_k_slider")
+        with c_knn2:
+            p_knn_pcs = st.slider("Number of PCs to Use (`n_pcs`):", min_value=10, max_value=50, value=30, step=5, key="p_knn_pcs_slider")
+            
+        st.markdown(f"""
+        💡 **Parameter Tuning Guide**:
+        - **`n_neighbors` ({p_knn_k})**:
+          - **Lower ($5-15$)**: Highly sensitive to local micro-clusters and rare subtypes; higher risk of noise-driven fragmentation.
+          - **Higher ($20-50$)**: Emphasizes global lineage continuity and smooth developmental pseudotime trajectories.
+        """)
+        st.code(f"""# Step 6: Neighborhood Graph
+sc.pp.neighbors(
+    adata, 
+    n_neighbors={p_knn_k}, 
+    n_pcs={p_knn_pcs}, 
+    use_rep='X_pca_harmony' if 'X_pca_harmony' in adata.obsm else 'X_pca'
+)""", language="python")
+
+    # Step 7: 2D UMAP Embedding
+    with st.expander("✅ Step 7: 2D UMAP Embedding Generation [MANDATORY]", expanded=False):
+        st.markdown("**Purpose**: Generate 2D coordinates for spatial visual exploration in CLAIREscope.")
+        c_umap1, c_umap2 = st.columns(2)
+        with c_umap1:
+            p_umap_dist = st.slider("Minimum Distance between Points (`min_dist`):", min_value=0.05, max_value=0.9, value=0.3, step=0.05, key="p_umap_dist_slider")
+        with c_umap2:
+            p_umap_spread = st.slider("Embedding Spread (`spread`):", min_value=0.5, max_value=3.0, value=1.0, step=0.25, key="p_umap_spread_slider")
+            
+        st.markdown(f"""
+        💡 **Parameter Tuning Guide**:
+        - **`min_dist` ({p_umap_dist})**:
+          - **Lower ($0.1-0.2$)**: Clustered cells pack tightly into dense islands.
+          - **Moderate ($0.3-0.5$)**: Recommended for continuous differentiation (e.g. basal to spinous to granular layers) to avoid artificial artificial disconnection.
+        """)
+        st.code(f"""# Step 7: 2D UMAP Embedding
+sc.tl.umap(adata, min_dist={p_umap_dist}, spread={p_umap_spread})""", language="python")
+
+    # Step 8: Community Clustering (Leiden)
+    with st.expander("✅ Step 8: Unsupervised Clustering via Leiden [MANDATORY]", expanded=False):
+        st.markdown("**Purpose**: Partition the KNN graph into discrete communities and identify cell states.")
+        c_leid1, c_leid2 = st.columns(2)
+        with c_leid1:
+            p_leid_res = st.slider("Clustering Resolution (`resolution`):", min_value=0.1, max_value=2.0, value=0.5, step=0.1, key="p_leid_res_slider")
+        with c_leid2:
+            p_leid_key = st.text_input("Output Column Name (`key_added`):", value=f"leiden_r{str(p_leid_res).replace('.', '')}", key="p_leid_key_input")
+            
+        st.markdown(f"""
+        💡 **Parameter Tuning Guide**:
+        - **`resolution` ({p_leid_res})**:
+          - **Low ($0.1-0.3$)**: Broad lineage segregation (4-6 major clusters: Basal, Suprabasal, Granular).
+          - **Moderate ($0.5-0.8$)**: Optimal sub-clustering resolution for identifying transient activation states (Basal 1 vs Basal 2).
+          - **High ($\\ge 1.2$)**: Fine-grained subclustering; may over-partition continuous gradients.
+        """)
+        st.code(f"""# Step 8: Leiden Clustering
+sc.tl.leiden(adata, resolution={p_leid_res}, key_added='{p_leid_key}')""", language="python")
+
+    # Step 9: Differential Expression & Annotation
+    with st.expander("✨ Step 9: Marker Gene Ranking & Cell Type Annotation [STANDARD]", expanded=False):
+        st.markdown("**Purpose**: Discover cluster-defining marker genes using non-parametric Wilcoxon rank-sum testing.")
+        st.code(f"""# Step 9: Marker Identification
+sc.tl.rank_genes_groups(adata, groupby='{p_leid_key}', method='wilcoxon', n_genes=50, pts=True)
+sc.pl.rank_genes_groups(adata, n_genes=10, sharey=False)
+
+# Assign biological annotations
+cluster_annotations = {{
+    '0': 'Basal 1 (Quiescent)',
+    '1': 'Basal 2 (Activated)',
+    '2': 'Spinous (Suprabasal)',
+    '3': 'Granular (Differentiated)'
+}}
+adata.obs['cell_type'] = adata.obs['{p_leid_key}'].map(cluster_annotations)""", language="python")
+
+    # Step 10: Diffusion Pseudotime Trajectory
+    with st.expander("🌿 Step 10: Diffusion Pseudotime (DPT) Trajectory Modeling [OPTIONAL]", expanded=False):
+        st.markdown("**Purpose**: Compute continuous lineage progression from basal stem cells through terminal differentiation.")
+        st.code("""# Step 10: Trajectory Inference via Diffusion Maps & DPT
+sc.tl.diffmap(adata, n_dcs=15)
+# Set root cell index (e.g. cell with highest COL17A1 / ITGA6 in Basal 1)
+root_cell_idx = np.argmin(adata.obs['pct_counts_mt']) # Or custom stem root
+adata.uns['iroot'] = root_cell_idx
+sc.tl.dpt(adata, n_dcs=10)
+# Resulting pseudotime stored in adata.obs['dpt_pseudotime']""", language="python")
+
+    # Step 11: Final Export for CLAIREscope
+    with st.expander("📦 Step 11: Final Export for CLAIREscope [MANDATORY]", expanded=True):
+        st.markdown("**Purpose**: Save the finalized AnnData object with verified metadata structure.")
+        st.code("""# Step 11: Final Export
+output_filename = "adata_processed_clairescope.h5ad"
+adata.write_h5ad(output_filename, compression="gzip")
+print(f"Dataset successfully compiled for CLAIREscope: {output_filename}")""", language="python")
+
+
 elif app_mode == "Cell-Type Marker Editor":
     st.title("Cell-Type Population & Marker Gene Editor")
     st.write("View, add, modify, or delete cell populations and their key marker genes. Changes will be saved directly to the config YAML.")
