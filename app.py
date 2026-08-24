@@ -33,6 +33,10 @@ if "plotly_white" in pio.templates:
     pio.templates["plotly_white"].layout.yaxis.title.font.size = 16
 pio.templates.default = "plotly_white"
 import streamlit.components.v1 as components
+
+# Setup paths
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Custom Draggable Multiselect Component
 COMPONENT_DIR = os.path.join(APP_DIR, "components", "draggable_multiselect")
 if os.path.exists(COMPONENT_DIR):
@@ -50,10 +54,6 @@ def draggable_multiselect(label, options, default=None, key=None):
         return list(val)
     else:
         return st.multiselect(label, options=options, default=default, key=key)
-
-
-# Setup paths
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJ_BASE = os.path.dirname(os.path.dirname(APP_DIR))
 DATA_DIR = os.path.join(PROJ_BASE, "out", "2026-08-23_human_epidermal_subclustering")
 SCAN_DIRS = [
