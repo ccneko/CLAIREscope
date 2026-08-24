@@ -505,12 +505,24 @@ if app_mode == "Gene Expression UMAP":
             raw_vals = adata[:, resolved_var_name].X.flatten()
         
         raw_log2_vals = np.log2(raw_vals + 1)
-        max_possible_log2 = float(raw_log2_vals.max())
-        max_possible_lin = float(raw_vals.max())
+        max_possible_log2 = float(raw_log2_vals.max()) if len(raw_log2_vals) > 0 else 10.0
+        max_possible_lin = float(raw_vals.max()) if len(raw_vals) > 0 else 100.0
     else:
         raw_vals = np.array([0.0])
         raw_log2_vals = np.array([0.0])
         max_possible_log2, max_possible_lin = 10.0, 100.0
+        
+    use_log2 = True
+    cmap_choice = "viridis"
+    pct_slider = 100
+    chosen_vmax = max_possible_log2 if max_possible_log2 > 0 else 1.0
+    chosen_scale_label = "Log2(Norm+1)"
+    
+    use_log2_t2 = True
+    cmap_choice_t2 = "viridis"
+    pct_slider_t2 = 100
+    chosen_vmax_t2 = max_possible_log2 if max_possible_log2 > 0 else 1.0
+    chosen_scale_label_t2 = "Log2(Norm+1)" 
 
     def rank_cell_state(c):
         c_low = str(c).lower()
@@ -1127,13 +1139,13 @@ if app_mode == "Gene Expression UMAP":
                                     x=df_selected["UMAP 1"], y=df_selected["UMAP 2"],
                                     mode='markers',
                                     marker=dict(
-                                        color=np.clip(df_selected["Expression"], 0, chosen_vmax),
+                                        color=np.clip(df_selected["Expression"], 0, chosen_vmax_t2),
                                         colorscale=plotly_cs,
                                         colorbar=dict(title=f"{chosen_scale_label}", len=0.8, thickness=14, tickfont=dict(size=10)),
                                         size=pt_size,
                                         opacity=0.85,
                                         cmin=0,
-                                        cmax=chosen_vmax,
+                                        cmax=chosen_vmax_t2,
                                         showscale=True
                                     ),
                                     text=hover_txt,
