@@ -834,13 +834,26 @@ if app_mode == "Gene Expression UMAP":
                 svg_grid_buf = io.BytesIO()
                 fig_grid.savefig(svg_grid_buf, format="svg", bbox_inches="tight")
                 clean_sym_name = resolved_display_name.split(" (")[0] if resolved_display_name else "gene"
-                st.download_button(
-                    label="📥 Download Grid Plot as SVG",
-                    data=svg_grid_buf.getvalue(),
-                    file_name=f"{selected_dataset_name}_{clean_sym_name}_static_grid.svg",
-                    mime="image/svg+xml",
-                    key="dl_tab1_grid_svg"
-                )
+                
+                c_dl1, c_dl2 = st.columns([1.2, 1.4])
+                with c_dl1:
+                    st.download_button(
+                        label="📥 Download Grid Plot as SVG",
+                        data=svg_grid_buf.getvalue(),
+                        file_name=f"{selected_dataset_name}_{clean_sym_name}_static_grid.svg",
+                        mime="image/svg+xml",
+                        key="dl_tab1_grid_svg"
+                    )
+                with c_dl2:
+                    csv_data_t1 = get_umap_embeddings_csv(adata, sample_col, selected_col, resolved_var_name, resolved_display_name)
+                    if csv_data_t1:
+                        st.download_button(
+                            label="📥 Download UMAP Embeddings (CSV)",
+                            data=csv_data_t1,
+                            file_name=f"{selected_dataset_name}_umap_embeddings.csv",
+                            mime="text/csv",
+                            key="dl_tab1_umap_csv"
+                        )
                 plt.close(fig_grid)
         else:
             st.info("💡 Select or search a gene above from the dropdown to view the expression comparison grid.")
@@ -866,13 +879,6 @@ if app_mode == "Gene Expression UMAP":
                         st.pyplot(fig_s)
                         svg_s_buf = io.BytesIO()
                         fig_s.savefig(svg_s_buf, format="svg", bbox_inches="tight")
-                        st.download_button(
-                            label="📥 Download Sample UMAP as SVG",
-                            data=svg_s_buf.getvalue(),
-                            file_name=f"{selected_dataset_name}_sample_umap.svg",
-                            mime="image/svg+xml",
-                            key="dl_tab1_sample_svg"
-                        )
                         plt.close(fig_s)
                         
                     # 2. Cell States Reference
@@ -899,19 +905,38 @@ if app_mode == "Gene Expression UMAP":
                             ax_ref.legend(title="Cell State", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=5, fontsize=7.5, frameon=False)
                             plt.tight_layout()
                             st.pyplot(fig_ref)
+                            svg_c_buf = io.BytesIO()
+                            fig_ref.savefig(svg_c_buf, format="svg", bbox_inches="tight")
                             plt.close(fig_ref)
 
-        # Download UMAP Embeddings (CSV) at the bottom of Static UMAP
-        csv_data_t1 = get_umap_embeddings_csv(adata, sample_col, selected_col, resolved_var_name, resolved_display_name)
-        if csv_data_t1:
-            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-            st.download_button(
-                label="📥 Download UMAP Embeddings (CSV)",
-                data=csv_data_t1,
-                file_name=f"{selected_dataset_name}_umap_embeddings.csv",
-                mime="text/csv",
-                key="dl_tab1_umap_csv"
-            )
+                    c_r_dl1, c_r_dl2, c_r_dl3 = st.columns([1.2, 1.2, 1.4])
+                    with c_r_dl1:
+                        st.download_button(
+                            label="📥 Download Sample UMAP (SVG)",
+                            data=svg_s_buf.getvalue(),
+                            file_name=f"{selected_dataset_name}_sample_umap.svg",
+                            mime="image/svg+xml",
+                            key="dl_tab1_sample_svg"
+                        )
+                    with c_r_dl2:
+                        if selected_col:
+                            st.download_button(
+                                label="📥 Download Cell State UMAP (SVG)",
+                                data=svg_c_buf.getvalue(),
+                                file_name=f"{selected_dataset_name}_cell_state_umap.svg",
+                                mime="image/svg+xml",
+                                key="dl_tab1_cellstate_svg"
+                            )
+                    with c_r_dl3:
+                        csv_data_t1 = get_umap_embeddings_csv(adata, sample_col, selected_col, resolved_var_name, resolved_display_name)
+                        if csv_data_t1:
+                            st.download_button(
+                                label="📥 Download UMAP Embeddings (CSV)",
+                                data=csv_data_t1,
+                                file_name=f"{selected_dataset_name}_umap_embeddings.csv",
+                                mime="text/csv",
+                                key="dl_tab1_umap_csv_ref"
+                            )
             
     # ---------------- TAB 2: INTERACTIVE UMAP ----------------
     with tab_interactive:
