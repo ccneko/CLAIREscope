@@ -895,15 +895,16 @@ if app_mode == "SC Analysis Viewer":
             df_out[f"Expression_{clean_sym}_Log2"] = np.log2(g_raw + 1)
         return df_out.to_csv(index=False).encode('utf-8')
 
-    # 7 Main Tabs
-    tab_static, tab_interactive, tab_composition, tab_gene_violin, tab_score_violin, tab_scatter, tab_trajectory = st.tabs([
+    # 8 Main Tabs
+    tab_static, tab_interactive, tab_composition, tab_gene_violin, tab_score_violin, tab_scatter, tab_trajectory, tab_bulk_download = st.tabs([
         "Static UMAP", 
         "Interactive UMAP", 
         "Sample Composition",
         "Gene Expression Violins",
         "Signature & Pathway Scoring",
         "Correlation & Scatter Plots",
-        "Trajectory Analysis"
+        "Trajectory Analysis",
+        "Bulk Download & Export"
     ])
     
     # ---------------- TAB 1: STATIC UMAP ----------------
