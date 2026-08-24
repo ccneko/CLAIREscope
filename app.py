@@ -448,13 +448,13 @@ def resolve_gene_var_name(adata, gene_name, sym_to_display, display_to_var):
 with st.sidebar:
     st.markdown("""
     <div style="padding: 4px 0 10px 0;">
-        <h1 style="font-size: 26px; font-weight: 800; color: #E11D48; margin: 0; padding: 0; letter-spacing: -0.5px;">
+        <h1 style="font-size: 26px; font-weight: 800; color: #B32141; margin: 0; padding: 0; letter-spacing: -0.5px;">
             🔬 CLAIREscope
         </h1>
         <div style="font-size: 11.5px; font-weight: 600; color: #475569; line-height: 1.25; margin-top: 2px;">
             Cellular Landscape Analysis, Interpretation & Results Explorer
         </div>
-        <div style="display: inline-block; background-color: #FFE4E6; color: #BE123C; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; margin-top: 5px;">
+        <div style="display: inline-block; background-color: #FDF2F4; border: 1px solid #F5C6CB; color: #B32141; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; margin-top: 5px;">
             Single Cell Analysis Viewer
         </div>
     </div>
@@ -462,7 +462,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 🧭 Navigation")
     app_mode = st.selectbox("Choose the page:", [
-        "SC Analysis Viewer", 
+        "Single Cell Analysis Viewer", 
         "Cell-Type Marker Editor",
         "Bulk Download & Export Studio",
         "Dataset Management & Launch Settings"
@@ -561,30 +561,51 @@ for idx, s in enumerate(ordered_samples):
         sample_color_map[s] = matplotlib.colors.to_hex(cmap(idx % 10))
 
 # ----------------- PAGE 1: EXPRESSION VIEWER & ANALYSIS TABS -----------------
-if app_mode == "SC Analysis Viewer":
-    st.title("Single-Cell RNA-seq Expression, Scoring & Correlation Viewer")
-    st.markdown(f'<div style="font-size: 20px; font-weight: 500; margin-top: 4px; margin-bottom: 18px; color: #1e293b; line-height: 1.5;">Active Dataset: <code>{selected_dataset_name}</code> | Total Cells: <code>{adata.n_obs:,}</code> | Total Genes: <code>{adata.n_vars:,}</code> | Sample Column: <code>{sample_col}</code></div>', unsafe_allow_html=True)
+if app_mode == "Single Cell Analysis Viewer":
+    st.title("🔬 CLAIREscope Single Cell Analysis Viewer")
+    st.markdown(f"""
+    <div style="background: linear-gradient(90deg, #FFF1F2 0%, #FFFFFF 100%); border-left: 5px solid #B32141; padding: 10px 16px; border-radius: 6px; margin-bottom: 14px;">
+        <div style="font-size: 16px; font-weight: 700; color: #B32141; margin-bottom: 2px;">
+            Active Project: {curr_proj['name']}
+        </div>
+        <div style="font-size: 13px; color: #475569;">
+            {curr_proj['desc']}
+        </div>
+        <div style="font-size: 12.5px; color: #334155; margin-top: 6px;">
+            Active Dataset: <code>{selected_dataset_name}</code> | Total Cells: <code>{adata.n_obs:,}</code> | Total Genes: <code>{adata.n_vars:,}</code> | Sample Column: <code>{sample_col if sample_col else 'None'}</code>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Initialize session state for selected gene display string
     if "selected_gene_display" not in st.session_state:
         st.session_state.selected_gene_display = "None"
     if "marker_select_key" not in st.session_state:
         st.session_state.marker_select_key = "None"
+    if "gene_dropdown_key" not in st.session_state:
+        st.session_state.gene_dropdown_key = "None"
         
     markers_config = load_yaml()
     dataset_markers = markers_config.get(yaml_key, {})
     
     def on_marker_change():
-        sel = st.session_state.marker_select_key
+        sel = st.session_state.get("marker_select_key", "None")
         if sel and sel != "None":
             disp = sym_to_display.get(sel.upper(), None)
+            if not disp:
+                disp = sym_to_display.get(sel, None)
+            if not disp:
+                for d in display_options:
+                    if d.startswith(f"{sel} (") or d == sel or d.upper().startswith(f"{sel.upper()} ("):
+                        disp = d
+                        break
             if disp:
                 st.session_state.selected_gene_display = disp
+                st.session_state.gene_dropdown_key = disp
                 
     def on_gene_dropdown_change():
-        sel = st.session_state.gene_dropdown_key
+        sel = st.session_state.get("gene_dropdown_key", "None")
         st.session_state.selected_gene_display = sel
-        st.session_state.marker_select_key = "None"
         
     col_gene, col_cell_type, col_marker = st.columns([1.6, 1.2, 1.2])
     
@@ -3167,8 +3188,8 @@ elif app_mode == "Cell-Type Marker Editor":
 elif app_mode == "Bulk Download & Export Studio":
     st.title("📦 CLAIREscope Bulk Download & Export Studio")
     st.markdown(f"""
-    <div style="background: linear-gradient(90deg, #FFF1F2 0%, #FFFFFF 100%); border-left: 5px solid #E11D48; padding: 10px 16px; border-radius: 6px; margin-bottom: 14px;">
-        <div style="font-size: 16px; font-weight: 700; color: #9F1239; margin-bottom: 2px;">
+    <div style="background: linear-gradient(90deg, #FFF1F2 0%, #FFFFFF 100%); border-left: 5px solid #B32141; padding: 10px 16px; border-radius: 6px; margin-bottom: 14px;">
+        <div style="font-size: 16px; font-weight: 700; color: #B32141; margin-bottom: 2px;">
             Active Project: {curr_proj['name']}
         </div>
         <div style="font-size: 13px; color: #475569;">
