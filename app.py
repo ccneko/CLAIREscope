@@ -435,7 +435,7 @@ for idx, s in enumerate(ordered_samples):
 # ----------------- PAGE 1: EXPRESSION VIEWER & ANALYSIS TABS -----------------
 if app_mode == "Gene Expression UMAP":
     st.title("Single-Cell RNA-seq Expression, Scoring & Correlation Viewer")
-    st.markdown(f'<div style="font-size: 20px; font-weight: 500; margin-top: 4px; margin-bottom: 18px; color: #1e293b; line-height: 1.5;">Active Dataset: <strong>{selected_dataset_name}</strong> | Total Cells: <strong>{adata.n_obs:,}</strong> | Total Genes: <strong>{adata.n_vars:,}</strong> | Sample Column: <strong>{sample_col}</strong></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="font-size: 20px; font-weight: 500; margin-top: 4px; margin-bottom: 18px; color: #1e293b; line-height: 1.5;">Active Dataset: <code>{selected_dataset_name}</code> | Total Cells: <code>{adata.n_obs:,}</code> | Total Genes: <code>{adata.n_vars:,}</code> | Sample Column: <code>{sample_col}</code></div>', unsafe_allow_html=True)
     
     # Initialize session state for selected gene display string
     if "selected_gene_display" not in st.session_state:
@@ -497,59 +497,20 @@ if app_mode == "Gene Expression UMAP":
             resolved_var_name = None
     resolved_display_name = selected_gene_box if resolved_var_name else None
     
-    # Colormap & Scale Controls
-    with st.expander("🎨 Colormap, Scale & Contrast Controls (Loupe-Style)", expanded=bool(resolved_var_name)):
-        c_scale, c_cmap, c_pct, c_vmax = st.columns([1.2, 1.0, 1.8, 1.0])
-        
-        with c_scale:
-            use_log2 = st.checkbox("Log2(Normalized + 1) Scale", value=True, help="Applies log2 transformation like Loupe Browser for balanced contrast.")
-            
-        with c_cmap:
-            cmap_choice = st.selectbox("Colormap:", ["viridis", "YlOrRd", "Reds", "inferno", "plasma", "magma", "turbo"], index=0, key="global_cmap_choice")
-            
-        # Get raw expression values to calculate percentiles
-        if resolved_var_name:
-            if scipy.sparse.issparse(adata.X):
-                raw_vals = adata[:, resolved_var_name].X.toarray().flatten()
-            else:
-                raw_vals = adata[:, resolved_var_name].X.flatten()
-            
-            expr_for_scale = np.log2(raw_vals + 1) if use_log2 else raw_vals
-            max_possible = float(expr_for_scale.max())
-            p80_val = float(np.percentile(expr_for_scale, 80))
-            p90_val = float(np.percentile(expr_for_scale, 90))
-            p95_val = float(np.percentile(expr_for_scale, 95))
-            p99_val = float(np.percentile(expr_for_scale, 99))
+    # Calculate raw expression values & percentiles in background
+    if resolved_var_name:
+        if scipy.sparse.issparse(adata.X):
+            raw_vals = adata[:, resolved_var_name].X.toarray().flatten()
         else:
-            expr_for_scale = np.array([0.0])
-            max_possible, p80_val, p90_val, p95_val, p99_val = 10.0, 4.0, 6.0, 8.0, 9.5
-            
-        with c_pct:
-            pct_slider = st.select_slider(
-                "Max Percentile Threshold (Anchors):",
-                options=[50, 60, 70, 75, 80, 85, 90, 95, 98, 99, 99.5, 100],
-                value=100,
-                format_func=lambda x: f"{x}%" if x in [80, 90, 95, 99, 100] else f"{x}",
-                help="Clip upper colormap limit to enhance visual contrast against outliers (anchors at 80%, 90%, 95%, 99%, 100%).",
-                key="vmax_pct_slider"
-            )
-            
-        suggested_vmax = float(np.percentile(expr_for_scale, pct_slider)) if resolved_var_name and len(expr_for_scale) > 1 else max_possible
-        if suggested_vmax <= 0:
-            suggested_vmax = max_possible if max_possible > 0 else 1.0
-            
-        with c_vmax:
-            custom_vmax = st.number_input(
-                "Colormap Max (vmax):",
-                min_value=0.01,
-                max_value=max(max_possible * 2.0, 10000.0),
-                value=round(suggested_vmax, 2),
-                step=0.5 if use_log2 else 10.0,
-                help="Direct numeric limit for colormap maximum. Values above this will be saturated."
-            )
-            
-        chosen_vmax = float(custom_vmax)
-        chosen_scale_label = "Log2(Norm+1)" if use_log2 else "Linear"
+            raw_vals = adata[:, resolved_var_name].X.flatten()
+        
+        raw_log2_vals = np.log2(raw_vals + 1)
+        max_possible_log2 = float(raw_log2_vals.max())
+        max_possible_lin = float(raw_vals.max())
+    else:
+        raw_vals = np.array([0.0])
+        raw_log2_vals = np.array([0.0])
+        max_possible_log2, max_possible_lin = 10.0, 100.0
 
     def rank_cell_state(c):
         c_low = str(c).lower()
@@ -784,6 +745,43 @@ if app_mode == "Gene Expression UMAP":
     
     # ---------------- TAB 1: STATIC PLOTS ----------------
     with tab_static:
+        with st.expander("🎨 Colormap, Scale & Contrast Controls", expanded=bool(resolved_var_name)):
+            c_scale, c_cmap, c_pct, c_vmax = st.columns([1.2, 1.0, 1.8, 1.0])
+            with c_scale:
+                use_log2 = st.checkbox("Log2(Normalized + 1) Scale", value=True, help="Applies log2 transformation like Loupe Browser for balanced contrast.", key="tab1_use_log2")
+            with c_cmap:
+                cmap_choice = st.selectbox("Colormap:", ["viridis", "YlOrRd", "Reds", "inferno", "plasma", "magma", "turbo"], index=0, key="tab1_cmap_choice")
+                
+            expr_for_scale = raw_log2_vals if use_log2 else raw_vals
+            max_possible = max_possible_log2 if use_log2 else max_possible_lin
+            
+            with c_pct:
+                pct_slider = st.select_slider(
+                    "Max Percentile Threshold (Anchors):",
+                    options=[50, 60, 70, 75, 80, 85, 90, 95, 98, 99, 99.5, 100],
+                    value=100,
+                    format_func=lambda x: f"{x}%" if x in [80, 90, 95, 99, 100] else f"{x}",
+                    help="Clip upper colormap limit to enhance visual contrast against outliers.",
+                    key="tab1_vmax_pct_slider"
+                )
+                
+            suggested_vmax = float(np.percentile(expr_for_scale, pct_slider)) if resolved_var_name and len(expr_for_scale) > 1 else max_possible
+            if suggested_vmax <= 0:
+                suggested_vmax = max_possible if max_possible > 0 else 1.0
+                
+            with c_vmax:
+                custom_vmax = st.number_input(
+                    "Colormap Max (vmax):",
+                    min_value=0.01,
+                    max_value=max(max_possible * 2.0, 10000.0),
+                    value=round(suggested_vmax, 2),
+                    step=0.5 if use_log2 else 10.0,
+                    help="Direct numeric limit for colormap maximum.",
+                    key="tab1_custom_vmax"
+                )
+            chosen_vmax = float(custom_vmax)
+            chosen_scale_label = "Log2(Norm+1)" if use_log2 else "Linear"
+
         with st.expander("⚙️ Static Grid Layout Controls", expanded=False):
             c_sg1, c_sg2 = st.columns(2)
             with c_sg1:
@@ -905,7 +903,7 @@ if app_mode == "Gene Expression UMAP":
                         expr_sub_raw = adata_sub[:, resolved_var_name].X.toarray().flatten()
                     else:
                         expr_sub_raw = adata_sub[:, resolved_var_name].X.flatten()
-                    expr_sub = np.log2(expr_sub_raw + 1) if use_log2 else expr_sub_raw
+                    expr_sub = np.log2(expr_sub_raw + 1) if use_log2_t2 else expr_sub_raw
                 else:
                     expr_sub = np.zeros(adata_sub.n_obs)
                     
@@ -1105,7 +1103,7 @@ if app_mode == "Gene Expression UMAP":
                                 color="Expression",
                                 hover_data=["Cell State", "Sample", "Expression"],
                                 color_continuous_scale=plotly_cs,
-                                range_color=[0, chosen_vmax],
+                                range_color=[0, chosen_vmax_t2],
                                 title=f"{clean_sym} ({chosen_scale_label}, Filtered: {len(df_selected)})",
                                 template="plotly_white"
                             )
@@ -1152,7 +1150,7 @@ if app_mode == "Gene Expression UMAP":
                                 color="Expression",
                                 hover_data=["Cell State", "Sample", "Expression"],
                                 color_continuous_scale=plotly_cs,
-                                range_color=[0, chosen_vmax],
+                                range_color=[0, chosen_vmax_t2],
                                 title=f"{clean_sym} ({chosen_scale_label}, All Cells)",
                                 template="plotly_white"
                             )
@@ -1195,8 +1193,8 @@ if app_mode == "Gene Expression UMAP":
                 with c_samp_filter:
                     selected_comp_samples = st.multiselect("Select Samples to Display:", options=all_dataset_samples, default=all_dataset_samples, key="comp_samples_filter")
                     if len(selected_comp_samples) > 1:
-                        with st.expander("↕️ Drag & Drop to Rearrange Sample Order", expanded=False):
-                            selected_comp_samples = sort_items(selected_comp_samples, direction="horizontal", key="drag_sort_comp_samples")
+                        st.caption("↕️ **Drag items below to rearrange sample display order:**")
+                        selected_comp_samples = sort_items(selected_comp_samples, direction="horizontal", key="drag_sort_comp_samples")
                 with c_donut_opt:
                     show_donut_pct = st.checkbox("Show % in Donut Slices", value=True, key="comp_show_pct")
                     
