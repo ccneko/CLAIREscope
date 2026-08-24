@@ -1,6 +1,6 @@
 # 🔬 CLAIREscope: Cellular Landscape Analysis, Interpretation & Results Explorer
 
-[![Release](https://img.shields.io/github/v/release/ccneko/sc-expression-viewer?color=B32141&label=Release)](https://github.com/ccneko/sc-expression-viewer/releases)
+[![Release](https://img.shields.io/github/v/release/ccneko/CLAIREscope?color=B32141&label=Release)](https://github.com/ccneko/CLAIREscope/releases)
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -24,8 +24,8 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/ccneko/sc-expression-viewer.git
-cd sc-expression-viewer
+git clone https://github.com/ccneko/CLAIREscope.git
+cd CLAIREscope
 
 # Run using uv / Python virtual environment
 uv run streamlit run app.py --server.port 8501
