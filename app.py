@@ -3029,103 +3029,141 @@ if app_mode == "Single Cell Analysis Viewer":
 
     # ---------------- TAB 10: EXPRESSION HEATMAP STUDIO ----------------
     with tab_heatmap:
-            st.markdown("### 🔥 High-Resolution Expression Heatmap Studio")
-            st.caption("Generate publication-grade hierarchical clustered or group-sorted heatmaps across samples, cell states, or custom gene sets.")
-            
-            c_hm1, c_hm2, c_hm3 = st.columns([1.2, 1.2, 1.0])
-            with c_hm1:
-                hm_group_col = st.selectbox("Heatmap Grouping Column:", [c for c in [sample_col, selected_col, 'state_group', 'predicted_labels'] if c and c in adata.obs.columns], key="hm_grp_col")
-            with c_hm2:
-                hm_mode = st.selectbox("Heatmap Type:", ["Group Mean Expression (Summary)", "Single Cells (Subsampled 2,000 cells)"], key="hm_disp_mode")
-            with c_hm3:
+        st.markdown("### 🔥 High-Resolution Expression Heatmap Studio")
+        st.caption("Generate publication-grade hierarchical clustered or group-sorted heatmaps across samples, cell states, or custom gene sets.")
+        
+        with st.expander("🎨 Colormap, Scale & Contrast Controls", expanded=True):
+            c_hm_scale, c_hm_cmap, c_hm_pct, c_hm_vmax = st.columns([1.2, 1.0, 1.8, 1.0])
+            with c_hm_scale:
                 hm_scale = st.selectbox("Value Scaling:", ["Z-score (Standardized per Gene)", "Log2(Norm + 1)", "Raw Normalized"], key="hm_val_scale")
-                
-            c_hm_opt1, c_hm_opt2 = st.columns(2)
-            with c_hm_opt1:
-                hm_cluster_genes = st.checkbox("Hierarchically Cluster Genes (Rows)", value=True, key="hm_clust_genes")
-            with c_hm_opt2:
-                hm_cluster_cols = st.checkbox("Hierarchically Cluster Groups / Cells (Columns)", value=False, key="hm_clust_cols")
-                
-            hm_groups_avail = adata.obs[hm_group_col].dropna().unique().tolist()
-            if hm_group_col == sample_col and ordered_samples:
-                def_hm_order = [s for s in ordered_samples if s in hm_groups_avail] + [s for s in hm_groups_avail if s not in ordered_samples]
-            else:
-                def_hm_order = sorted(hm_groups_avail)
-                
-            hm_ordered_groups = draggable_multiselect(
-                "Sortable Group Order (X-axis):",
-                options=hm_groups_avail,
-                default=def_hm_order,
-                key="hm_sortable_groups"
-            )
+            with c_hm_cmap:
+                if hm_scale.startswith("Z-score"):
+                    hm_cmap_choice = st.selectbox("Colormap:", ["vlag", "coolwarm", "bwr", "RdBu_r", "Spectral_r", "viridis", "inferno"], index=0, key="hm_cmap_choice_z")
+                else:
+                    hm_cmap_choice = st.selectbox("Colormap:", ["viridis", "YlOrRd", "Reds", "inferno", "plasma", "magma", "turbo"], index=0, key="hm_cmap_choice_nonz")
+            with c_hm_pct:
+                hm_pct_slider = st.select_slider(
+                    "Max Percentile Threshold (Anchors):",
+                    options=[50, 60, 70, 75, 80, 85, 90, 95, 98, 99, 99.5, 100],
+                    value=100,
+                    format_func=lambda x: f"{x}%" if x in [80, 90, 95, 99, 100] else f"{x}",
+                    help="Clip upper colormap limit to enhance visual contrast against outliers.",
+                    key="hm_vmax_pct_slider"
+                )
+            with c_hm_vmax:
+                if hm_scale.startswith("Z-score"):
+                    hm_custom_vmax = st.number_input(
+                        "Colormap Max (+/- Z):",
+                        min_value=0.5,
+                        max_value=10.0,
+                        value=2.0,
+                        step=0.5,
+                        help="Symmetric dynamic range for Z-score (-vmax to +vmax).",
+                        key="hm_custom_vmax_z"
+                    )
+                    v_min, v_max = -float(hm_custom_vmax), float(hm_custom_vmax)
+                else:
+                    hm_custom_vmax = st.number_input(
+                        "Colormap Max (vmax):",
+                        min_value=0.1,
+                        max_value=10000.0,
+                        value=4.0 if hm_scale.startswith("Log2") else 50.0,
+                        step=0.5 if hm_scale.startswith("Log2") else 5.0,
+                        help="Direct numeric limit for heatmap upper scale.",
+                        key="hm_custom_vmax_nonz"
+                    )
+                    v_min, v_max = 0.0, float(hm_custom_vmax)
+
+        c_hm1, c_hm2 = st.columns(2)
+        with c_hm1:
+            hm_group_col = st.selectbox("Heatmap Grouping Column:", [c for c in [sample_col, selected_col, 'state_group', 'predicted_labels'] if c and c in adata.obs.columns], key="hm_grp_col")
+        with c_hm2:
+            hm_mode = st.selectbox("Heatmap Type:", ["Group Mean Expression (Summary)", "Single Cells (Subsampled 2,000 cells)"], key="hm_disp_mode")
             
-            def_hm_genes = ["COL17A1", "KRT14", "KRT5", "TP63", "ITGA6", "ITGB4", "KRT1", "KRT10", "DSG1", "DSC1", "FLG", "LOR", "IVL", "CDH1", "CTNNB1", "DSP", "PKP1", "MKI67", "TOP2A"]
-            valid_hm_genes = [sym_to_display[g.upper()] for g in def_hm_genes if g.upper() in sym_to_display]
-            all_disp_clean = [o for o in display_options if o != "None"]
+        c_hm_opt1, c_hm_opt2 = st.columns(2)
+        with c_hm_opt1:
+            hm_cluster_genes = st.checkbox("Hierarchically Cluster Genes (Rows)", value=True, key="hm_clust_genes")
+        with c_hm_opt2:
+            hm_cluster_cols = st.checkbox("Hierarchically Cluster Groups / Cells (Columns)", value=False, key="hm_clust_cols")
             
-            hm_selected_genes = draggable_multiselect(
-                "Select & Reorder Genes to Display in Heatmap:",
-                options=all_disp_clean,
-                default=valid_hm_genes if valid_hm_genes else all_disp_clean[:15],
-                key="hm_genes_select"
-            )
+        hm_groups_avail = adata.obs[hm_group_col].dropna().unique().tolist()
+        if hm_group_col == sample_col and ordered_samples:
+            def_hm_order = [s for s in ordered_samples if s in hm_groups_avail] + [s for s in hm_groups_avail if s not in ordered_samples]
+        else:
+            def_hm_order = sorted(hm_groups_avail)
             
-            if hm_selected_genes and hm_ordered_groups:
-                gene_vars = [resolve_gene_var_name(adata, g, sym_to_display, display_to_var) for g in hm_selected_genes]
-                gene_clean_names = [g.split(" (")[0] for g in hm_selected_genes]
-                valid_pairs = [(v, n) for v, n in zip(gene_vars, gene_clean_names) if v is not None]
+        hm_ordered_groups = draggable_multiselect(
+            "Sortable Group Order (X-axis):",
+            options=hm_groups_avail,
+            default=def_hm_order,
+            key="hm_sortable_groups"
+        )
+        
+        def_hm_genes = ["COL17A1", "KRT14", "KRT5", "TP63", "ITGA6", "ITGB4", "KRT1", "KRT10", "DSG1", "DSC1", "FLG", "LOR", "IVL", "CDH1", "CTNNB1", "DSP", "PKP1", "MKI67", "TOP2A"]
+        valid_hm_genes = [sym_to_display[g.upper()] for g in def_hm_genes if g.upper() in sym_to_display]
+        all_disp_clean = [o for o in display_options if o != "None"]
+        
+        hm_selected_genes = draggable_multiselect(
+            "Select & Reorder Genes to Display in Heatmap:",
+            options=all_disp_clean,
+            default=valid_hm_genes if valid_hm_genes else all_disp_clean[:15],
+            key="hm_genes_select"
+        )
+        
+        if hm_selected_genes and hm_ordered_groups:
+            gene_vars = [resolve_gene_var_name(adata, g, sym_to_display, display_to_var) for g in hm_selected_genes]
+            gene_clean_names = [g.split(" (")[0] for g in hm_selected_genes]
+            valid_pairs = [(v, n) for v, n in zip(gene_vars, gene_clean_names) if v is not None]
+            
+            if valid_pairs:
+                v_list = [p[0] for p in valid_pairs]
+                lbl_list = [p[1] for p in valid_pairs]
                 
-                if valid_pairs:
-                    v_list = [p[0] for p in valid_pairs]
-                    lbl_list = [p[1] for p in valid_pairs]
+                if hm_mode.startswith("Group Mean"):
+                    mean_mat = []
+                    for grp in hm_ordered_groups:
+                        m = adata.obs[hm_group_col] == grp
+                        sub_raw = adata[m, v_list].X
+                        sub_dense = sub_raw.toarray() if scipy.sparse.issparse(sub_raw) else np.array(sub_raw)
+                        sub_scaled_gene = np.log2(sub_dense + 1) if not hm_scale.startswith("Raw") else sub_dense
+                        mean_mat.append(np.mean(sub_scaled_gene, axis=0))
+                    df_hm = pd.DataFrame(np.column_stack(mean_mat), index=lbl_list, columns=hm_ordered_groups)
                     
-                    if hm_mode.startswith("Group Mean"):
-                        mean_mat = []
-                        for grp in hm_ordered_groups:
-                            m = adata.obs[hm_group_col] == grp
-                            sub_raw = adata[m, v_list].X
-                            sub_dense = sub_raw.toarray() if scipy.sparse.issparse(sub_raw) else np.array(sub_raw)
-                            sub_log2 = np.log2(sub_dense + 1)
-                            mean_mat.append(np.mean(sub_log2, axis=0))
-                        df_hm = pd.DataFrame(np.column_stack(mean_mat), index=lbl_list, columns=hm_ordered_groups)
+                    if hm_scale.startswith("Z-score"):
+                        df_hm_scaled = df_hm.apply(lambda x: (x - x.mean()) / (x.std() + 1e-9), axis=1)
+                    else:
+                        df_hm_scaled = df_hm
                         
-                        if hm_scale.startswith("Z-score"):
-                            df_hm_scaled = df_hm.apply(lambda x: (x - x.mean()) / (x.std() + 1e-9), axis=1)
-                            v_min, v_max = -2.0, 2.0
-                            c_map = "vlag"
-                        else:
-                            df_hm_scaled = df_hm
-                            v_min, v_max = 0.0, float(df_hm.max().max())
-                            c_map = "viridis"
-                            
-                        fig_hm, ax_hm = plt.subplots(figsize=(1.2 * len(hm_ordered_groups) + 3.0, 0.45 * len(lbl_list) + 2.0), dpi=200)
-                        if hm_cluster_genes or hm_cluster_cols:
-                            import scipy.cluster.hierarchy as sch
-                            row_linkage = sch.linkage(sch.distance.pdist(df_hm_scaled), method='average') if hm_cluster_genes and len(df_hm_scaled) > 1 else None
-                            col_linkage = sch.linkage(sch.distance.pdist(df_hm_scaled.T), method='average') if hm_cluster_cols and len(df_hm_scaled.columns) > 1 else None
-                            g_hm = sns.clustermap(df_hm_scaled, row_linkage=row_linkage, col_linkage=col_linkage, cmap=c_map, vmin=v_min, vmax=v_max, figsize=(1.2 * len(hm_ordered_groups) + 3.5, 0.45 * len(lbl_list) + 2.5), cbar_kws={'label': hm_scale}, linewidths=0.5, linecolor='#FFFFFF')
-                            g_hm.fig.suptitle(f"Expression Heatmap ({hm_group_col})", fontsize=14, fontweight='bold', y=1.02)
-                            st.pyplot(g_hm.fig)
-                            hm_out_fig = g_hm.fig
-                        else:
-                            sns.heatmap(df_hm_scaled, cmap=c_map, vmin=v_min, vmax=v_max, ax=ax_hm, cbar_kws={'label': hm_scale}, linewidths=0.5, linecolor='#FFFFFF', annot=True if len(lbl_list) <= 15 and len(hm_ordered_groups) <= 6 else False, fmt=".2f")
-                            ax_hm.set_title(f"Expression Heatmap ({hm_group_col})", fontsize=14, fontweight='bold')
-                            ax_hm.set_ylabel("Genes", fontsize=12, fontweight='bold')
-                            ax_hm.set_xlabel(hm_group_col, fontsize=12, fontweight='bold')
-                            fig_hm.tight_layout()
-                            st.pyplot(fig_hm)
-                            hm_out_fig = fig_hm
-                            
-                        buf_hm = io.BytesIO()
-                        hm_out_fig.savefig(buf_hm, format="svg", bbox_inches="tight")
-                        st.download_button(
-                            label="📥 Download Heatmap as SVG",
-                            data=buf_hm.getvalue(),
-                            file_name=f"CLAIREscope_Heatmap_{hm_group_col}_{curr_proj['id']}.svg",
-                            mime="image/svg+xml",
-                            key="btn_download_heatmap_svg"
-                        )
-                        plt.close('all')
+                    c_map = hm_cmap_choice
+                    
+                    fig_hm, ax_hm = plt.subplots(figsize=(1.2 * len(hm_ordered_groups) + 3.0, 0.45 * len(lbl_list) + 2.0), dpi=200)
+                    if hm_cluster_genes or hm_cluster_cols:
+                        import scipy.cluster.hierarchy as sch
+                        row_linkage = sch.linkage(sch.distance.pdist(df_hm_scaled), method='average') if hm_cluster_genes and len(df_hm_scaled) > 1 else None
+                        col_linkage = sch.linkage(sch.distance.pdist(df_hm_scaled.T), method='average') if hm_cluster_cols and len(df_hm_scaled.columns) > 1 else None
+                        g_hm = sns.clustermap(df_hm_scaled, row_linkage=row_linkage, col_linkage=col_linkage, cmap=c_map, vmin=v_min, vmax=v_max, figsize=(1.2 * len(hm_ordered_groups) + 3.5, 0.45 * len(lbl_list) + 2.5), cbar_kws={'label': hm_scale}, linewidths=0.5, linecolor='#FFFFFF')
+                        g_hm.fig.suptitle(f"Expression Heatmap ({hm_group_col})", fontsize=14, fontweight='bold', y=1.02)
+                        st.pyplot(g_hm.fig)
+                        hm_out_fig = g_hm.fig
+                    else:
+                        sns.heatmap(df_hm_scaled, cmap=c_map, vmin=v_min, vmax=v_max, ax=ax_hm, cbar_kws={'label': hm_scale}, linewidths=0.5, linecolor='#FFFFFF', annot=True if len(lbl_list) <= 15 and len(hm_ordered_groups) <= 6 else False, fmt=".2f")
+                        ax_hm.set_title(f"Expression Heatmap ({hm_group_col})", fontsize=14, fontweight='bold')
+                        ax_hm.set_ylabel("Genes", fontsize=12, fontweight='bold')
+                        ax_hm.set_xlabel(hm_group_col, fontsize=12, fontweight='bold')
+                        fig_hm.tight_layout()
+                        st.pyplot(fig_hm)
+                        hm_out_fig = fig_hm
+                        
+                    buf_hm = io.BytesIO()
+                    hm_out_fig.savefig(buf_hm, format="svg", bbox_inches="tight")
+                    st.download_button(
+                        label="📥 Download Heatmap as SVG",
+                        data=buf_hm.getvalue(),
+                        file_name=f"CLAIREscope_Heatmap_{hm_group_col}_{curr_proj['id']}.svg",
+                        mime="image/svg+xml",
+                        key="btn_download_heatmap_svg"
+                    )
+                    plt.close('all')
 
     # ---------------- TAB 11: PATHWAY ENRICHMENT STUDIO ----------------
     with tab_enrichment:
