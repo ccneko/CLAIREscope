@@ -13,6 +13,11 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import plotly.io as pio
+try:
+    from streamlit_sortables import sort_items
+except Exception:
+    def sort_items(items, **kwargs):
+        return items
 
 # Global Plotly Typography Configuration
 if "plotly_white" in pio.templates:
