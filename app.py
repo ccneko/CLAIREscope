@@ -834,25 +834,13 @@ if app_mode == "Gene Expression UMAP":
                 svg_grid_buf = io.BytesIO()
                 fig_grid.savefig(svg_grid_buf, format="svg", bbox_inches="tight")
                 clean_sym_name = resolved_display_name.split(" (")[0] if resolved_display_name else "gene"
-                c_dl1, c_dl2 = st.columns([1, 1])
-                with c_dl1:
-                    st.download_button(
-                        label="📥 Download Grid Plot as SVG",
-                        data=svg_grid_buf.getvalue(),
-                        file_name=f"{selected_dataset_name}_{clean_sym_name}_static_grid.svg",
-                        mime="image/svg+xml",
-                        key="dl_tab1_grid_svg"
-                    )
-                with c_dl2:
-                    csv_data_t1 = get_umap_embeddings_csv(adata, sample_col, selected_col, resolved_var_name, resolved_display_name)
-                    if csv_data_t1:
-                        st.download_button(
-                            label="📥 Download UMAP Embeddings (CSV)",
-                            data=csv_data_t1,
-                            file_name=f"{selected_dataset_name}_umap_embeddings.csv",
-                            mime="text/csv",
-                            key="dl_tab1_umap_csv"
-                        )
+                st.download_button(
+                    label="📥 Download Grid Plot as SVG",
+                    data=svg_grid_buf.getvalue(),
+                    file_name=f"{selected_dataset_name}_{clean_sym_name}_static_grid.svg",
+                    mime="image/svg+xml",
+                    key="dl_tab1_grid_svg"
+                )
                 plt.close(fig_grid)
         else:
             st.info("💡 Select or search a gene above from the dropdown to view the expression comparison grid.")
@@ -912,6 +900,18 @@ if app_mode == "Gene Expression UMAP":
                             plt.tight_layout()
                             st.pyplot(fig_ref)
                             plt.close(fig_ref)
+
+        # Download UMAP Embeddings (CSV) at the bottom of Static UMAP
+        csv_data_t1 = get_umap_embeddings_csv(adata, sample_col, selected_col, resolved_var_name, resolved_display_name)
+        if csv_data_t1:
+            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+            st.download_button(
+                label="📥 Download UMAP Embeddings (CSV)",
+                data=csv_data_t1,
+                file_name=f"{selected_dataset_name}_umap_embeddings.csv",
+                mime="text/csv",
+                key="dl_tab1_umap_csv"
+            )
             
     # ---------------- TAB 2: INTERACTIVE UMAP ----------------
     with tab_interactive:
@@ -926,16 +926,6 @@ if app_mode == "Gene Expression UMAP":
             else:
                 all_categories = []
             
-            csv_data_t2 = get_umap_embeddings_csv(adata, sample_col, selected_col, resolved_var_name, resolved_display_name)
-            if csv_data_t2:
-                st.download_button(
-                    label="📥 Download UMAP Embeddings (CSV)",
-                    data=csv_data_t2,
-                    file_name=f"{selected_dataset_name}_umap_embeddings.csv",
-                    mime="text/csv",
-                    key="dl_tab2_umap_csv"
-                )
-
             with st.expander("Filter & Highlight Controls", expanded=True):
                 c_mode, c_size = st.columns([2, 1])
                 with c_mode:
@@ -1244,6 +1234,18 @@ if app_mode == "Gene Expression UMAP":
                             coloraxis_colorbar=dict(title_font=dict(size=15, family="Segoe UI, sans-serif"), tickfont=dict(size=13, family="Segoe UI, sans-serif"))
                         )
                         st.plotly_chart(fig_expr, use_container_width=True)
+
+            # Download UMAP Embeddings (CSV) at the bottom of Interactive UMAP
+            csv_data_t2 = get_umap_embeddings_csv(adata, sample_col, selected_col, resolved_var_name, resolved_display_name)
+            if csv_data_t2:
+                st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+                st.download_button(
+                    label="📥 Download UMAP Embeddings (CSV)",
+                    data=csv_data_t2,
+                    file_name=f"{selected_dataset_name}_umap_embeddings.csv",
+                    mime="text/csv",
+                    key="dl_tab2_umap_csv"
+                )
 
     # ---------------- TAB 3: SAMPLE COMPOSITION ----------------
     with tab_composition:
