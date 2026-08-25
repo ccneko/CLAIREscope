@@ -1,122 +1,73 @@
-# 🔬 Single-Cell RNA-seq Expression, Composition, Scoring & Correlation Viewer
+# 🔬 CLAIREscope: Cellular Landscape Analysis, Interpretation & Results Explorer
 
-An interactive, high-performance [Streamlit](https://streamlit.io/) application designed for comprehensive single-cell RNA sequencing (scRNA-seq / snRNA-seq) exploration, multi-dataset benchmarking, cell composition analytics, pathway scoring, and statistical correlation testing.
+[![Release](https://img.shields.io/badge/Release-v1.0.0-crimson.svg)](https://github.com/ccneko/CLAIREscope/releases)
+[![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
+[![Documentation](https://img.shields.io/badge/Docs-ReadTheDocs-brightgreen.svg)](https://clairescope.readthedocs.io)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
----
-
-## 🌟 Key Features
-
-### 1. Multi-Dataset & Dynamic Column Detection
-- **Auto-discovery**: Dynamically discovers `.h5ad` AnnData files from local `data/` directories or paths specified via the `SC_DATA_DIR` environment variable.
-- **Smart Annotation Detection**: Automatically identifies cell-type annotation columns (e.g. `predicted_labels`, `majority_voting`, `cell_type`, `leiden`, `louvain`) and experimental condition / sample columns.
-- **Gene Search & ID Normalization**: Supports search by gene symbol, Ensembl ID, and curated cell-type marker suggestions with bidirectional symbol-to-ID mappings.
+An open-source, lightweight, and high-performance single-cell analysis platform built on **Python**, **Scanpy**, and **Streamlit**. CLAIREscope unifies end-to-end data preprocessing, live multi-project exploration, dynamic continuous trajectory kinetics modeling, on-the-fly differential expression (Volcano), hypergeometric pathway enrichment (ORA), and automated publication-grade packaging (300 DPI vector SVGs/PDFs and structured summary CSV matrices).
 
 ---
 
-### 2. Tab 1: Static & Split Condition UMAPs
-- **Loupe-Style Contrast Controls**: Linear vs. $\log_2(x+1)$ scaling, custom colormaps (`viridis`, `magma`, `plasma`, `inferno`, `cividis`, `YlOrRd`, `rocket`), text-input $v_{\max}$, and percentile clipping anchors ($80\%$, $90\%$, $95\%$, $99\%$, $100\%$).
-- **Multi-Panel Grid**: Leading Sample UMAP $\rightarrow$ Cell State UMAP $\rightarrow$ Global Expression $\rightarrow$ Subplots split by each sample/condition.
+## 💻 Hardware & System Requirements
+
+CLAIREscope is designed to be highly resource-efficient through dynamic on-demand memory management (`@st.cache_resource` and sparse CSR matrix support).
+
+| Component | Minimum Specification (Exploratory / Small Atlases $< 20,000$ cells) | Recommended Specification (Standard Cohorts $20,000 - 100,000+$ cells) | Atlas-Scale / Production Server ($> 200,000$ cells) |
+| :--- | :--- | :--- | :--- |
+| **Operating System** | Linux (Ubuntu 20.04+), macOS (12+), Windows 10/11 (WSL2 or Native) | Linux (Ubuntu 22.04 / 24.04), macOS (Apple Silicon M1/M2/M3), Windows 11 WSL2 | Linux Server (Ubuntu / Debian / RHEL) / Docker |
+| **Processor (CPU)** | Dual-Core (x86_64 or ARM64) | 8+ Cores (e.g. AMD Ryzen 7/9, Intel Core i7/i9, Apple M-Series) | 16–32+ Cores (e.g. Intel Xeon / AMD EPYC) |
+| **Memory (RAM)** | **8 GB RAM** | **16 – 32 GB RAM** | **64 – 128+ GB RAM** |
+| **Storage (Disk)** | 2 GB free SSD space for dependencies | 10 – 50 GB NVMe SSD (for cached `.h5ad` datasets & vector SVGs) | 100+ GB NVMe SSD |
+| **Graphics (GPU)** | Not required (CPU accelerated via Scipy / Numpy) | Optional NVIDIA GPU (CUDA) for rapid UMAP/Harmony acceleration | NVIDIA RTX / A100 / V100 GPU |
+| **Python Environment**| Python $\ge 3.10$ ($\le 3.13$) | Python 3.11 or 3.12 managed via `uv` or `conda` | Python 3.11/3.12 with `uv` virtual environment |
+| **Web Browser** | Chrome, Firefox, Safari, Edge, Brave (HTML5 + WebSocket support) | Google Chrome, Mozilla Firefox, or Safari | Modern Chromium / WebKit engine |
 
 ---
 
-### 3. Tab 2 & 3: Interactive Cell Exploration & Composition Analytics
-- **Tab 2 (Interactive UMAP)**: Plotly-powered hover inspection showing Cell ID, Sample, Cell State, and raw/scaled gene expression.
-- **Tab 3 (Cell Type Composition)**: Normalized proportions, absolute cell counts, stacked bar charts, and condition-specific donut distribution diagrams.
+## 🌟 Key Functional Modules
 
----
-
-### 4. Tab 4: Gene Expression Violins & Statistical Tests
-- Global ("All Cells") summary violin followed by split subplots per cell state.
-- Embedded boxplots (medians, IQR) and pairwise condition significance brackets.
-- Preceding **Sample Mean Expression Table** (clusters as rows, samples as columns) with CSV export.
-- **Mann-Whitney U Test Summary Table** with two-sided $p$-values and Benjamini-Hochberg FDR $q$-values formatted to 4 significant figures.
-- **Zero-Expression Filtering Toggle**: Option to exclude unexpressed cells (count $= 0$) from violin distributions and statistical tests.
-
----
-
-### 5. Tab 5: Gene Signature & Pathway Scoring
-- Calculates continuous gene set scores using `sc.tl.score_genes`.
-- Built-in signatures (*Adherens Junctions*, *Desmosomes*, *Hemidesmosomes*, *Cell Cycle / Proliferation*) + **Custom Gene List Input**.
-- Uniform Y-axis upper limit controls, sample mean score tables, and Mann-Whitney U statistical significance testing with CSV downloads.
-
----
-
-### 6. Tab 6: Co-expression & Correlation Scatter Plots (with Stats)
-- **Dual-Axis Flexible Selector**: Any combination of **Gene Expression** vs. **Gene Expression**, **Gene** vs. **Score**, or **Score** vs. **Score** on X and Y axes.
-- **Subplot Split Modes**: Split by Sample, Split by Cell State, or Single Combined Overlay.
-- **Zero-Expression Filtering Modes**:
-  - `Include all cells (Keep zeros)`
-  - `Co-detected only (X > 0 and Y > 0)`
-  - `Remove double-zeros (X > 0 or Y > 0)`
-  - `Remove X = 0 cells only (X > 0)`
-  - `Remove Y = 0 cells only (Y > 0)`
-- Automated non-parametric **Spearman rank correlation** ($\rho, p$) and parametric **Pearson linear correlation** ($r, p$) with linear regression trendlines and exportable summary tables.
-
----
-
-### 7. Page 2: Cell-Type Marker YAML Editor
-- Built-in GUI to view, add, edit, or delete cell populations and their key marker genes saved directly to `cell_type_markers.yaml`.
+1. **🧪 Preprocessing & Scanpy Pipeline Studio**: Diagnostic data checker, green readiness checklist badges, fuzzy column schema standardizer (`sample`, `cell_type`), and 11-stage automated Scanpy engine with zero-restart in-memory viewer launch.
+2. **🔬 Static & Interactive UMAP Studios**: 1:1 isometric aspect ratio preservation, Loupe-like dynamic percentile contrast clipping, and dual-scatter synchronized hover inspection.
+3. **📊 Sample Composition & Stratification Studios**: Reorderable cell-state donuts, stacked percentage bars, and multi-condition gene expression violins with automated Wilcoxon statistical hypothesis testing.
+4. **📈 Dynamic Trajectory Kinetics Studio**: Continuous spline kinetics overlay across Diffusion Pseudotime ($DPT$), within-sample normalization, and landmark peak alignment.
+5. **🌋 Differential Expression Volcano Studio**: Full-genome bidirectional testing with live gene label overlays and publication scientific notation formatting.
+6. **🎨 Hierarchical Expression Heatmap Studio**: Clustered dendrograms with draggable sortable X-axis ordering and Z-score standardization.
+7. **🧬 Pathway Over-Representation Analysis (ORA)**: Real-time Hypergeometric gene set enrichment for top $X$ up- and down-regulated genes.
+8. **📦 Bulk Package Export & Config Importer**: Automated generation of 300 DPI vector SVGs, PNGs, PDFs, and structured 1-row-per-feature CSV summary matrices with drag-and-drop CSV/Excel configuration import.
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Clone & Install Dependencies
-
-Using [`uv`](https://github.com/astral-sh/uv) (recommended):
+### 1. Installation
 ```bash
-git clone https://github.com/ccneko/sc-expression-viewer.git
-cd sc-expression-viewer
-uv venv
+# Clone the repository
+git clone https://github.com/ccneko/CLAIREscope.git
+cd CLAIREscope
+
+# Create virtual environment using uv (recommended)
+uv venv --python 3.12
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-uv pip install -e .
+
+# Install dependencies
+uv pip install -r requirements.txt
 ```
 
-Or using `pip`:
-```bash
-git clone https://github.com/ccneko/sc-expression-viewer.git
-cd sc-expression-viewer
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
----
-
-### 2. Place Your Data Files
-
-Place your `.h5ad` single-cell datasets into a `data/` directory (or set `SC_DATA_DIR`):
-```bash
-mkdir -p data
-cp /path/to/your/dataset.h5ad data/
-```
-
----
-
-### 3. Launch the Viewer
-
+### 2. Launch the Application
 ```bash
 streamlit run app.py
 ```
-Open your browser at `http://localhost:8501`.
+Open your browser and navigate to `http://localhost:8501`.
 
 ---
 
-## 📁 Repository Structure
+## 📖 Documentation & Tutorials
+For complete guides, configuration file specifications, and remote deployment protocols (NordVPN Meshnet, Cloudflare Tunnels), visit our [ReadTheDocs Manual](https://clairescope.readthedocs.io).
 
-```
-sc-expression-viewer/
-├── app.py                   # Main Streamlit application
-├── cell_type_markers.yaml   # Curated cell-type marker dictionary
-├── pyproject.toml           # Project metadata and dependencies
-├── requirements.txt         # Pip dependency manifest
-├── .gitignore               # Strict ignore rules (excludes *.h5ad and datasets)
-└── README.md                # Project documentation and guide
-```
+## 📄 Citation
+If you use CLAIREscope in your research, please cite our manuscript:
+> **Chung C., et al.** (2026). *CLAIREscope: An Interactive, Lightweight Single-Cell Analysis Platform for Multi-Project Exploration, Dynamic Trajectory Kinetics, and Automated Publication Reporting.* (Under Review).
 
----
-
-## 🔒 Data Privacy & License
-
-- **Data Privacy**: All single-cell data objects (`*.h5ad`, `*.rds`, `*.loom`, `*.csv`) are strictly ignored via `.gitignore` and are never committed to version control.
-- **License**: Private & Proprietary.
+## 📜 License
+CLAIREscope is open-source software released under the [MIT License](LICENSE).
