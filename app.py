@@ -8,6 +8,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import scipy as sp
 import scipy.sparse
 from scipy.stats import mannwhitneyu, spearmanr, pearsonr
 import plotly.express as px
@@ -3144,9 +3145,8 @@ if app_mode == "Single Cell Analysis Viewer":
                     
                     fig_hm, ax_hm = plt.subplots(figsize=(1.2 * len(hm_ordered_groups) + 3.0, 0.45 * len(lbl_list) + 2.0), dpi=200)
                     if hm_cluster_genes or hm_cluster_cols:
-                        import scipy.cluster.hierarchy as sch
-                        row_linkage = sch.linkage(sch.distance.pdist(df_hm_scaled), method='average') if hm_cluster_genes and len(df_hm_scaled) > 1 else None
-                        col_linkage = sch.linkage(sch.distance.pdist(df_hm_scaled.T), method='average') if hm_cluster_cols and len(df_hm_scaled.columns) > 1 else None
+                        row_linkage = sp.clusters.linkage(sp.spatial.hierarchy.distance.pdist(df_hm_scaled), method='average') if hm_cluster_genes and len(df_hm_scaled) > 1 else None
+                        col_linkage = sp.clusters.linkage(sp.spatial.hierarchy.distance.pdist(df_hm_scaled.T), method='average') if hm_cluster_cols and len(df_hm_scaled.columns) > 1 else None
                         g_hm = sns.clustermap(df_hm_scaled, row_linkage=row_linkage, col_linkage=col_linkage, cmap=c_map, vmin=v_min, vmax=v_max, figsize=(1.2 * len(hm_ordered_groups) + 3.5, 0.45 * len(lbl_list) + 2.5), cbar_kws={'label': hm_scale}, linewidths=0.5, linecolor='#FFFFFF')
                         g_hm.fig.suptitle(f"Expression Heatmap ({hm_group_col})", fontsize=14, fontweight='bold', y=1.02)
                         st.pyplot(g_hm.fig)
