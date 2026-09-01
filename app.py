@@ -137,21 +137,32 @@ matplotlib.rcParams.update({
 # Global Streamlit Typography & Readability CSS
 st.markdown("""
 <style>
-    /* Main Container Top Alignment to Sidebar Title */
+    /* Main Container Top Padding (3rem) & Layout Tuning */
     .block-container, [data-testid="block-container"], .main .block-container {
-        padding-top: 1.2rem !important;
+        padding-top: 3.0rem !important;
         padding-bottom: 2.0rem !important;
         padding-left: 2.2rem !important;
         padding-right: 2.2rem !important;
     }
 
     [data-testid="stSidebarContent"], section[data-testid="stSidebar"] > div {
-        padding-top: 1.2rem !important;
+        padding-top: 1.5rem !important;
     }
 
     .main h1, [data-testid="stMainBlockContainer"] h1, h1 {
         margin-top: 0 !important;
         padding-top: 2px !important;
+    }
+
+    /* Column / Horizontal Block Gap Tuning (0.5rem) */
+    .st-emotion-cache-tn0cau, [data-testid="stHorizontalBlock"], div[data-testid="column"] {
+        gap: 0.5rem !important;
+    }
+
+    /* UMAP Plot Image Sizing (Max-width: 80%) */
+    [data-testid="stImage"] img, div[data-testid="stImage"] img, .stImage img {
+        max-width: 80% !important;
+        height: auto !important;
     }
 
     
@@ -1115,7 +1126,9 @@ if app_mode == "Single Cell Analysis Viewer":
                     
                     # 1. Sample Reference
                     with col_ref1:
-                        fig_s, ax_s = plt.subplots(figsize=(4.8, 3.6))
+                        fig_s, ax_s = plt.subplots(figsize=(4.4, 4.0))
+                        ax_s.set_aspect('equal', 'box')
+                        ax_s.set_box_aspect(1)
                         if sample_col and sample_col in adata.obs.columns:
                             for s in ordered_samples:
                                 if s in adata.obs[sample_col].values:
@@ -1135,7 +1148,9 @@ if app_mode == "Single Cell Analysis Viewer":
                     # 2. Cell States Reference
                     with col_ref2:
                         if selected_col:
-                            fig_ref, ax_ref = plt.subplots(figsize=(4.8, 3.6))
+                            fig_ref, ax_ref = plt.subplots(figsize=(5.0, 4.0))
+                            ax_ref.set_aspect('equal', 'box')
+                            ax_ref.set_box_aspect(1)
                             categories = adata.obs[selected_col].cat.categories.tolist() if hasattr(adata.obs[selected_col], "cat") else sorted(adata.obs[selected_col].dropna().unique().tolist())
                             color_key = f"{selected_col}_colors"
                             if color_key in adata.uns:
@@ -1153,7 +1168,8 @@ if app_mode == "Single Cell Analysis Viewer":
                             ax_ref.set_title(f"Cell States ({selected_col})", fontsize=11, fontweight='bold')
                             ax_ref.set_xlabel("UMAP 1", fontsize=8)
                             ax_ref.set_ylabel("UMAP 2", fontsize=8)
-                            ax_ref.legend(title="Cell State", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=5, fontsize=7.5, frameon=False)
+                            ncol_val = 2 if len(categories) > 8 else 1
+                            ax_ref.legend(title="Cell State", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=5, fontsize=7.5, ncol=ncol_val, frameon=False)
                             plt.tight_layout()
                             st.pyplot(fig_ref)
                             svg_c_buf = io.BytesIO()
