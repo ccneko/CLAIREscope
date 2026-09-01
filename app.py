@@ -137,6 +137,23 @@ matplotlib.rcParams.update({
 # Global Streamlit Typography & Readability CSS
 st.markdown("""
 <style>
+    /* Main Container Top Alignment to Sidebar Title */
+    .block-container, [data-testid="block-container"], .main .block-container {
+        padding-top: 1.2rem !important;
+        padding-bottom: 2.0rem !important;
+        padding-left: 2.2rem !important;
+        padding-right: 2.2rem !important;
+    }
+
+    [data-testid="stSidebarContent"], section[data-testid="stSidebar"] > div {
+        padding-top: 1.2rem !important;
+    }
+
+    .main h1, [data-testid="stMainBlockContainer"] h1, h1 {
+        margin-top: 0 !important;
+        padding-top: 2px !important;
+    }
+
     
     /* CLAIREscope Brand Typography with !important */
     .clairescope-title, h1.clairescope-brand {
