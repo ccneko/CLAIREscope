@@ -1,0 +1,7 @@
+default_dataset: adata_kc_norm_cell_typed (2026-08-23_human_epidermal_subclustering)
+hidden_datasets:
+- adata_branch_a (2026-07-06_adherens_junction_and_col17a1_correlation_analysis)
+- adata_branch_b (2026-07-06_adherens_junction_and_col17a1_correlation_analysis)
+- jeb_celltypist_data (2026-02-09_celltypist)
+- cheng2018_trunk_joint_analysis_h5ad_harmony (2026-02-26_harmony)
+- natsuga_scRNAseq_combined (2025-03-18_scRNAseq)

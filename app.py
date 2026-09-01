@@ -532,15 +532,12 @@ def resolve_gene_var_name(adata, gene_name, sym_to_display, display_to_var):
 # Sidebar Branding & Navigation
 with st.sidebar:
     st.markdown("""
-    <div style="padding: 4px 0 10px 0;">
+    <div style="padding: 4px 0 6px 0;">
         <div class="clairescope-title">
             🔬 CLAIREscope
         </div>
-        <div style="font-size: 11.5px; font-weight: 600; color: #475569; line-height: 1.25; margin-top: 3px;">
+        <div style="font-size: 12pt; font-weight: 600; color: #475569; line-height: 1.3; margin-top: 3px;">
             Cellular Landscape Analysis, Interpretation & Results Explorer
-        </div>
-        <div class="clairescope-badge">
-            Single Cell Analysis Viewer
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -880,7 +877,7 @@ if app_mode == "Single Cell Analysis Viewer":
         else:
             n_rows = int(grid_rows)
         
-        fig, axes = plt.subplots(n_rows, n_cols, figsize=(5.2 * n_cols, 4.8 * n_rows))
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(4.6 * n_cols, 3.9 * n_rows))
         axes_flat = axes.flatten() if hasattr(axes, 'flatten') else [axes]
         
         # 1. Sample UMAP Plot (Leading 1st Plot)
@@ -1101,7 +1098,7 @@ if app_mode == "Single Cell Analysis Viewer":
                     
                     # 1. Sample Reference
                     with col_ref1:
-                        fig_s, ax_s = plt.subplots(figsize=(6, 5))
+                        fig_s, ax_s = plt.subplots(figsize=(4.8, 3.6))
                         if sample_col and sample_col in adata.obs.columns:
                             for s in ordered_samples:
                                 if s in adata.obs[sample_col].values:
@@ -1121,7 +1118,7 @@ if app_mode == "Single Cell Analysis Viewer":
                     # 2. Cell States Reference
                     with col_ref2:
                         if selected_col:
-                            fig_ref, ax_ref = plt.subplots(figsize=(6, 5))
+                            fig_ref, ax_ref = plt.subplots(figsize=(4.8, 3.6))
                             categories = adata.obs[selected_col].cat.categories.tolist() if hasattr(adata.obs[selected_col], "cat") else sorted(adata.obs[selected_col].dropna().unique().tolist())
                             color_key = f"{selected_col}_colors"
                             if color_key in adata.uns:
@@ -1731,13 +1728,13 @@ if app_mode == "Single Cell Analysis Viewer":
                 default_active_pairs = [("NHEK", "nonRM"), ("RM2", "nonRM"), ("RM1", "nonRM")]
                 valid_default_pairs = [p for p in default_active_pairs if p[0] in available_samples and p[1] in available_samples]
                 if not valid_default_pairs and len(candidate_pairs) > 0:
-                    valid_default_pairs = candidate_pairs[:2]
+                    valid_default_pairs = candidate_pairs[:3]
                     
                 pair_options = [f"{p[0]} vs {p[1]}" for p in candidate_pairs]
                 default_pair_strs = [f"{p[0]} vs {p[1]}" for p in valid_default_pairs]
                 
-                selected_pair_strs = draggable_multiselect("Select Comparison Pairs for Significance Brackets (S1 vs S2):", options=pair_options, default=default_pair_strs, key="v_gene_pairs")
-                active_pairs = [tuple(s.split(" vs ")) for s in selected_pair_strs]
+                selected_pair_strs = draggable_multiselect("Select & Reorder Comparison Pairs for Significance Brackets (S1 vs S2):", options=pair_options, default=default_pair_strs, key="v_gene_pairs")
+                active_pairs = [tuple(s.split(" vs ")) for s in selected_pair_strs if " vs " in s]
 
             plots_to_generate = (["All Cells (Global)"] if include_all_cells else []) + selected_states_v
             
@@ -2000,13 +1997,13 @@ if app_mode == "Single Cell Analysis Viewer":
                 default_active_pairs_s = [("NHEK", "nonRM"), ("RM2", "nonRM"), ("RM1", "nonRM")]
                 valid_default_pairs_s = [p for p in default_active_pairs_s if p[0] in available_samples_s and p[1] in available_samples_s]
                 if not valid_default_pairs_s and len(candidate_pairs_s) > 0:
-                    valid_default_pairs_s = candidate_pairs_s[:2]
+                    valid_default_pairs_s = candidate_pairs_s[:3]
                     
                 pair_options_s = [f"{p[0]} vs {p[1]}" for p in candidate_pairs_s]
                 default_pair_strs_s = [f"{p[0]} vs {p[1]}" for p in valid_default_pairs_s]
                 
-                selected_pair_strs_s = draggable_multiselect("Select Comparison Pairs for Significance Brackets (S1 vs S2):", options=pair_options_s, default=default_pair_strs_s, key="sv_pairs")
-                active_pairs_s = [tuple(s.split(" vs ")) for s in selected_pair_strs_s]
+                selected_pair_strs_s = draggable_multiselect("Select & Reorder Comparison Pairs for Significance Brackets (S1 vs S2):", options=pair_options_s, default=default_pair_strs_s, key="sv_pairs")
+                active_pairs_s = [tuple(s.split(" vs ")) for s in selected_pair_strs_s if " vs " in s]
                 
             score_plots_to_generate = (["All Cells (Global)"] if include_all_cells_s else []) + selected_states_sv
             
@@ -3145,8 +3142,10 @@ if app_mode == "Single Cell Analysis Viewer":
                     
                     fig_hm, ax_hm = plt.subplots(figsize=(1.2 * len(hm_ordered_groups) + 3.0, 0.45 * len(lbl_list) + 2.0), dpi=200)
                     if hm_cluster_genes or hm_cluster_cols:
-                        row_linkage = sp.clusters.linkage(sp.spatial.hierarchy.distance.pdist(df_hm_scaled), method='average') if hm_cluster_genes and len(df_hm_scaled) > 1 else None
-                        col_linkage = sp.clusters.linkage(sp.spatial.hierarchy.distance.pdist(df_hm_scaled.T), method='average') if hm_cluster_cols and len(df_hm_scaled.columns) > 1 else None
+                        import scipy.cluster.hierarchy as sch
+                        import scipy.spatial.distance as sp_dist
+                        row_linkage = sch.linkage(sp_dist.pdist(df_hm_scaled), method='average') if hm_cluster_genes and len(df_hm_scaled) > 1 else None
+                        col_linkage = sch.linkage(sp_dist.pdist(df_hm_scaled.T), method='average') if hm_cluster_cols and len(df_hm_scaled.columns) > 1 else None
                         g_hm = sns.clustermap(df_hm_scaled, row_linkage=row_linkage, col_linkage=col_linkage, cmap=c_map, vmin=v_min, vmax=v_max, figsize=(1.2 * len(hm_ordered_groups) + 3.5, 0.45 * len(lbl_list) + 2.5), cbar_kws={'label': hm_scale}, linewidths=0.5, linecolor='#FFFFFF')
                         g_hm.fig.suptitle(f"Expression Heatmap ({hm_group_col})", fontsize=14, fontweight='bold', y=1.02)
                         st.pyplot(g_hm.fig)
