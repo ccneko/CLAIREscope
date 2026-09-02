@@ -9,22 +9,6 @@ An open-source, lightweight, and high-performance single-cell analysis platform 
 
 ---
 
-## 💻 Hardware & System Requirements
-
-CLAIREscope is designed to be highly resource-efficient through dynamic on-demand memory management (`@st.cache_resource` and sparse CSR matrix support).
-
-| Component | Minimum Specification (Exploratory / Small Atlases $< 20,000$ cells) | Recommended Specification (Standard Cohorts $20,000 - 100,000+$ cells) | Atlas-Scale / Production Server ($> 200,000$ cells) |
-| :--- | :--- | :--- | :--- |
-| **Operating System** | Linux (Ubuntu 20.04+), macOS (12+), Windows 10/11 (WSL2 or Native) | Linux (Ubuntu 22.04 / 24.04), macOS (Apple Silicon M1/M2/M3), Windows 11 WSL2 | Linux Server (Ubuntu / Debian / RHEL) / Docker |
-| **Processor (CPU)** | Dual-Core (x86_64 or ARM64) | 8+ Cores (e.g. AMD Ryzen 7/9, Intel Core i7/i9, Apple M-Series) | 16–32+ Cores (e.g. Intel Xeon / AMD EPYC) |
-| **Memory (RAM)** | **8 GB RAM** | **16 – 32 GB RAM** | **64 – 128+ GB RAM** |
-| **Storage (Disk)** | 2 GB free SSD space for dependencies | 10 – 50 GB NVMe SSD (for cached `.h5ad` datasets & vector SVGs) | 100+ GB NVMe SSD |
-| **Graphics (GPU)** | Not required (CPU accelerated via Scipy / Numpy) | Optional NVIDIA GPU (CUDA) for rapid UMAP/Harmony acceleration | NVIDIA RTX / A100 / V100 GPU |
-| **Python Environment**| Python $\ge 3.10$ ($\le 3.13$) | Python 3.11 or 3.12 managed via `uv` or `conda` | Python 3.11/3.12 with `uv` virtual environment |
-| **Web Browser** | Chrome, Firefox, Safari, Edge, Brave (HTML5 + WebSocket support) | Google Chrome, Mozilla Firefox, or Safari | Modern Chromium / WebKit engine |
-
----
-
 ## 🌟 11 Specialized Interactive Analysis Studios & Real-Time Analytics
 
 CLAIREscope provides an integrated suite of 11 high-performance analytical studios powered by real-time in-memory statistical and visualization engines:
@@ -78,6 +62,26 @@ CLAIREscope provides an integrated suite of 11 high-performance analytical studi
 
 ---
 
+---
+
+## 💻 Hardware & System Requirements
+
+CLAIREscope is designed to be highly resource-efficient through dynamic on-demand memory management (`@st.cache_resource` and sparse CSR matrix support).
+
+| Component | Minimum Specification (Exploratory / Small Atlases $< 20,000$ cells) | Recommended Specification (Standard Cohorts $20,000 - 100,000+$ cells) | Atlas-Scale / Production Server ($> 200,000$ cells) |
+| :--- | :--- | :--- | :--- |
+| **Operating System** | Linux (Ubuntu 20.04+), macOS (12+), Windows 10/11 (WSL2 or Native) | Linux (Ubuntu 22.04 / 24.04), macOS (Apple Silicon M1/M2/M3), Windows 11 WSL2 | Linux Server (Ubuntu / Debian / RHEL) / Docker |
+| **Processor (CPU)** | Dual-Core (x86_64 or ARM64) | 8+ Cores (e.g. AMD Ryzen 7/9, Intel Core i7/i9, Apple M-Series) | 16–32+ Cores (e.g. Intel Xeon / AMD EPYC) |
+| **Memory (RAM)** | **8 GB RAM** | **16 – 32 GB RAM** | **64 – 128+ GB RAM** |
+| **Storage (Disk)** | 2 GB free SSD space for dependencies | 10 – 50 GB NVMe SSD (for cached `.h5ad` datasets & vector SVGs) | 100+ GB NVMe SSD |
+| **Graphics (GPU)** | Not required (CPU accelerated via Scipy / Numpy) | Optional NVIDIA GPU (CUDA) for rapid UMAP/Harmony acceleration | NVIDIA RTX / A100 / V100 GPU |
+| **Python Environment**| Python $\ge 3.10$ ($\le 3.13$) | Python 3.11 or 3.12 managed via `uv` or `conda` | Python 3.11/3.12 with `uv` virtual environment |
+| **Web Browser** | Chrome, Firefox, Safari, Edge, Brave (HTML5 + WebSocket support) | Google Chrome, Mozilla Firefox, or Safari | Modern Chromium / WebKit engine |
+
+---
+
+---
+
 ## 🚀 Quick Start
 
 ### 1. Installation
@@ -107,7 +111,7 @@ For complete guides, configuration file specifications, and remote deployment pr
 
 ## 📄 Citation
 If you use CLAIREscope in your research, please cite our manuscript:
-> **Chung C., et al.** (2026). *CLAIREscope: An Interactive, Lightweight Single-Cell Analysis Platform for Multi-Project Exploration, Dynamic Trajectory Kinetics, and Automated Publication Reporting.* (Under Review).
+> **Chung C., et al.** (2026). *CLAIREscope: An Interactive, Lightweight Single-Cell Analysis Platform for Multi-Project Exploration, Dynamic Trajectory Kinetics, and Automated Publication Reporting.* (In Preparation).
 
 ## 📜 License
 CLAIREscope is open-source software released under the [MIT License](LICENSE).
