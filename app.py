@@ -1346,7 +1346,7 @@ if app_mode == "Single Cell Analysis Viewer":
                     if view_mode == "Filter view (show selected only)":
                         fig_states = px.scatter(
                             df_selected, x="UMAP 1", y="UMAP 2",
-                            color=selected_col,
+                            color="Cell State",
                             hover_data=["Sample", "Expression"],
                             color_discrete_map=color_discrete_map,
                             title=f"{state_title} (Filtered: {len(df_selected)} cells)",
