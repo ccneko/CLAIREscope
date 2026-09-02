@@ -25,16 +25,56 @@ CLAIREscope is designed to be highly resource-efficient through dynamic on-deman
 
 ---
 
-## 🌟 Key Functional Modules
+## 🌟 11 Specialized Interactive Analysis Studios & Real-Time Analytics
 
-1. **🧪 Preprocessing & Scanpy Pipeline Studio**: Diagnostic data checker, green readiness checklist badges, fuzzy column schema standardizer (`sample`, `cell_type`), and 11-stage automated Scanpy engine with zero-restart in-memory viewer launch.
-2. **🔬 Static & Interactive UMAP Studios**: 1:1 isometric aspect ratio preservation, Loupe-like dynamic percentile contrast clipping, and dual-scatter synchronized hover inspection.
-3. **📊 Sample Composition & Stratification Studios**: Reorderable cell-state donuts, stacked percentage bars, and multi-condition gene expression violins with automated Wilcoxon statistical hypothesis testing.
-4. **📈 Dynamic Trajectory Kinetics Studio**: Continuous spline kinetics overlay across Diffusion Pseudotime ($DPT$), within-sample normalization, and landmark peak alignment.
-5. **🌋 Differential Expression Volcano Studio**: Full-genome bidirectional testing with live gene label overlays and publication scientific notation formatting.
-6. **🎨 Hierarchical Expression Heatmap Studio**: Clustered dendrograms with draggable sortable X-axis ordering and Z-score standardization.
-7. **🧬 Pathway Over-Representation Analysis (ORA)**: Real-time Hypergeometric gene set enrichment for top $X$ up- and down-regulated genes.
-8. **📦 Bulk Package Export & Config Importer**: Automated generation of 300 DPI vector SVGs, PNGs, PDFs, and structured 1-row-per-feature CSV summary matrices with drag-and-drop CSV/Excel configuration import.
+CLAIREscope provides an integrated suite of 11 high-performance analytical studios powered by real-time in-memory statistical and visualization engines:
+
+1. **🗺️ Static UMAP Explorer (Tab 1)**:
+   * **1:1 Isometric Square Geometry**: Mathematically enforced aspect ratio (`ax.set_box_aspect(1)`) eliminating coordinate distortion.
+   * **Loupe-Calibrated Dynamic Scaling**: $\log_2(\text{Normalized}+1)$ transformation with upper-percentile clipping (95th/99th percentile) and continuous colormaps (`viridis`, `Reds`, `YlOrRd`, `turbo`, `inferno`).
+   * **Multi-Sample Split Grids**: Side-by-side cohort expression comparison with 300 DPI vector SVG and CSV coordinate export.
+
+2. **✨ Interactive Plotly UMAP Studio (Tab 2)**:
+   * **Dynamic Cohort Filtering & Dimming**: Isolate active cell states/samples while dimming unselected populations in translucent light gray (`#F0F2F6`).
+   * **Cellular Hover Tooltips**: Live cell-level inspection delivering exact expression values, cell state classifications, and donor metadata.
+
+3. **📊 Sample Composition & Stratification (Tab 3)**:
+   * **Automated Frequency Shifts**: Instant calculation of cell-state percentages (%) and absolute cell counts across conditions.
+   * **Donut & Stacked Bar Charts**: Immediate visualization of lineage shifts and downloadable cross-tabulation CSVs.
+
+4. **🎻 Gene Expression Violins with Statistical Testing (Tab 4)**:
+   * **Real-Time Non-Parametric Hypothesis Testing**: Automated computation of **Mann-Whitney $U$ / Wilcoxon Rank-Sum tests** across custom condition pairs.
+   * **Automated Significance Brackets**: Dynamic bracket placement (`ns`, `*`, `**`, `***`, `****`).
+   * **Persistent Draggable Multiselect**: Reorderable comparison pairs with `⚡ Select all`, `✕ Clear`, and dropout ($E=0$) filtering.
+
+5. **📈 Signature & Pathway Scoring Studio (Tab 5)**:
+   * **Dynamic In-Memory Scoring**: `Scanpy` (`sc.tl.score_genes`) evaluation of composite gene modules (Adherens Junctions, Desmosomes, Hemidesmosomes, Cell Cycle G1/S vs G2/M, Custom Gene Lists).
+   * **Cross-Condition Statistical Testing**: Automated Mann-Whitney tests comparing signature scores across patient groups per cell population.
+
+6. **📉 Co-Expression & Correlation Scatter Studio (Tab 6)**:
+   * **Multi-Variable Bivariate Analysis**: Real-time scatter plots for Gene vs. Gene, Gene vs. Pathway Score, or Score vs. Score.
+   * **Dual Metric Computation**: Pearson linear correlation ($r, p$) and Spearman rank correlation ($\rho, p$) with regression trendlines and zero-dropout filtering.
+
+7. **🌿 Trajectory Kinetics & Spline Modeling (Tab 7)**:
+   * **Continuous Diffusion Pseudotime ($DPT$) Splines**: Third-order polynomial and B-spline regression curves along continuous developmental trajectories.
+   * **State Transition Tracking**: Quantifies stem cell pool maintenance (Basal 1: $DPT < 0.15$), premature cell piling (Basal 2: $DPT \sim 0.38$), and revertant mosaic rescue kinetics.
+
+8. **🌋 Differential Expression & Volcano Studio (Tab 8)**:
+   * **Bidirectional Wilcoxon DEG**: Fast computation of $\log_2(\text{Fold Change})$ and Benjamini-Hochberg FDR-adjusted $p$-values between any two cohorts.
+   * **Interactive Volcano Plot**: Dynamic significance thresholds ($\text{FDR} < 0.05, |\log_2\text{FC}| > 1.0$) with live top-gene labeling and scientific notation formatting.
+
+9. **🔥 Clustered Heatmap Studio (Tab 9)**:
+   * **SciPy $\ge$ 1.18.1 Hierarchical Clustering**: Pairwise Euclidean distance matrices (`pdist`) and average linkage dendrograms.
+   * **Draggable Axis Reordering**: Sortable chip interface for customized sample and cell-state ordering with Z-score standardization.
+
+10. **🧬 Pathway Over-Representation Analysis (ORA) Studio (Tab 10)**:
+    * **Hypergeometric Enrichment Testing**: Tests for significant pathway over-representation against GO Biological Process, KEGG, and Reactome databases.
+    * **Directional Enrichment**: Separates up-regulated and down-regulated gene sets with rich factor and $-\log_{10}(p\text{-adj})$ visualization.
+
+11. **📦 Bulk Packaging & Provenance Studio (Tab 11)**:
+    * **Automated Publication Package Generation**: One-click generation of a compressed ZIP bundle containing 300 DPI vector SVGs, high-resolution PNGs, and PDFs for all active figures.
+    * **Standardized 1-Row-per-Feature CSV Matrices**: Comprehensive tabular statistical summaries ready for supplementary submission.
+    * **Drag-and-Drop Config Importer**: Reusable YAML / CSV / Excel panel import ensuring 100% reproducible analysis provenance.
 
 ---
 
