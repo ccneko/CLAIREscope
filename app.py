@@ -2236,7 +2236,7 @@ if app_mode == "Single Cell Analysis Viewer":
             with c_sc4:
                 scat_ncols = st.selectbox("Grid Columns:", [2, 3, 4], index=1, key="scat_ncols_choice")
                 
-            c_sc5, c_sc6, c_sc7, c_sc8 = st.columns([1.8, 1.0, 1.0, 1.0])
+            c_sc5, c_sc6, c_sc7, c_sc8 = st.columns([1.6, 1.0, 0.9, 0.9])
             with c_sc5:
                 zero_filter_mode = st.selectbox(
                     "Zero-Expression Filtering (Remove zeros):",
@@ -2252,11 +2252,11 @@ if app_mode == "Single Cell Analysis Viewer":
                     key="scat_zero_filter"
                 )
             with c_sc6:
-                show_reg_line = st.checkbox("Regression Line", value=True, help="Plot linear or polynomial regression line with confidence intervals.", key="scat_reg_line")
+                show_regline = st.checkbox("Show Trendline", value=True, help="Plot linear regression line with confidence intervals.", key="scat_reg_line")
             with c_sc7:
-                reg_order = st.selectbox("Trend Fit:", [1, 2], index=0, format_func=lambda x: "Linear (1st deg)" if x==1 else "Polynomial (2nd deg)", key="scat_reg_order")
+                scat_pt_size = st.slider("Point Size:", min_value=1.0, max_value=8.0, value=2.5, step=0.5, key="scat_pt_size")
             with c_sc8:
-                show_spearman = st.checkbox("Spearman Rank Stats", value=True, help="Compute non-parametric Spearman rank correlation rho alongside Pearson r.", key="scat_show_spearman")
+                scat_alpha = st.slider("Point Opacity:", min_value=0.1, max_value=1.0, value=0.6, step=0.05, key="scat_pt_alpha")
         
         # Dual Variable Selectors (Gene vs Score)
         col_x_panel, col_y_panel = st.columns(2)
@@ -2349,41 +2349,7 @@ if app_mode == "Single Cell Analysis Viewer":
                     "Cell State": adata.obs[selected_col].astype(str) if selected_col else "All"
                 })
 
-            all_scat_samples = ordered_samples if ordered_samples else sorted(df_scatter_full["Sample"].unique())
-            all_scat_states = sorted(df_scatter_full["Cell State"].unique())
-
-            with st.expander("Scatter Plot Display & Subsetting Options", expanded=True):
-                c_sc1, c_sc2, c_sc3, c_sc4 = st.columns([1.5, 1.5, 1.2, 1.2])
-                with c_sc1:
-                    filter_scat_samples = draggable_multiselect("Filter & Reorder Samples:", options=all_scat_samples, default=all_scat_samples, key="scat_filter_s")
-                with c_sc2:
-                    filter_scat_states = draggable_multiselect("Filter & Reorder Cell States / Populations:", options=all_scat_states, default=all_scat_states, key="scat_filter_st")
-                with c_sc3:
-                    split_mode = st.selectbox("Subplot Layout:", ["Split by Sample", "Split by Cell State", "Single Combined Overlay"], index=0, key="scat_split_mode")
-                with c_sc4:
-                    scat_ncols = st.selectbox("Grid Columns:", [2, 3, 4], index=1, key="scat_ncols_choice")
-                    
-                c_sc5, c_sc6, c_sc7, c_sc8 = st.columns([1.8, 1.0, 1.0, 1.0])
-                with c_sc5:
-                    zero_filter_mode = st.selectbox(
-                        "Zero-Expression Filtering (Remove zeros):",
-                        [
-                            "Include all cells (Keep zeros)",
-                            "Co-detected only: Remove cells with X = 0 OR Y = 0 (X > 0 and Y > 0)",
-                            "Remove double-zeros (X > 0 or Y > 0)",
-                            "Remove X = 0 cells only (X > 0)",
-                            "Remove Y = 0 cells only (Y > 0)"
-                        ],
-                        index=0,
-                        help="Filter out unexpressed / dropout cells across the selected axes.",
-                        key="scat_zero_filter"
-                    )
-                with c_sc6:
-                    show_regline = st.checkbox("Show Trendline", value=True, key="scat_reg_line")
-                with c_sc7:
-                    scat_pt_size = st.slider("Point Size:", min_value=1.0, max_value=8.0, value=2.5, step=0.5, key="scat_pt_size")
-                with c_sc8:
-                    scat_alpha = st.slider("Point Opacity:", min_value=0.1, max_value=1.0, value=0.6, step=0.05, key="scat_pt_alpha")
+            # (Display & Subsetting Options handled at top of tab)
 
             # Filter data
             df_filtered = df_scatter_full[df_scatter_full["Sample"].isin(filter_scat_samples) & df_scatter_full["Cell State"].isin(filter_scat_states)]
