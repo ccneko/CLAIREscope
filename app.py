@@ -1387,15 +1387,16 @@ if app_mode == "Single Cell Analysis Viewer":
                 with col_chart1:
                     st.markdown("#### Stacked Population Composition")
                     fig_bar = go.Figure()
+                    pct_label = "% of Sample" if pct_baseline == "Total All Cells in Sample" else "% of Subset"
                     for cat in selected_comp_cats:
                         cat_col = color_map.get(cat, "#7f8c8d")
                         if bar_metric == "Percentage (%)":
                             y_vals = ct_pct.loc[cat]
-                            hover_template = '<b>' + cat + '</b><br>Sample: %{x}<br>Percentage: %{y:.1f}%<br>Count: %{customdata:,} cells<extra></extra>'
+                            hover_template = '<b>' + cat + '</b><br>Sample: %{x}<br>' + pct_label + ': %{y:.1f}%<br>Count: %{customdata:,} cells<extra></extra>'
                             custom_data = ct_counts.loc[cat]
                         else:
                             y_vals = ct_counts.loc[cat]
-                            hover_template = '<b>' + cat + '</b><br>Sample: %{x}<br>Count: %{y:,} cells<br>Percentage: %{customdata:.1f}%<extra></extra>'
+                            hover_template = '<b>' + cat + '</b><br>Sample: %{x}<br>Count: %{y:,} cells<br>' + pct_label + ': %{customdata:.1f}%<extra></extra>'
                             custom_data = ct_pct.loc[cat]
                             
                         fig_bar.add_trace(go.Bar(
@@ -1408,7 +1409,7 @@ if app_mode == "Single Cell Analysis Viewer":
                         ))
                     
                     yaxis_title = "Percentage (%)" if bar_metric == "Percentage (%)" else "Cell Count"
-                    yaxis_range = [0, 100] if (bar_metric == "Percentage (%)" and pct_baseline != "Total All Cells in Sample") else None
+                    yaxis_range = [0, 100] if bar_metric == "Percentage (%)" else None
                     fig_bar.update_layout(
                         barmode='stack',
                         template='plotly_white',
@@ -1453,22 +1454,31 @@ if app_mode == "Single Cell Analysis Viewer":
                         r_idx = (idx // n_cols) + 1
                         c_idx = (idx % n_cols) + 1
                         s_counts = ct_counts[s]
+                        s_pcts = ct_pct[s]
+                        
+                        if pct_baseline == "Total All Cells in Sample":
+                            text_tpl = '%{customdata:.1f}%' if show_donut_pct else None
+                            hover_tpl = '<b>%{label}</b><br>Sample: ' + s + '<br>Count: %{value:,} cells<br>% of Sample: %{customdata:.1f}%<br>(% of Subset: %{percent})<extra></extra>'
+                        else:
+                            text_tpl = '%{percent}' if show_donut_pct else None
+                            hover_tpl = '<b>%{label}</b><br>Sample: ' + s + '<br>Count: %{value:,} cells<br>% of Subset: %{percent}<extra></extra>'
                         
                         fig_donuts.add_trace(
                             go.Pie(
                                 labels=selected_comp_cats,
                                 values=s_counts,
+                                customdata=s_pcts,
                                 hole=0.48,
                                 marker=dict(
                                     colors=[color_map.get(c, "#7f8c8d") for c in selected_comp_cats],
                                     line=dict(color='#FFFFFF', width=1.5)
                                 ),
-                                textinfo='percent' if show_donut_pct else 'none',
+                                texttemplate=text_tpl,
                                 textposition='inside',
                                 insidetextfont=dict(size=18, family="Segoe UI, Arial, sans-serif", color="#FFFFFF"),
                                 textfont=dict(size=18, family="Segoe UI, Arial, sans-serif"),
                                 insidetextorientation='horizontal',
-                                hovertemplate='<b>%{label}</b><br>Sample: ' + s + '<br>Count: %{value:,} cells<br>Percentage of Subset: %{percent}<extra></extra>',
+                                hovertemplate=hover_tpl,
                                 showlegend=False,
                                 sort=False
                             ),
