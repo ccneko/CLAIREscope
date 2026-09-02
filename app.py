@@ -59,67 +59,28 @@ def draggable_multiselect(label, options, default=None, key=None):
 # -------------------------------------------------------------
 # MULTI-PROJECT REGISTRY & ENVIRONMENT RESOLUTION
 # -------------------------------------------------------------
-def get_platform_path(win_path, wsl_path):
-    if os.path.exists(win_path):
-        return win_path
-    if os.path.exists(wsl_path):
-        return wsl_path
-    return win_path if os.name == 'nt' else wsl_path
+from clairescope.config import (
+    get_platform_path,
+    load_projects_config,
+    load_settings_config,
+    load_signatures_config,
+)
+from clairescope.stats.hypothesis import get_sig_label, format_sig_value, run_mann_whitney
+from clairescope.stats.correlation import compute_bivariate_correlation
+from clairescope.stats.enrichment import run_hypergeometric_enrichment
+from clairescope.ui.styles import apply_global_styles
+from clairescope.ui.widgets import draggable_multiselect
+from clairescope.core.schema import (
+    get_gene_display_mappings,
+    resolve_gene_var_name,
+    get_annotation_columns,
+    get_sample_column,
+)
 
-PROJECT_REGISTRY = {
-    "PROJ_001_HUMAN_EPIDERMAL": {
-        "id": "PROJ_001",
-        "name": "PROJ_001: Human Epidermal Single Cell",
-        "desc": "Epidermal Differentiation Dynamics snRNA-seq & Single-Cell Epidermal Trajectory Analysis (Control, Phenotype_A, Phenotype_B, Rescued)",
-        "win_base": r"G:\Data\SingleCell\PROJ_001_HUMAN_EPIDERMAL",
-        "wsl_base": "/mnt/data/SingleCell/PROJ_001_HUMAN_EPIDERMAL",
-        "scan_subdirs": [
-            os.path.join("out", "2026-08-23_human_epidermal_subclustering"),
-            os.path.join("out", "2026-07-06_adherens_junction_and_col17a1_correlation_analysis"),
-            os.path.join("out", "2026-02-09_celltypist"),
-            os.path.join("out", "2026-02-26_harmony"),
-            os.path.join("data", "2025-03-18_Public_SingleCell")
-        ],
-        "default_preload": "adata_kc_norm_cell_typed.h5ad",
-        "canonical_samples": ["Control", "Rescued_1", "Rescued_2", "Mutant", "Control_P4", "Sample_Rescued_1", "Sample_Rescued_2", "Sample_Mutant", "Normal", "JEB", "Revertant"],
-        "sample_colors": {
-            "Control": "#e74c3c", "Rescued_1": "#8e44ad", "Rescued_2": "#f1c40f", "Mutant": "#00a8ff",
-            "Control_P4": "#e74c3c", "Sample_Rescued_1": "#8e44ad", "Sample_Rescued_2": "#f1c40f", "Sample_Mutant": "#00a8ff",
-            "Normal": "#2ecc71", "JEB": "#e74c3c", "Revertant": "#3498db"
-        },
-        "default_pairs": [("Control", "Mutant"), ("Rescued_2", "Mutant"), ("Rescued_1", "Mutant")],
-        "default_signatures": {
-            "Adherens Junction Complex": ["CDH1", "CTNNB1", "CTNNA1", "CTNND1", "JUP"],
-            "Desmosomes": ["DSP", "PKP1", "PKP3", "DSG1", "DSG3", "DSC1", "DSC3", "PPL", "EVPL"],
-            "Hemidesmosome & Basement Membrane": ["COL17A1", "ITGB4", "ITGA6", "LAMA3", "LAMB3", "LAMC2", "DST"],
-            "Cell Cycle / Proliferation": ["MKI67", "TOP2A", "CCNB1", "CDK1", "PCNA"]
-        }
-    },
-    "PROJ_002_MURINE_WOUND_HEALING": {
-        "id": "PROJ_002",
-        "name": "PROJ_002: Murine Wound Healing",
-        "desc": "Murine Cutaneous Wound Healing Single-Cell Multiome Dynamics (Full, Full_adj, SB, SB_adj)",
-        "win_base": r"G:\Data\SingleCell\PROJ_002_MURINE_WOUND_HEALING",
-        "wsl_base": "/mnt/data/SingleCell/PROJ_002_MURINE_WOUND_HEALING",
-        "scan_subdirs": [
-            os.path.join("out", "2026-08-19_subclustering"),
-            os.path.join("out", "2026-08-20_expression_viewer"),
-            "data"
-        ],
-        "default_preload": "adata_harmony.h5ad",
-        "canonical_samples": ["Full_adj", "Full", "SB_adj", "SB"],
-        "sample_colors": {"Full": "#c0392b", "Full_adj": "#e8a598", "SB": "#2465a8", "SB_adj": "#9cc3e0"},
-        "default_pairs": [("Full_adj", "Full"), ("SB_adj", "SB")],
-        "default_signatures": {
-            "Adherens Junction Complex": ["Cdh1", "Ctnnb1", "Ctnna1", "Ctnnd1", "Dsp", "Jup", "Ppl", "Evpl", "Pkp1", "Pkp3", "Cdh2", "Ctnna2"],
-            "Desmosomes": ["Dsp", "Pkp1", "Pkp3", "Dsg1a", "Dsg3", "Dsc1", "Dsc3", "Ppl", "Evpl"],
-            "Hemidesmosome & Basement Membrane": ["Col17a1", "Itgb4", "Itga6", "Lama3", "Lamb3", "Lamc2", "Dst"],
-            "Cell Cycle / Proliferation": ["Mki67", "Top2a", "Ccnb1", "Cdk1", "Pcna"],
-            "Wound Activation": ["Krt6a", "Krt16", "Krt17", "Itgb6", "Sprr1b"]
-        }
-    }
-}
-
+# Load External Configurations (Zero Hardcoded Inlines)
+PROJECT_REGISTRY = load_projects_config()
+APP_SETTINGS = load_settings_config()
+GLOBAL_SIGNATURES = load_signatures_config()
 
 st.set_page_config(page_title="CLAIREscope | Single Cell Analysis Viewer", page_icon="🔬", layout="wide")
 
