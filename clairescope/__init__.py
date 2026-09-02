@@ -1,0 +1,1 @@
+"""CLAIREscope module initialization."""

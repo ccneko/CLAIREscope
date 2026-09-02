@@ -1,0 +1,34 @@
+# Global Application Settings, Typography & Visual Rendering Defaults
+app:
+  title: "CLAIREscope | Single Cell Analysis Viewer"
+  icon: "🔬"
+  tagline: "Cellular Landscape Analysis, Interpretation & Results Explorer"
+  layout: "wide"
+
+ui:
+  top_padding: "3.0rem"
+  bottom_padding: "2.0rem"
+  side_padding: "2.2rem"
+  column_gap: "0.5rem"
+  sidebar_tagline_font_size: "12pt"
+  umap_image_max_width: "80%"
+
+matplotlib:
+  font_family: "sans-serif"
+  font_size: 11
+  axes_labelsize: 11
+  axes_titlesize: 12
+  xtick_labelsize: 10
+  ytick_labelsize: 10
+  legend_fontsize: 10
+  figure_titlesize: 13
+  default_dpi: 300
+
+plotly:
+  font_family: "Segoe UI, Arial, sans-serif"
+  font_size: 15
+  title_font_size: 18
+  legend_font_size: 14
+  axis_title_size: 16
+  axis_tick_size: 14
+  default_template: "plotly_white"
