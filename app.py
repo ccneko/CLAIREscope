@@ -1731,13 +1731,13 @@ if app_mode == "Single Cell Analysis Viewer":
             if not available_samples:
                 available_samples = sorted(df_gene_violin["Sample"].unique())
                 
-            with st.expander("Violin & Statistical Comparison Options", expanded=True):
-                c_v0, c_v1, c_v2, c_v3 = st.columns([1.2, 1.8, 0.9, 1.1])
+            with st.expander("Expression Violin Display Options", expanded=True):
+                c_v0, c_v1, c_v2, c_v3 = st.columns([1.1, 1.8, 1.0, 1.0])
                 with c_v0:
                     include_all_cells = st.checkbox("Include 'All Cells (Global)' as 1st Plot", value=True, key="v_include_all")
                     filter_zeros_v = st.checkbox("Remove Expression = 0 Cells", value=False, help="Restricts violin analysis and statistical testing to expressing cells only (>0).", key="v_filter_zeros")
                 with c_v1:
-                    selected_states_v = draggable_multiselect("Select & Reorder Cell States to Include:", options=all_states, default=all_states, key="v_gene_states")
+                    selected_states_v = draggable_multiselect("Select & Reorder Cell States for Expression Violins:", options=all_states, default=all_states, key="v_gene_states")
                 with c_v2:
                     plot_ncols = st.selectbox("Subplot Grid Columns:", [2, 3, 4], index=1, key="v_gene_ncols")
                 with c_v3:
