@@ -1354,28 +1354,40 @@ if app_mode == "Single Cell Analysis Viewer":
                 colors_list = [matplotlib.colors.to_hex(cmap(i % 20)) for i in range(len(categories))]
             color_map = dict(zip(categories, colors_list))
             
-            with st.expander("Composition Display Options", expanded=True):
-                c_bar_metric, c_samp_filter, c_donut_opt = st.columns([1.2, 2, 1])
-                with c_bar_metric:
-                    bar_metric = st.radio("Stacked Bar Metric:", ["Percentage (%)", "Absolute Counts"], horizontal=True, key="comp_bar_metric")
+            with st.expander("Display & Subsetting Options", expanded=True):
+                c_samp_filter, c_cat_filter = st.columns([1.0, 1.0])
                 with c_samp_filter:
                     selected_comp_samples = draggable_multiselect("Select & Reorder Samples to Display:", options=all_dataset_samples, default=all_dataset_samples, key="comp_samples_filter")
+                with c_cat_filter:
+                    selected_comp_cats = draggable_multiselect("Select & Reorder Cell States to Display:", options=categories, default=categories, key="comp_cats_filter")
+                
+                c_bar_metric, c_pct_base, c_donut_opt = st.columns([1.2, 1.4, 1.0])
+                with c_bar_metric:
+                    bar_metric = st.radio("Stacked Bar Metric:", ["Percentage (%)", "Absolute Counts"], horizontal=True, key="comp_bar_metric")
+                with c_pct_base:
+                    pct_baseline = st.radio("Percentage Baseline:", ["Subtotal of Selected States (100%)", "Total All Cells in Sample"], horizontal=True, key="comp_pct_base")
                 with c_donut_opt:
                     show_donut_pct = st.checkbox("Show % in Donut Slices", value=True, key="comp_show_pct")
                     
-            if not selected_comp_samples:
-                st.warning("Please select at least one sample to display composition charts.")
+            if not selected_comp_samples or not selected_comp_cats:
+                st.warning("Please select at least one sample and one cell state to display composition charts.")
             else:
-                ct_counts = pd.crosstab(adata.obs[selected_col], adata.obs[sample_col]).reindex(index=categories, columns=selected_comp_samples, fill_value=0)
-                sample_totals = ct_counts.sum(axis=0)
-                ct_pct = (ct_counts / sample_totals.replace(0, 1)) * 100
+                ct_counts_full = pd.crosstab(adata.obs[selected_col], adata.obs[sample_col]).reindex(index=categories, columns=selected_comp_samples, fill_value=0)
+                full_sample_totals = ct_counts_full.sum(axis=0)
+                ct_counts = ct_counts_full.loc[selected_comp_cats, selected_comp_samples]
+                selected_sample_totals = ct_counts.sum(axis=0)
+                
+                if pct_baseline == "Total All Cells in Sample":
+                    ct_pct = (ct_counts / full_sample_totals.replace(0, 1)) * 100
+                else:
+                    ct_pct = (ct_counts / selected_sample_totals.replace(0, 1)) * 100
                 
                 col_chart1, col_chart2 = st.columns([1.1, 1.4])
                 
                 with col_chart1:
                     st.markdown("#### Stacked Population Composition")
                     fig_bar = go.Figure()
-                    for cat in categories:
+                    for cat in selected_comp_cats:
                         cat_col = color_map.get(cat, "#7f8c8d")
                         if bar_metric == "Percentage (%)":
                             y_vals = ct_pct.loc[cat]
@@ -1396,7 +1408,7 @@ if app_mode == "Single Cell Analysis Viewer":
                         ))
                     
                     yaxis_title = "Percentage (%)" if bar_metric == "Percentage (%)" else "Cell Count"
-                    yaxis_range = [0, 100] if bar_metric == "Percentage (%)" else None
+                    yaxis_range = [0, 100] if (bar_metric == "Percentage (%)" and pct_baseline != "Total All Cells in Sample") else None
                     fig_bar.update_layout(
                         barmode='stack',
                         template='plotly_white',
@@ -1427,7 +1439,7 @@ if app_mode == "Single Cell Analysis Viewer":
                         donut_height = 270 * n_rows
                         
                     donut_specs = [[{"type": "domain"} for _ in range(n_cols)] for _ in range(n_rows)]
-                    subplot_titles = [f"<b style='font-size: 20px; color: #1e293b;'>{s}</b><br><span style='font-size: 16px; color: #475569;'>Total: {sample_totals[s]:,} cells</span>" for s in selected_comp_samples]
+                    subplot_titles = [f"<b style='font-size: 20px; color: #1e293b;'>{s}</b><br><span style='font-size: 15px; color: #475569;'>Subset: {selected_sample_totals[s]:,} / {full_sample_totals[s]:,} cells</span>" for s in selected_comp_samples]
                     
                     fig_donuts = make_subplots(
                         rows=n_rows, cols=n_cols,
@@ -1444,11 +1456,11 @@ if app_mode == "Single Cell Analysis Viewer":
                         
                         fig_donuts.add_trace(
                             go.Pie(
-                                labels=categories,
+                                labels=selected_comp_cats,
                                 values=s_counts,
                                 hole=0.48,
                                 marker=dict(
-                                    colors=[color_map.get(c, "#7f8c8d") for c in categories],
+                                    colors=[color_map.get(c, "#7f8c8d") for c in selected_comp_cats],
                                     line=dict(color='#FFFFFF', width=1.5)
                                 ),
                                 textinfo='percent' if show_donut_pct else 'none',
@@ -1456,7 +1468,7 @@ if app_mode == "Single Cell Analysis Viewer":
                                 insidetextfont=dict(size=18, family="Segoe UI, Arial, sans-serif", color="#FFFFFF"),
                                 textfont=dict(size=18, family="Segoe UI, Arial, sans-serif"),
                                 insidetextorientation='horizontal',
-                                hovertemplate='<b>%{label}</b><br>Sample: ' + s + '<br>Count: %{value:,} cells<br>Percentage: %{percent}<extra></extra>',
+                                hovertemplate='<b>%{label}</b><br>Sample: ' + s + '<br>Count: %{value:,} cells<br>Percentage of Subset: %{percent}<extra></extra>',
                                 showlegend=False,
                                 sort=False
                             ),
@@ -1480,11 +1492,13 @@ if app_mode == "Single Cell Analysis Viewer":
                     
                     with tab_cnt:
                         df_counts_display = ct_counts.copy()
-                        df_counts_display.loc["Total (All Populations)"] = sample_totals
+                        df_counts_display.loc["Subtotal (Selected States)"] = selected_sample_totals
+                        df_counts_display.loc["Total (All Cells in Sample)"] = full_sample_totals
                         st.dataframe(df_counts_display, use_container_width=True)
                         
                     with tab_prc:
                         df_pct_display = ct_pct.round(2).copy()
+                        df_pct_display.loc["Subtotal (%)"] = ct_pct.sum(axis=0).round(2)
                         st.dataframe(df_pct_display, use_container_width=True)
                         
                     combined_export_df = pd.concat({
