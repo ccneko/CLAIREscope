@@ -64,6 +64,8 @@ from clairescope.config import (
     load_projects_config,
     load_settings_config,
     load_signatures_config,
+    load_pathways_config,
+    load_markers_config,
 )
 from clairescope.stats.hypothesis import get_sig_label, format_sig_value, run_mann_whitney
 from clairescope.stats.correlation import compute_bivariate_correlation
@@ -81,6 +83,8 @@ from clairescope.core.schema import (
 PROJECT_REGISTRY = load_projects_config()
 APP_SETTINGS = load_settings_config()
 GLOBAL_SIGNATURES = load_signatures_config()
+CURATED_PATHWAY_DB = load_pathways_config()
+DEFAULT_MARKERS = load_markers_config()
 
 st.set_page_config(page_title="CLAIREscope | Single Cell Analysis Viewer", page_icon="🔬", layout="wide")
 
@@ -95,145 +99,8 @@ matplotlib.rcParams.update({
     'figure.titlesize': 13
 })
 
-# Global Streamlit Typography & Readability CSS
-st.markdown("""
-<style>
-    /* Main Container Top Padding (3rem) & Layout Tuning */
-    .block-container, [data-testid="block-container"], .main .block-container {
-        padding-top: 3.0rem !important;
-        padding-bottom: 2.0rem !important;
-        padding-left: 2.2rem !important;
-        padding-right: 2.2rem !important;
-    }
-
-    [data-testid="stSidebarContent"], section[data-testid="stSidebar"] > div {
-        padding-top: 1.5rem !important;
-    }
-
-    .main h1, [data-testid="stMainBlockContainer"] h1, h1 {
-        margin-top: 0 !important;
-        padding-top: 2px !important;
-    }
-
-    /* Column / Horizontal Block Gap Tuning (0.5rem) */
-    .st-emotion-cache-tn0cau, [data-testid="stHorizontalBlock"], div[data-testid="column"] {
-        gap: 0.5rem !important;
-    }
-
-    /* UMAP Plot Image Sizing (Max-width: 80%) */
-    [data-testid="stImage"] img, div[data-testid="stImage"] img, .stImage img {
-        max-width: 80% !important;
-        height: auto !important;
-    }
-
-    
-    /* CLAIREscope Brand Typography with !important */
-    .clairescope-title, h1.clairescope-brand {
-        color: #B32141 !important;
-        font-size: 26px !important;
-        font-weight: 800 !important;
-        letter-spacing: -0.5px !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-
-    .clairescope-badge {
-        background-color: #FDF2F4 !important;
-        color: #B32141 !important;
-        border: 1px solid #F5C6CB !important;
-        padding: 2px 10px !important;
-        border-radius: 12px !important;
-        font-size: 11.5px !important;
-        font-weight: 700 !important;
-        display: inline-block !important;
-        margin-top: 5px !important;
-    }
-
-    /* Restore Page Title & Heading Hierarchy */
-    h1, div[data-testid="stMarkdownContainer"] h1 {
-        font-size: 2.35rem !important;
-        font-weight: 700 !important;
-        line-height: 1.25 !important;
-        margin-bottom: 0.4rem !important;
-        color: #1e293b !important;
-    }
-    h2, div[data-testid="stMarkdownContainer"] h2 {
-        font-size: 1.7rem !important;
-        font-weight: 700 !important;
-        margin-top: 1.2rem !important;
-        margin-bottom: 0.5rem !important;
-    }
-    h3, div[data-testid="stMarkdownContainer"] h3 {
-        font-size: 1.35rem !important;
-        font-weight: 600 !important;
-        margin-top: 1.0rem !important;
-        margin-bottom: 0.4rem !important;
-    }
-    h4, div[data-testid="stMarkdownContainer"] h4 {
-        font-size: 1.18rem !important;
-        font-weight: 600 !important;
-    }
-
-    /* Enlarge Tab Names & Navigation */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        font-size: 17px !important;
-        font-weight: 500 !important;
-        padding: 10px 18px !important;
-        border-radius: 4px 4px 0 0;
-    }
-    .stTabs [aria-selected="true"] {
-        font-weight: 700 !important;
-        color: inherit !important;
-        border-bottom-color: #1e293b !important;
-    }
-    .stTabs [aria-selected="true"] p, .stTabs [aria-selected="true"] span {
-        font-weight: 700 !important;
-        color: inherit !important;
-    }
-
-    /* Enlarge Plot Controls, Widget Labels & Expander Headers */
-    label[data-testid="stWidgetLabel"] p, label[data-testid="stWidgetLabel"] span {
-        font-size: 16px !important;
-        font-weight: 600 !important;
-        color: #1e293b !important;
-        margin-bottom: 4px !important;
-    }
-    .streamlit-expanderHeader p, details summary p {
-        font-size: 16.5px !important;
-        font-weight: 600 !important;
-        color: #1e293b !important;
-    }
-    
-    /* General Body, DataFrames, Inputs & Buttons */
-    p, li {
-        font-size: 15.5px !important;
-    }
-    .stCaption, caption, div[data-testid="stCaptionContainer"] p {
-        font-size: 14px !important;
-        line-height: 1.5 !important;
-    }
-    div[data-testid="stDataFrame"] {
-        font-size: 15px !important;
-    }
-    .stSelectbox, .stMultiSelect, .stSlider, .stRadio, .stCheckbox {
-        font-size: 15.5px !important;
-    }
-    .stButton button {
-        font-size: 15px !important;
-        font-weight: 600 !important;
-        padding: 8px 18px !important;
-    }
-    iframe[title="streamlit.components.v1.html"], div[data-testid="stCustomComponentV1"] {
-        display: none !important;
-        height: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-</style>
-""", unsafe_allow_html=True)
+# Apply external CSS stylesheet
+apply_global_styles()
 
 # Disable Streamlit 'C' / 'c' Clear Cache keyboard shortcut popup in browser
 components.html("""
@@ -273,27 +140,7 @@ DEFAULT_SIGNATURES = {
 }
 
 # Default config if YAML is missing
-DEFAULT_MARKERS = {
-    "Fibroblasts": {
-        "Activated / ECM-producing FB (Postn+)": ["Postn", "Fn1", "Col1a1", "Col3a1", "Cthrc1"],
-        "Remodeling FB (Mmp3+)": ["Mmp3", "Mmp13", "Adamts4", "Col11a1"],
-        "Inflammatory FB (C3+/Clu+)": ["C3", "Clu", "Apoe", "Apod", "Cxcl14"],
-        "Inflammatory / Antigen-presenting FB (Cd74+)": ["Cd74", "H2-Ab1", "H2-Aa", "Cd86"],
-        "Myofibroblast-like (Acta2+)": ["Acta2", "Tagln", "Myl9", "Tpm2"],
-        "Reticular / Lower Dermal FB (Mest+)": ["Mest", "Dlk1", "Prg4", "Pcolce2"],
-        "Pericyte / SMC (Contamination)": ["Rgs5", "Mcam", "Cspg4", "Pdgfrb", "Notch3"]
-    },
-    "Keratinocytes": {
-        "IFE Basal / Basal stem-like (Krt14+/Krt5+)": ["Krt5", "Krt14", "Tp63", "Itga6", "Col17a1", "COL17A1", "KRT14", "KRT5", "TP63", "ITGA6", "ITGB4"],
-        "IFE Suprabasal / Spinous (Krt10+/Krt1+)": ["Krt1", "Krt10", "Dsc1", "Dsg1a", "KRT1", "KRT10", "DSG1", "DSC1"],
-        "Granular / Terminally Differentiated (Mt4+/Lor+)": ["Ivl", "Lor", "Flg", "Tgm1", "Krt2", "IVL", "LOR", "FLG", "TGM1"],
-        "Adherens Junction Complex": ["Cdh1", "Ctnnb1", "Ctnna1", "Ctnnd1", "Dsp", "Jup", "CDH1", "CTNNB1", "CTNNA1", "CTNND1", "JUP"],
-        "Desmosomes": ["Dsp", "Pkp1", "Pkp3", "Dsg3", "Dsc3", "Ppl", "Evpl", "DSP", "PKP1", "PKP3", "DSG3", "DSC3", "PPL", "EVPL"],
-        "Hemidesmosome & Basement Membrane": ["Col17a1", "Itgb4", "Itga6", "Lama3", "Lamb3", "Lamc2", "Dst", "COL17A1", "ITGB4", "ITGA6", "LAMA3", "LAMB3", "LAMC2", "DST"],
-        "Wound-activated (Migrating) KC": ["Krt6a", "Krt17", "Itgb6", "Sprr1b"],
-        "Cycling KC (Top2a+/Mki67+)": ["Mki67", "Top2a", "Ccnb1", "Cdk1", "MKI67", "TOP2A", "CCNB1", "CDK1"]
-    }
-}
+# DEFAULT_MARKERS loaded dynamically from config/markers.yaml
 
 # Helper to load YAML
 def load_yaml():
@@ -354,21 +201,7 @@ def scan_datasets(data_dir):
 # -------------------------------------------------------------
 # CURATED PATHWAYS & FUNCTIONAL GENOMICS ENRICHMENT ENGINE
 # -------------------------------------------------------------
-CURATED_PATHWAY_DB = {
-    "Hallmark: Epithelial Mesenchymal Transition": ["CDH2", "FN1", "VIM", "MMP2", "MMP9", "SNAI1", "SNAI2", "TWIST1", "ZEB1", "ZEB2", "ACTA2", "TGFB1", "COL1A1", "COL3A1"],
-    "Hallmark: G2M Checkpoint / Proliferation": ["MKI67", "TOP2A", "CCNB1", "CCNB2", "CDK1", "AURKA", "AURKB", "PLK1", "CENPE", "CENPF", "UBE2C", "BIRC5", "NUSAP1"],
-    "Hallmark: E2F Targets": ["PCNA", "MCM2", "MCM3", "MCM4", "MCM5", "MCM6", "MCM7", "TYMS", "RRescued_1", "RRescued_2", "E2F1", "E2F2", "CDK2"],
-    "Hallmark: TNF-alpha Signaling via NF-kB": ["NFKB1", "NFKB2", "RELA", "RELB", "JUN", "JUNB", "FOS", "FOSB", "IL6", "CXCL8", "TNFAIP3", "NFKBIA", "ICAM1"],
-    "Hallmark: Hypoxia Response": ["HIF1A", "VEGFA", "SLC2A1", "LDHA", "ENO1", "PGK1", "PDK1", "BNIP3", "CA9", "ADM", "DDIT4"],
-    "Hallmark: Inflammatory Response": ["IL1A", "IL1B", "IL6", "CXCL1", "CXCL2", "CXCL3", "CXCL8", "CCL2", "CCL20", "S100A8", "S100A9", "PTGS2"],
-    "Hallmark: Apoptosis": ["CASP3", "CASP7", "CASP8", "CASP9", "BAX", "BAK1", "BCL2L11", "BID", "PMAIP1", "BBC3", "FAS", "FASLG"],
-    "Epidermal: Basal Stem & Hemidesmosome": ["COL17A1", "ITGA6", "ITGB4", "LAMA3", "LAMB3", "LAMC2", "DST", "KRT14", "KRT5", "TP63", "BCAM"],
-    "Epidermal: Suprabasal & Spinous Differentiation": ["KRT1", "KRT10", "DSG1", "DSC1", "DMKN", "SBSN", "KRTDAP", "CALML5", "SPINK5"],
-    "Epidermal: Granular & Cornified Envelope": ["FLG", "FLG2", "LOR", "IVL", "TGM1", "TGM3", "LCE1A", "LCE2A", "LCE3D", "SPRR1A", "SPRR1B", "SPRR2A"],
-    "Junction: Adherens Junction Complex": ["CDH1", "CTNNB1", "CTNNA1", "CTNND1", "JUP", "CDH2", "CTNNA2", "PLEKHA7", "PNN"],
-    "Junction: Desmosome Architecture": ["DSP", "PKP1", "PKP3", "DSG1", "DSG3", "DSC1", "DSC3", "PPL", "EVPL", "PKP2", "JUP"],
-    "Wound Healing: Activation & Migration": ["KRT6A", "KRT6B", "KRT16", "KRT17", "ITGB6", "MMP1", "MMP3", "MMP10", "LAMB3", "SERPINE1", "TGFB1"]
-}
+# CURATED_PATHWAY_DB loaded dynamically from config/pathways.yaml
 
 def run_hypergeometric_enrichment(query_genes, background_genes, pathway_dict=CURATED_PATHWAY_DB, min_overlap=2):
     import scipy.stats as stats
@@ -3686,13 +3519,7 @@ elif app_mode == "Single-Cell Preprocessing & Scanpy Pipeline":
                             rel_lbl = f"[{p_info['id']}] {f} ({os.path.basename(root_dir)})"
                             server_h5ad_options[rel_lbl] = full_f
                             
-        # Also check for Cheng 2018 raw counts specifically
-        cheng_p = get_platform_path(
-            r"G:\Data\SingleCell\PROJ_001_HUMAN_EPIDERMAL\data\2025-11-26_Public_Skin_Atlas\cheng2018_trunk_counts.h5ad",
-            "/mnt/data/SingleCell/PROJ_001_HUMAN_EPIDERMAL/data/2025-11-26_Public_Skin_Atlas/cheng2018_trunk_counts.h5ad"
-        )
-        if os.path.exists(cheng_p):
-            server_h5ad_options["[PROJ_001 Raw Counts] cheng2018_trunk_counts.h5ad (2025-11-26_Public_Skin_Atlas)"] = cheng_p
+        # Note: Additional datasets discovered dynamically from project scan_subdirs
             
         c_sel1, c_sel2 = st.columns([2.0, 1.0])
         with c_sel1:

@@ -40,3 +40,21 @@ def load_signatures_config() -> Dict[str, Any]:
     """Load curated gene signatures and pathway panels."""
     cfg_file = os.path.join(CONFIG_DIR, "signatures.yaml")
     return load_yaml_config(cfg_file, default={})
+
+def load_pathways_config() -> Dict[str, List[str]]:
+    """Load curated biological pathways database for ORA."""
+    cfg_file = os.path.join(CONFIG_DIR, "pathways.yaml")
+    return load_yaml_config(cfg_file, default={})
+
+def load_markers_config() -> Dict[str, Dict[str, List[str]]]:
+    """Load canonical cell-type marker dictionary."""
+    cfg_file = os.path.join(CONFIG_DIR, "markers.yaml")
+    return load_yaml_config(cfg_file, default={})
+
+def load_css_styles() -> str:
+    """Load external CSS stylesheet."""
+    css_file = os.path.join(CONFIG_DIR, "style.css")
+    if os.path.exists(css_file):
+        with open(css_file, "r", encoding="utf-8") as f:
+            return f.read()
+    return ""

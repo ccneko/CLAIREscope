@@ -1,0 +1,23 @@
+# Canonical Cell-Type Marker Genes Database
+Human:
+  "Basal Stem KC (COL17A1+/TP63+)": ["COL17A1", "TP63", "KRT14", "KRT5", "ITGA6", "ITGB4", "DST", "LAMA3", "LAMB3", "LAMC2", "BCAM"]
+  "Basal 1 (Quiescent / Anchored)": ["COL17A1", "DST", "ITGB4", "ITGA6", "BCAM", "POSTN", "COL4A1", "COL4A2", "LAMA3"]
+  "Basal 2 (Secretory / Activated)": ["MIF", "AREG", "EREG", "VEGFA", "IL1B", "CXCL8", "PTGES", "CCL2", "HBEGF", "TNFAIP3"]
+  "Suprabasal / Spinous KC (KRT10+/KRT1+)": ["KRT1", "KRT10", "DSG1", "DSC1", "DMKN", "SBSN", "KRTDAP", "CALML5", "SPINK5"]
+  "Granular / Cornified KC (FLG+/LOR+)": ["FLG", "FLG2", "LOR", "IVL", "TGM1", "TGM3", "LCE1A", "LCE2A", "LCE3D", "SPRR1A", "SPRR1B", "SPRR2A"]
+  "Hair Follicle & Bulge Stem (SOX9+/CD34+)": ["SOX9", "CD34", "LHX2", "NFATC1", "KRT15", "WNT10A", "LGR5"]
+  "Melanocytes (MLANA+/MITF+)": ["MLANA", "MITF", "PMEL", "TYR", "TYRP1", "DCT"]
+  "Langerhans Cells (CD207+/CD1A+)": ["CD207", "CD1A", "HLA-DRA", "HLA-DRB1", "CLEC4C"]
+  "Fibroblasts (COL1A1+/DCN+)": ["COL1A1", "COL1A2", "COL3A1", "DCN", "LUM", "PDGFRA", "FAP"]
+  "Endothelial Cells (PECAM1+/CDH5+)": ["PECAM1", "CDH5", "VWF", "CLDN5", "KDR"]
+  "Cycling KC (MKI67+/TOP2A+)": ["MKI67", "TOP2A", "CCNB1", "CCNB2", "CDK1", "PCNA", "AURKA", "PLK1"]
+
+Mouse:
+  "Basal KC (Col17a1+/Krt14+)": ["Col17a1", "Trp63", "Krt14", "Krt5", "Itga6", "Itgb4", "Dst", "Lama3", "Lamb3", "Lamc2", "Bcam"]
+  "IFE Suprabasal / Spinous (Krt10+/Krt1+)": ["Krt1", "Krt10", "Dsc1", "Dsg1a", "KRT1", "KRT10", "DSG1", "DSC1"]
+  "Granular / Terminally Differentiated (Mt4+/Lor+)": ["Ivl", "Lor", "Flg", "Tgm1", "Krt2", "IVL", "LOR", "FLG", "TGM1"]
+  "Adherens Junction Complex": ["Cdh1", "Ctnnb1", "Ctnna1", "Ctnnd1", "Dsp", "Jup", "CDH1", "CTNNB1", "CTNNA1", "CTNND1", "JUP"]
+  "Desmosomes": ["Dsp", "Pkp1", "Pkp3", "Dsg3", "Dsc3", "Ppl", "Evpl", "DSP", "PKP1", "PKP3", "DSG3", "DSC3", "PPL", "EVPL"]
+  "Hemidesmosome & Basement Membrane": ["Col17a1", "Itgb4", "Itga6", "Lama3", "Lamb3", "Lamc2", "Dst", "COL17A1", "ITGB4", "ITGA6", "LAMA3", "LAMB3", "LAMC2", "DST"]
+  "Wound-activated (Migrating) KC": ["Krt6a", "Krt17", "Itgb6", "Sprr1b"]
+  "Cycling KC (Top2a+/Mki67+)": ["Mki67", "Top2a", "Ccnb1", "Cdk1", "MKI67", "TOP2A", "CCNB1", "CDK1"]
