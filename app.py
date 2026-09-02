@@ -1705,9 +1705,48 @@ if app_mode == "Single Cell Analysis Viewer":
                         mime="text/csv"
                     )
 
-    # ---------------- TAB 4: GENE EXPRESSION VIOLINS (WITH STATS) ----------------
+        # ---------------- TAB 4: GENE EXPRESSION VIOLINS (WITH STATS) ----------------
     with tab_gene_violin:
         st.markdown("### Gene Expression Significance Violins across Conditions")
+        
+        all_states = sorted(adata.obs[selected_col].dropna().astype(str).unique()) if selected_col and selected_col in adata.obs.columns else []
+        available_samples = [s for s in ordered_samples if s in adata.obs[sample_col].unique()] if sample_col and sample_col in adata.obs.columns else (sorted(adata.obs[sample_col].dropna().astype(str).unique()) if sample_col and sample_col in adata.obs.columns else [])
+        
+        with st.expander("Display & Subsetting Options", expanded=True):
+            c_v0, c_v1, c_v2, c_v3 = st.columns([1.1, 1.8, 1.0, 1.0])
+            with c_v0:
+                include_all_cells = st.checkbox("Include 'All Cells (Global)' as 1st Plot", value=True, key="v_include_all")
+                filter_zeros_v = st.checkbox("Remove Expression = 0 Cells", value=False, help="Restricts violin analysis and statistical testing to expressing cells only (>0).", key="v_filter_zeros")
+            with c_v1:
+                selected_states_v = draggable_multiselect("Select & Reorder Cell States for Expression Violins:", options=all_states, default=all_states, key="v_gene_states")
+            with c_v2:
+                plot_ncols = st.selectbox("Subplot Grid Columns:", [2, 3, 4], index=1, key="v_gene_ncols")
+            with c_v3:
+                gene_max_input = st.number_input(
+                    "Expression Y-Axis Max (0 for Auto):",
+                    min_value=0.0,
+                    max_value=10000.0,
+                    value=0.0,
+                    step=0.5 if use_log2 else 10.0,
+                    help="Set fixed upper limit for expression Y-axis across all subplots, or keep 0 for automatic."
+                )
+                
+            candidate_pairs = []
+            for i in range(len(available_samples)):
+                for j in range(i+1, len(available_samples)):
+                    candidate_pairs.append((available_samples[i], available_samples[j]))
+                    
+            default_active_pairs = [("Control", "Mutant"), ("Rescued_2", "Mutant"), ("Rescued_1", "Mutant")]
+            valid_default_pairs = [p for p in default_active_pairs if p[0] in available_samples and p[1] in available_samples]
+            if not valid_default_pairs and len(candidate_pairs) > 0:
+                valid_default_pairs = candidate_pairs[:3]
+                
+            pair_options = [f"{p[0]} vs {p[1]}" for p in candidate_pairs]
+            default_pair_strs = [f"{p[0]} vs {p[1]}" for p in valid_default_pairs]
+            
+            selected_pair_strs = draggable_multiselect("Select & Reorder Comparison Pairs for Significance Brackets (S1 vs S2):", options=pair_options, default=default_pair_strs, key="v_gene_pairs")
+            active_pairs = [tuple(s.split(" vs ")) for s in selected_pair_strs if " vs " in s]
+
         if not resolved_var_name:
             st.info("💡 Please select or search a gene above from the dropdown to generate expression violin plots with statistical significance testing.")
         elif not selected_col or not sample_col:
@@ -1725,49 +1764,6 @@ if app_mode == "Single Cell Analysis Viewer":
                 "Sample": adata.obs[sample_col].astype(str),
                 "Expression": expr_vals
             })
-            
-            all_states = sorted(df_gene_violin["Cell State"].unique())
-            available_samples = [s for s in ordered_samples if s in df_gene_violin["Sample"].unique()]
-            if not available_samples:
-                available_samples = sorted(df_gene_violin["Sample"].unique())
-                
-            with st.expander("Expression Violin Display Options", expanded=True):
-                c_v0, c_v1, c_v2, c_v3 = st.columns([1.1, 1.8, 1.0, 1.0])
-                with c_v0:
-                    include_all_cells = st.checkbox("Include 'All Cells (Global)' as 1st Plot", value=True, key="v_include_all")
-                    filter_zeros_v = st.checkbox("Remove Expression = 0 Cells", value=False, help="Restricts violin analysis and statistical testing to expressing cells only (>0).", key="v_filter_zeros")
-                with c_v1:
-                    selected_states_v = draggable_multiselect("Select & Reorder Cell States for Expression Violins:", options=all_states, default=all_states, key="v_gene_states")
-                with c_v2:
-                    plot_ncols = st.selectbox("Subplot Grid Columns:", [2, 3, 4], index=1, key="v_gene_ncols")
-                with c_v3:
-                    gene_max_input = st.number_input(
-                        "Expression Y-Axis Max (0 for Auto):",
-                        min_value=0.0,
-                        max_value=10000.0,
-                        value=0.0,
-                        step=0.5 if use_log2 else 10.0,
-                        help="Set fixed upper limit for expression Y-axis across all subplots, or keep 0 for automatic."
-                    )
-                    
-                if filter_zeros_v:
-                    df_gene_violin = df_gene_violin[df_gene_violin["Expression"] > 0]
-                    
-                candidate_pairs = []
-                for i in range(len(available_samples)):
-                    for j in range(i+1, len(available_samples)):
-                        candidate_pairs.append((available_samples[i], available_samples[j]))
-                        
-                default_active_pairs = [("Control", "Mutant"), ("Rescued_2", "Mutant"), ("Rescued_1", "Mutant")]
-                valid_default_pairs = [p for p in default_active_pairs if p[0] in available_samples and p[1] in available_samples]
-                if not valid_default_pairs and len(candidate_pairs) > 0:
-                    valid_default_pairs = candidate_pairs[:3]
-                    
-                pair_options = [f"{p[0]} vs {p[1]}" for p in candidate_pairs]
-                default_pair_strs = [f"{p[0]} vs {p[1]}" for p in valid_default_pairs]
-                
-                selected_pair_strs = draggable_multiselect("Select & Reorder Comparison Pairs for Significance Brackets (S1 vs S2):", options=pair_options, default=default_pair_strs, key="v_gene_pairs")
-                active_pairs = [tuple(s.split(" vs ")) for s in selected_pair_strs if " vs " in s]
 
             plots_to_generate = (["All Cells (Global)"] if include_all_cells else []) + selected_states_v
             
@@ -1953,11 +1949,48 @@ if app_mode == "Single Cell Analysis Viewer":
                             key="dl_gene_stats_csv"
                         )
 
-    # ---------------- TAB 5: SIGNATURE & PATHWAY SCORING (WITH STATS) ----------------
+        # ---------------- TAB 5: SIGNATURE & PATHWAY SCORING (WITH STATS) ----------------
     with tab_score_violin:
         st.markdown("### Gene Signature & Pathway Scoring Violins (with Stats)")
         st.write("Calculate dynamic gene set scores (`sc.tl.score_genes`) and perform statistical comparisons across condition groups per cell state.")
         
+        all_states_s = sorted(adata.obs[selected_col].dropna().astype(str).unique()) if selected_col and selected_col in adata.obs.columns else []
+        available_samples_s = [s for s in ordered_samples if s in adata.obs[sample_col].unique()] if sample_col and sample_col in adata.obs.columns else (sorted(adata.obs[sample_col].dropna().astype(str).unique()) if sample_col and sample_col in adata.obs.columns else [])
+        
+        with st.expander("Display & Subsetting Options", expanded=True):
+            c_sv0, c_sv1, c_sv2, c_sv3 = st.columns([1.1, 1.8, 1.0, 1.0])
+            with c_sv0:
+                include_all_cells_s = st.checkbox("Include 'All Cells (Global)' as 1st Plot", value=True, key="sv_include_all")
+            with c_sv1:
+                selected_states_sv = draggable_multiselect("Select & Reorder Cell States for Scoring Violins:", options=all_states_s, default=all_states_s, key="sv_states")
+            with c_sv2:
+                plot_ncols_s = st.selectbox("Subplot Grid Columns:", [2, 3, 4], index=1, key="sv_ncols")
+            with c_sv3:
+                score_max_input = st.number_input(
+                    "Score Y-Axis Max (0 for Auto):",
+                    min_value=0.0,
+                    max_value=100.0,
+                    value=0.0,
+                    step=0.5,
+                    help="Set fixed upper limit for score Y-axis across all subplots, or keep 0 for automatic."
+                )
+                
+            candidate_pairs_s = []
+            for i in range(len(available_samples_s)):
+                for j in range(i+1, len(available_samples_s)):
+                    candidate_pairs_s.append((available_samples_s[i], available_samples_s[j]))
+                    
+            default_active_pairs_s = [("Control", "Mutant"), ("Rescued_2", "Mutant"), ("Rescued_1", "Mutant")]
+            valid_default_pairs_s = [p for p in default_active_pairs_s if p[0] in available_samples_s and p[1] in available_samples_s]
+            if not valid_default_pairs_s and len(candidate_pairs_s) > 0:
+                valid_default_pairs_s = candidate_pairs_s[:3]
+                
+            pair_options_s = [f"{p[0]} vs {p[1]}" for p in candidate_pairs_s]
+            default_pair_strs_s = [f"{p[0]} vs {p[1]}" for p in valid_default_pairs_s]
+            
+            selected_pair_strs_s = draggable_multiselect("Select & Reorder Comparison Pairs for Significance Brackets (S1 vs S2):", options=pair_options_s, default=default_pair_strs_s, key="sv_pairs")
+            active_pairs_s = [tuple(s.split(" vs ")) for s in selected_pair_strs_s if " vs " in s]
+            
         sig_options = list(DEFAULT_SIGNATURES.keys()) + ["Custom Gene List"]
         c_sig1, c_sig2 = st.columns([1.2, 2])
         with c_sig1:
@@ -1998,45 +2031,6 @@ if app_mode == "Single Cell Analysis Viewer":
                 "Sample": adata.obs[sample_col].astype(str) if sample_col else "All",
                 "Score": score_values
             })
-            
-            all_states_s = sorted(df_score_violin["Cell State"].unique())
-            available_samples_s = [s for s in ordered_samples if s in df_score_violin["Sample"].unique()]
-            if not available_samples_s:
-                available_samples_s = sorted(df_score_violin["Sample"].unique())
-                
-            with st.expander("Scoring Violin Display Options", expanded=True):
-                c_sv0, c_sv1, c_sv2, c_sv3 = st.columns([1.1, 1.8, 1.0, 1.0])
-                with c_sv0:
-                    include_all_cells_s = st.checkbox("Include 'All Cells (Global)' as 1st Plot", value=True, key="sv_include_all")
-                with c_sv1:
-                    selected_states_sv = draggable_multiselect("Select & Reorder Cell States for Scoring Violins:", options=all_states_s, default=all_states_s, key="sv_states")
-                with c_sv2:
-                    plot_ncols_s = st.selectbox("Subplot Grid Columns:", [2, 3, 4], index=1, key="sv_ncols")
-                with c_sv3:
-                    score_max_input = st.number_input(
-                        "Score Y-Axis Max (0 for Auto):",
-                        min_value=0.0,
-                        max_value=100.0,
-                        value=0.0,
-                        step=0.5,
-                        help="Set fixed upper limit for score Y-axis across all subplots, or keep 0 for automatic."
-                    )
-                    
-                candidate_pairs_s = []
-                for i in range(len(available_samples_s)):
-                    for j in range(i+1, len(available_samples_s)):
-                        candidate_pairs_s.append((available_samples_s[i], available_samples_s[j]))
-                        
-                default_active_pairs_s = [("Control", "Mutant"), ("Rescued_2", "Mutant"), ("Rescued_1", "Mutant")]
-                valid_default_pairs_s = [p for p in default_active_pairs_s if p[0] in available_samples_s and p[1] in available_samples_s]
-                if not valid_default_pairs_s and len(candidate_pairs_s) > 0:
-                    valid_default_pairs_s = candidate_pairs_s[:3]
-                    
-                pair_options_s = [f"{p[0]} vs {p[1]}" for p in candidate_pairs_s]
-                default_pair_strs_s = [f"{p[0]} vs {p[1]}" for p in valid_default_pairs_s]
-                
-                selected_pair_strs_s = draggable_multiselect("Select & Reorder Comparison Pairs for Significance Brackets (S1 vs S2):", options=pair_options_s, default=default_pair_strs_s, key="sv_pairs")
-                active_pairs_s = [tuple(s.split(" vs ")) for s in selected_pair_strs_s if " vs " in s]
                 
             score_plots_to_generate = (["All Cells (Global)"] if include_all_cells_s else []) + selected_states_sv
             
@@ -2223,10 +2217,46 @@ if app_mode == "Single Cell Analysis Viewer":
                             key="dl_score_stats_csv"
                         )
 
-    # ---------------- TAB 6: CORRELATION & SCATTER PLOTS (WITH STATS) ----------------
+        # ---------------- TAB 6: CORRELATION & SCATTER PLOTS (WITH STATS) ----------------
     with tab_scatter:
         st.markdown("### Co-expression & Correlation Scatter Plots (with Statistical Testing)")
         st.write("Analyze co-expression relationships between any two genes, gene signatures/pathways, or a gene vs. a pathway score across conditions and cell populations.")
+        
+        all_scat_samples = ordered_samples if ordered_samples else (sorted(adata.obs[sample_col].dropna().astype(str).unique()) if sample_col and sample_col in adata.obs.columns else ["All"])
+        all_scat_states = sorted(adata.obs[selected_col].dropna().astype(str).unique()) if selected_col and selected_col in adata.obs.columns else ["All"]
+
+        with st.expander("Display & Subsetting Options", expanded=True):
+            c_sc1, c_sc2, c_sc3, c_sc4 = st.columns([1.5, 1.5, 1.2, 1.2])
+            with c_sc1:
+                filter_scat_samples = draggable_multiselect("Filter & Reorder Samples:", options=all_scat_samples, default=all_scat_samples, key="scat_filter_s")
+            with c_sc2:
+                filter_scat_states = draggable_multiselect("Filter & Reorder Cell States / Populations:", options=all_scat_states, default=all_scat_states, key="scat_filter_st")
+            with c_sc3:
+                split_mode = st.selectbox("Subplot Layout:", ["Split by Sample", "Split by Cell State", "Single Combined Overlay"], index=0, key="scat_split_mode")
+            with c_sc4:
+                scat_ncols = st.selectbox("Grid Columns:", [2, 3, 4], index=1, key="scat_ncols_choice")
+                
+            c_sc5, c_sc6, c_sc7, c_sc8 = st.columns([1.8, 1.0, 1.0, 1.0])
+            with c_sc5:
+                zero_filter_mode = st.selectbox(
+                    "Zero-Expression Filtering (Remove zeros):",
+                    [
+                        "Include all cells (Keep zeros)",
+                        "Co-detected only: Remove cells with X = 0 OR Y = 0 (X > 0 and Y > 0)",
+                        "Remove double-zeros (X > 0 or Y > 0)",
+                        "Remove X = 0 cells only (X > 0)",
+                        "Remove Y = 0 cells only (Y > 0)"
+                    ],
+                    index=0,
+                    help="Filter out unexpressed / dropout cells across the selected axes.",
+                    key="scat_zero_filter"
+                )
+            with c_sc6:
+                show_reg_line = st.checkbox("Regression Line", value=True, help="Plot linear or polynomial regression line with confidence intervals.", key="scat_reg_line")
+            with c_sc7:
+                reg_order = st.selectbox("Trend Fit:", [1, 2], index=0, format_func=lambda x: "Linear (1st deg)" if x==1 else "Polynomial (2nd deg)", key="scat_reg_order")
+            with c_sc8:
+                show_spearman = st.checkbox("Spearman Rank Stats", value=True, help="Compute non-parametric Spearman rank correlation rho alongside Pearson r.", key="scat_show_spearman")
         
         # Dual Variable Selectors (Gene vs Score)
         col_x_panel, col_y_panel = st.columns(2)
