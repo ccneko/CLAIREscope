@@ -1,6 +1,13 @@
 """Unit tests for YAML configuration loading and validation."""
 import pytest
-from clairescope.config import load_projects_config, load_settings_config, load_signatures_config
+from clairescope.config import (
+    load_projects_config,
+    load_settings_config,
+    load_signatures_config,
+    load_pathways_config,
+    load_markers_config,
+    load_css_styles,
+)
 
 def test_load_projects_config():
     projects = load_projects_config()
@@ -26,3 +33,22 @@ def test_load_signatures_config():
     assert "human" in signatures
     assert "mouse" in signatures
     assert "Adherens Junction Complex" in signatures["human"]
+
+def test_load_pathways_config():
+    pathways = load_pathways_config()
+    assert isinstance(pathways, dict)
+    assert "Hallmark: Epithelial Mesenchymal Transition" in pathways
+    assert "Epidermal: Basal Stem & Hemidesmosome" in pathways
+
+def test_load_markers_config():
+    markers = load_markers_config()
+    assert isinstance(markers, dict)
+    assert "Human" in markers
+    assert "Mouse" in markers
+    assert "Basal 1 (Quiescent / Anchored)" in markers["Human"]
+
+def test_load_css_styles():
+    css = load_css_styles()
+    assert len(css) > 0
+    assert "block-container" in css
+    assert "3.0rem" in css
