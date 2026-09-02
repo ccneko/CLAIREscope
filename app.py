@@ -1453,32 +1453,62 @@ if app_mode == "Single Cell Analysis Viewer":
                     for idx, s in enumerate(selected_comp_samples):
                         r_idx = (idx // n_cols) + 1
                         c_idx = (idx % n_cols) + 1
-                        s_counts = ct_counts[s]
-                        s_pcts = ct_pct[s]
+                        s_counts = [int(ct_counts.loc[c, s]) for c in selected_comp_cats]
+                        s_pcts = [float(ct_pct.loc[c, s]) for c in selected_comp_cats]
                         
                         if pct_baseline == "Total All Cells in Sample":
-                            text_tpl = '%{customdata:.1f}%' if show_donut_pct else None
-                            hover_tpl = '<b>%{label}</b><br>Sample: ' + s + '<br>Count: %{value:,} cells<br>% of Sample: %{customdata:.1f}%<br>(% of Subset: %{percent})<extra></extra>'
+                            unselected_count = int(full_sample_totals[s] - selected_sample_totals[s])
+                            if unselected_count > 0:
+                                d_labels = selected_comp_cats + ["Unselected"]
+                                d_values = s_counts + [unselected_count]
+                                d_colors = [color_map.get(c, "#7f8c8d") for c in selected_comp_cats] + ["rgba(0,0,0,0)"]
+                                d_line_colors = ['#FFFFFF'] * len(selected_comp_cats) + ['rgba(0,0,0,0)']
+                                d_line_widths = [1.5] * len(selected_comp_cats) + [0]
+                                d_texts = [f"{p:.1f}%" if show_donut_pct else "" for p in s_pcts] + [""]
+                                d_hovers = [
+                                    f"<b>{c}</b><br>Sample: {s}<br>Count: {cnt:,} cells<br>% of Sample: {pct:.1f}%<extra></extra>"
+                                    for c, cnt, pct in zip(selected_comp_cats, s_counts, s_pcts)
+                                ] + [f"<b>Other / Unselected</b><br>Sample: {s}<br>Count: {unselected_count:,} cells<br>% of Sample: {(unselected_count / full_sample_totals[s]) * 100:.1f}%<extra></extra>"]
+                            else:
+                                d_labels = selected_comp_cats
+                                d_values = s_counts
+                                d_colors = [color_map.get(c, "#7f8c8d") for c in selected_comp_cats]
+                                d_line_colors = ['#FFFFFF'] * len(selected_comp_cats)
+                                d_line_widths = [1.5] * len(selected_comp_cats)
+                                d_texts = [f"{p:.1f}%" if show_donut_pct else "" for p in s_pcts]
+                                d_hovers = [
+                                    f"<b>{c}</b><br>Sample: {s}<br>Count: {cnt:,} cells<br>% of Sample: {pct:.1f}%<extra></extra>"
+                                    for c, cnt, pct in zip(selected_comp_cats, s_counts, s_pcts)
+                                ]
                         else:
-                            text_tpl = '%{percent}' if show_donut_pct else None
-                            hover_tpl = '<b>%{label}</b><br>Sample: ' + s + '<br>Count: %{value:,} cells<br>% of Subset: %{percent}<extra></extra>'
+                            d_labels = selected_comp_cats
+                            d_values = s_counts
+                            d_colors = [color_map.get(c, "#7f8c8d") for c in selected_comp_cats]
+                            d_line_colors = ['#FFFFFF'] * len(selected_comp_cats)
+                            d_line_widths = [1.5] * len(selected_comp_cats)
+                            d_texts = [f"{p:.1f}%" if show_donut_pct else "" for p in s_pcts]
+                            d_hovers = [
+                                f"<b>{c}</b><br>Sample: {s}<br>Count: {cnt:,} cells<br>% of Subset: {pct:.1f}%<extra></extra>"
+                                for c, cnt, pct in zip(selected_comp_cats, s_counts, s_pcts)
+                            ]
                         
                         fig_donuts.add_trace(
                             go.Pie(
-                                labels=selected_comp_cats,
-                                values=s_counts,
-                                customdata=s_pcts,
+                                labels=d_labels,
+                                values=d_values,
+                                text=d_texts,
+                                textinfo='text' if show_donut_pct else 'none',
+                                hovertext=d_hovers,
+                                hoverinfo='text',
                                 hole=0.48,
                                 marker=dict(
-                                    colors=[color_map.get(c, "#7f8c8d") for c in selected_comp_cats],
-                                    line=dict(color='#FFFFFF', width=1.5)
+                                    colors=d_colors,
+                                    line=dict(color=d_line_colors, width=d_line_widths)
                                 ),
-                                texttemplate=text_tpl,
                                 textposition='inside',
                                 insidetextfont=dict(size=18, family="Segoe UI, Arial, sans-serif", color="#FFFFFF"),
                                 textfont=dict(size=18, family="Segoe UI, Arial, sans-serif"),
                                 insidetextorientation='horizontal',
-                                hovertemplate=hover_tpl,
                                 showlegend=False,
                                 sort=False
                             ),
