@@ -1,0 +1,17 @@
+# Curated Gene Signatures & Biological Pathway Panels
+human:
+  "Adherens Junction Complex": ["CDH1", "CTNNB1", "CTNNA1", "CTNND1", "JUP"]
+  "Desmosomes": ["DSP", "PKP1", "PKP3", "DSG1", "DSG3", "DSC1", "DSC3", "PPL", "EVPL"]
+  "Hemidesmosome & Basement Membrane": ["COL17A1", "ITGB4", "ITGA6", "LAMA3", "LAMB3", "LAMC2", "DST"]
+  "Cell Cycle / Proliferation": ["MKI67", "TOP2A", "CCNB1", "CDK1", "PCNA"]
+  "G1/S Phase": ["CCNE1", "CCNE2", "CDK2", "E2F1", "PCNA", "MCM2", "MCM4", "MCM6"]
+  "G2/M Phase": ["CCNB1", "CCNB2", "CDK1", "TOP2A", "AURKA", "PLK1", "CENPE", "NUSAP1"]
+  "Epidermal Differentiation": ["KRT1", "KRT10", "FLG", "LOR", "IVL", "TGM1", "SPRR1A"]
+  "Basal Stemness": ["COL17A1", "ITGB4", "ITGA6", "TP63", "KRT14", "KRT5"]
+
+mouse:
+  "Adherens Junction Complex": ["Cdh1", "Ctnnb1", "Ctnna1", "Ctnnd1", "Dsp", "Jup", "Ppl", "Evpl", "Pkp1", "Pkp3", "Cdh2", "Ctnna2"]
+  "Desmosomes": ["Dsp", "Pkp1", "Pkp3", "Dsg1a", "Dsg3", "Dsc1", "Dsc3", "Ppl", "Evpl"]
+  "Hemidesmosome & Basement Membrane": ["Col17a1", "Itgb4", "Itga6", "Lama3", "Lamb3", "Lamc2", "Dst"]
+  "Cell Cycle / Proliferation": ["Mki67", "Top2a", "Ccnb1", "Cdk1", "Pcna"]
+  "Wound Activation": ["Krt6a", "Krt16", "Krt17", "Itgb6", "Sprr1b"]
