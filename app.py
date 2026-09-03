@@ -1171,7 +1171,7 @@ if app_mode == "Single Cell Analysis Viewer":
                             borderwidth=1
                         )
                     )
-                    st.plotly_chart(fig_samp, use_container_width=True)
+                    st.plotly_chart(fig_samp, width="stretch")
 
                 # Figure 1: Cell States
                 with col_p1:
@@ -1243,7 +1243,7 @@ if app_mode == "Single Cell Analysis Viewer":
                             borderwidth=1
                         )
                     )
-                    st.plotly_chart(fig_states, use_container_width=True)
+                    st.plotly_chart(fig_states, width="stretch")
 
                 # Figure 2: Gene Expression
                 if resolved_var_name and col_p2:
@@ -1319,7 +1319,7 @@ if app_mode == "Single Cell Analysis Viewer":
                             legend=dict(itemsizing='constant', font=dict(size=14, family="Segoe UI, sans-serif")),
                             coloraxis_colorbar=dict(title_font=dict(size=15, family="Segoe UI, sans-serif"), tickfont=dict(size=13, family="Segoe UI, sans-serif"))
                         )
-                        st.plotly_chart(fig_expr, use_container_width=True)
+                        st.plotly_chart(fig_expr, width="stretch")
 
             # Download UMAP Embeddings (CSV) at the bottom of Interactive UMAP
             csv_data_t2 = get_umap_embeddings_csv(adata, sample_col, selected_col, resolved_var_name, resolved_display_name)
@@ -1426,7 +1426,7 @@ if app_mode == "Single Cell Analysis Viewer":
                             borderwidth=1
                         )
                     )
-                    st.plotly_chart(fig_bar, use_container_width=True)
+                    st.plotly_chart(fig_bar, width="stretch")
                     
                 with col_chart2:
                     st.markdown("#### Sample Percentage Ring (Donut) Charts")
@@ -1525,7 +1525,7 @@ if app_mode == "Single Cell Analysis Viewer":
                     )
                     for annotation in fig_donuts['layout']['annotations']:
                         annotation['font'] = dict(size=16, family="Segoe UI, Arial, sans-serif", color="#1e293b")
-                    st.plotly_chart(fig_donuts, use_container_width=True)
+                    st.plotly_chart(fig_donuts, width="stretch")
                     
                 with st.expander("📊 View Composition Data Tables & Export"):
                     tab_cnt, tab_prc = st.tabs(["Cell Counts Table", "Percentages (%) Table"])
@@ -1534,12 +1534,12 @@ if app_mode == "Single Cell Analysis Viewer":
                         df_counts_display = ct_counts.copy()
                         df_counts_display.loc["Subtotal (Selected States)"] = selected_sample_totals
                         df_counts_display.loc["Total (All Cells in Sample)"] = full_sample_totals
-                        st.dataframe(df_counts_display, use_container_width=True)
+                        st.dataframe(df_counts_display, width="stretch")
                         
                     with tab_prc:
                         df_pct_display = ct_pct.round(2).copy()
                         df_pct_display.loc["Subtotal (%)"] = ct_pct.sum(axis=0).round(2)
-                        st.dataframe(df_pct_display, use_container_width=True)
+                        st.dataframe(df_pct_display, width="stretch")
                         
                     combined_export_df = pd.concat({
                         "Cell Counts": ct_counts,
@@ -1743,7 +1743,7 @@ if app_mode == "Single Cell Analysis Viewer":
                     
                     tab_m_tbl, tab_med_tbl = st.tabs(["Mean Expression Table", "Median Expression Table"])
                     with tab_m_tbl:
-                        st.dataframe(df_sample_means, use_container_width=True)
+                        st.dataframe(df_sample_means, width="stretch")
                         csv_means = df_sample_means.to_csv().encode('utf-8')
                         st.download_button(
                             label=f"📥 Download {clean_sym} Sample Means CSV",
@@ -1753,7 +1753,7 @@ if app_mode == "Single Cell Analysis Viewer":
                             key="dl_gene_means_csv"
                         )
                     with tab_med_tbl:
-                        st.dataframe(df_sample_medians, use_container_width=True)
+                        st.dataframe(df_sample_medians, width="stretch")
                         csv_medians = df_sample_medians.to_csv().encode('utf-8')
                         st.download_button(
                             label=f"📥 Download {clean_sym} Sample Medians CSV",
@@ -1787,7 +1787,7 @@ if app_mode == "Single Cell Analysis Viewer":
                             "Mean Diff (S1 - S2)", "Median Diff (S1 - S2)", "Mann-Whitney U", "p-value", "FDR (q-value)", "Significance"
                         ]
                         df_stats_display = df_stats[cols_to_show]
-                        st.dataframe(df_stats_display, use_container_width=True)
+                        st.dataframe(df_stats_display, width="stretch")
                         csv_stats = df_stats_display.to_csv(index=False).encode('utf-8')
                         st.download_button(
                             label=f"📥 Download {clean_sym} Statistical Summary CSV",
@@ -2011,7 +2011,7 @@ if app_mode == "Single Cell Analysis Viewer":
                     
                     tab_sm_tbl, tab_smed_tbl = st.tabs(["Mean Score Table", "Median Score Table"])
                     with tab_sm_tbl:
-                        st.dataframe(df_score_sample_means, use_container_width=True)
+                        st.dataframe(df_score_sample_means, width="stretch")
                         csv_score_means = df_score_sample_means.to_csv().encode('utf-8')
                         st.download_button(
                             label=f"📥 Download {selected_sig_name} Sample Means CSV",
@@ -2021,7 +2021,7 @@ if app_mode == "Single Cell Analysis Viewer":
                             key="dl_score_means_csv"
                         )
                     with tab_smed_tbl:
-                        st.dataframe(df_score_sample_medians, use_container_width=True)
+                        st.dataframe(df_score_sample_medians, width="stretch")
                         csv_score_medians = df_score_sample_medians.to_csv().encode('utf-8')
                         st.download_button(
                             label=f"📥 Download {selected_sig_name} Sample Medians CSV",
@@ -2055,7 +2055,7 @@ if app_mode == "Single Cell Analysis Viewer":
                             "Mean Diff (S1 - S2)", "Median Diff (S1 - S2)", "Mann-Whitney U", "p-value", "FDR (q-value)", "Significance"
                         ]
                         df_score_stats_display = df_score_stats[cols_to_show_s]
-                        st.dataframe(df_score_stats_display, use_container_width=True)
+                        st.dataframe(df_score_stats_display, width="stretch")
                         csv_score_stats = df_score_stats_display.to_csv(index=False).encode('utf-8')
                         st.download_button(
                             label=f"📥 Download {selected_sig_name} Scoring Stats CSV",
@@ -2382,7 +2382,7 @@ if app_mode == "Single Cell Analysis Viewer":
                             "FDR (q-value)", "Significance"
                         ]
                         df_scat_display = df_scat_stats[cols_to_display_scat]
-                        st.dataframe(df_scat_display, use_container_width=True)
+                        st.dataframe(df_scat_display, width="stretch")
                         
                         csv_scat = df_scat_display.to_csv(index=False).encode('utf-8')
                         st.download_button(
@@ -2792,7 +2792,7 @@ if app_mode == "Single Cell Analysis Viewer":
                 with st.expander("🖼️ View Pre-computed Pipeline Trajectory & PAGA Figures", expanded=False):
                     sel_fig = st.selectbox("Select Precomputed Figure:", traj_pngs)
                     full_fig_path = sel_fig if os.path.isabs(sel_fig) else os.path.join(data_folder, sel_fig)
-                    st.image(full_fig_path, caption=os.path.basename(full_fig_path), use_container_width=True)
+                    st.image(full_fig_path, caption=os.path.basename(full_fig_path), width="stretch")
 
 # ----------------- PAGE 2: MARKER EDITOR -----------------
 
@@ -2878,7 +2878,7 @@ if app_mode == "Single Cell Analysis Viewer":
                         font=dict(size=12, color="#0F172A", family="Segoe UI, sans-serif"),
                         arrowcolor="#64748B", arrowsize=0.8
                     )
-                st.plotly_chart(fig_volc, use_container_width=True)
+                st.plotly_chart(fig_volc, width="stretch")
                 
                 # Top DE Tables
                 st.markdown("#### 📋 Top Differentially Expressed Genes")
@@ -2890,7 +2890,7 @@ if app_mode == "Single Cell Analysis Viewer":
                     df_up_disp["Log2FC"] = df_up_disp["Log2FC"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
                     df_up_disp["FDR (p-adj)"] = df_up_disp["FDR (p-adj)"].apply(format_sig_value)
                     df_up_disp["Z-score"] = df_up_disp["Z-score"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
-                    st.dataframe(df_up_disp, height=300, use_container_width=True)
+                    st.dataframe(df_up_disp, height=300, width="stretch")
                 with c_tbl2:
                     st.markdown(f"**Top Downregulated Genes in `{de_target}`**")
                     df_down = df_de_res[m_down].sort_values("logfoldchanges", ascending=True)[["Gene_Symbol", "names", "logfoldchanges", "pvals_adj", "scores"]].rename(columns={"names": "Gene_ID", "logfoldchanges": "Log2FC", "pvals_adj": "FDR (p-adj)", "scores": "Z-score"})
@@ -2898,7 +2898,7 @@ if app_mode == "Single Cell Analysis Viewer":
                     df_down_disp["Log2FC"] = df_down_disp["Log2FC"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
                     df_down_disp["FDR (p-adj)"] = df_down_disp["FDR (p-adj)"].apply(format_sig_value)
                     df_down_disp["Z-score"] = df_down_disp["Z-score"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
-                    st.dataframe(df_down_disp, height=300, use_container_width=True)
+                    st.dataframe(df_down_disp, height=300, width="stretch")
                     
                 st.download_button(
                     label=f"📥 Download Full DE Results Table ({de_target}_vs_{de_reference}.csv)",
@@ -3108,10 +3108,10 @@ if app_mode == "Single Cell Analysis Viewer":
                             template="plotly_white"
                         )
                         fig_up.update_layout(yaxis=dict(autorange="reversed"), height=420)
-                        st.plotly_chart(fig_up, use_container_width=True)
+                        st.plotly_chart(fig_up, width="stretch")
                         df_show_up = df_plot_up[["Pathway", "Overlap_Count", "Enrichment_Fold", "p_adj", "Overlap_Genes"]].copy()
                         df_show_up["p_adj"] = df_show_up["p_adj"].apply(format_sig_value)
-                        st.dataframe(df_show_up, height=220, use_container_width=True)
+                        st.dataframe(df_show_up, height=220, width="stretch")
                     else:
                         st.info("No significantly enriched pathways at the selected FDR cutoff.")
                 else:
@@ -3135,10 +3135,10 @@ if app_mode == "Single Cell Analysis Viewer":
                             template="plotly_white"
                         )
                         fig_down.update_layout(yaxis=dict(autorange="reversed"), height=420)
-                        st.plotly_chart(fig_down, use_container_width=True)
+                        st.plotly_chart(fig_down, width="stretch")
                         df_show_down = df_plot_down[["Pathway", "Overlap_Count", "Enrichment_Fold", "p_adj", "Overlap_Genes"]].copy()
                         df_show_down["p_adj"] = df_show_down["p_adj"].apply(format_sig_value)
-                        st.dataframe(df_show_down, height=220, use_container_width=True)
+                        st.dataframe(df_show_down, height=220, width="stretch")
                     else:
                         st.info("No significantly enriched pathways at the selected FDR cutoff.")
                 else:

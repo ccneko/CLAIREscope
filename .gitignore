@@ -42,3 +42,7 @@ Thumbs.db
 
 # Streamlit Local Config
 .streamlit/secrets.toml
+
+# Logs & Streamlit server output
+*.log
+streamlit.log
