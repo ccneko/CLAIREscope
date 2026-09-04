@@ -3579,7 +3579,13 @@ elif app_mode == "Single-Cell Preprocessing & Scanpy Pipeline":
         # Scan for all available h5ad files across project directories
         server_h5ad_options = {}
         for p_k, p_info in PROJECT_REGISTRY.items():
-            base_p = get_platform_path(p_info["win_base"], p_info["wsl_base"])
+            if "paths" in p_info:
+                win_p = p_info["paths"].get("windows", "")
+                wsl_p = p_info["paths"].get("wsl", p_info["paths"].get("linux", ""))
+            else:
+                win_p = p_info.get("win_base", "")
+                wsl_p = p_info.get("wsl_base", "")
+            base_p = get_platform_path(win_p, wsl_p)
             if os.path.exists(base_p):
                 for root_dir, _, files in os.walk(base_p):
                     for f in files:
