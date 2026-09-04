@@ -399,16 +399,24 @@ with st.sidebar:
 
 # Dynamic setup for active project
 curr_proj = PROJECT_REGISTRY[selected_project_key]
-PROJ_BASE = get_platform_path(curr_proj["win_base"], curr_proj["wsl_base"])
-SCAN_DIRS = [os.path.join(PROJ_BASE, sub) for sub in curr_proj["scan_subdirs"]]
+if "paths" in curr_proj:
+    win_p = curr_proj["paths"].get("windows", "")
+    wsl_p = curr_proj["paths"].get("wsl", curr_proj["paths"].get("linux", ""))
+else:
+    win_p = curr_proj.get("win_base", "")
+    wsl_p = curr_proj.get("wsl_base", "")
+
+PROJ_BASE = get_platform_path(win_p, wsl_p)
+scan_subdirs = curr_proj.get("scan_subdirs", ["."])
+SCAN_DIRS = [os.path.abspath(os.path.join(PROJ_BASE, sub)) for sub in scan_subdirs]
 if not any(os.path.exists(d) for d in SCAN_DIRS):
     SCAN_DIRS = [PROJ_BASE]
 DATA_DIR = SCAN_DIRS[0]
 
-canonical_samples = curr_proj["canonical_samples"]
-sample_color_map = curr_proj["sample_colors"]
-default_pairs = curr_proj["default_pairs"]
-DEFAULT_SIGNATURES = curr_proj["default_signatures"]
+canonical_samples = curr_proj.get("canonical_samples", [])
+sample_color_map = dict(curr_proj.get("sample_colors", {}))
+default_pairs = curr_proj.get("default_pairs", [])
+DEFAULT_SIGNATURES = curr_proj.get("default_signatures", {})
 
 YAML_PATH = os.path.join(APP_DIR, f"{curr_proj['id'].lower()}_cell_type_markers.yaml")
 if not os.path.exists(YAML_PATH):
@@ -480,7 +488,7 @@ if app_mode == "Single Cell Analysis Viewer":
     with st.expander(f"ℹ️ Active Project & Dataset Information: {curr_proj['name']}", expanded=False):
         st.markdown(f"""
 **Active Project:** {curr_proj['name']}  
-{curr_proj['desc']}  
+{curr_proj.get('desc', curr_proj.get('description', ''))}  
 **Active Dataset:** `{selected_dataset_name}` | **Total Cells:** `{adata.n_obs:,}` | **Total Genes:** `{adata.n_vars:,}` | **Sample Column:** `{sample_col if sample_col else 'None'}`
         """)
     
@@ -4005,7 +4013,7 @@ elif app_mode == "Bulk Download & Export Studio":
     with st.expander(f"ℹ️ Active Project & Dataset Information: {curr_proj['name']}", expanded=False):
         st.markdown(f"""
 **Active Project:** {curr_proj['name']}  
-{curr_proj['desc']}  
+{curr_proj.get('desc', curr_proj.get('description', ''))}  
 **Active Dataset:** `{selected_dataset_name}` | **Total Cells:** `{adata.n_obs:,}` | **Total Genes:** `{adata.n_vars:,}` | **Sample Column:** `{sample_col if sample_col else 'None'}`
         """)
         

@@ -57,3 +57,112 @@ DEMO_SKIN_ATLAS:
     - ITGB6
     - S100A8
     - S100A9
+CHENG_2018_HUMAN_SKIN:
+  id: Cheng2018
+  name: Human Epidermis Single-Cell Atlas (Cheng et al., Cell Reports 2018)
+  species: Human
+  description: Landmark single-cell RNA-seq reference of healthy human skin defining
+    basal stem (Basal 1), secretory (Basal 2), spinous, and granular differentiation
+    states.
+  paths:
+    windows: data\cheng2018_human_skin
+    wsl: /home/claire/dev/CLAIREscope/data/cheng2018_human_skin
+    linux: data/cheng2018_human_skin
+  scan_subdirs:
+  - data
+  - demo
+  - cheng2018
+  default_dataset: cheng2018_trunk_counts
+  canonical_samples:
+  - Trunk
+  - Foreskin
+  - Donor_1
+  - Donor_2
+  - Donor_3
+  sample_colors:
+    Trunk: '#2563EB'
+    Foreskin: '#F59E0B'
+    Donor_1: '#3B82F6'
+    Donor_2: '#10B981'
+    Donor_3: '#8B5CF6'
+  default_pairs:
+  - - Foreskin
+    - Trunk
+  - - Donor_2
+    - Donor_1
+  default_signatures:
+    Basal 1 (Quiescent / Anchored):
+    - COL17A1
+    - DST
+    - ITGB4
+    - ITGA6
+    - BCAM
+    - POSTN
+    - COL4A1
+    - COL4A2
+    - LAMA3
+    Basal 2 (Secretory / Activated):
+    - MIF
+    - AREG
+    - EREG
+    - VEGFA
+    - IL1B
+    - CXCL8
+    - PTGES
+    - CCL2
+    - HBEGF
+    - TNFAIP3
+    Suprabasal / Spinous Differentiation:
+    - KRT1
+    - KRT10
+    - DSG1
+    - DSC1
+    - DMKN
+    - SBSN
+    - KRTDAP
+    - CALML5
+    - SPINK5
+    Granular / Cornified Layer:
+    - FLG
+    - FLG2
+    - LOR
+    - IVL
+    - TGM1
+    - TGM3
+    - LCE1A
+    - LCE2A
+    - LCE3D
+    - SPRR1A
+    - SPRR1B
+    - SPRR2A
+    Adherens Junction Complex:
+    - CDH1
+    - CTNNB1
+    - CTNNA1
+    - CTNND1
+    - JUP
+    - CDH2
+    - CTNNA2
+    - PLEKHA7
+    - PNN
+    Desmosome Architecture:
+    - DSP
+    - PKP1
+    - PKP3
+    - DSG1
+    - DSG3
+    - DSC1
+    - DSC3
+    - PPL
+    - EVPL
+    - PKP2
+    - JUP
+    Cycling Keratinocytes:
+    - MKI67
+    - TOP2A
+    - CCNB1
+    - CCNB2
+    - CDK1
+    - PCNA
+    - AURKA
+    - PLK1
