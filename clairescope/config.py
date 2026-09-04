@@ -24,9 +24,9 @@ def get_config_file_path(filename: str) -> str:
     default_path = os.path.join(DEFAULTS_DIR, filename)
     if os.path.exists(default_path):
         return default_path
-    legacy_path = os.path.join(CONFIG_DIR, filename)
-    if os.path.exists(legacy_path):
-        return legacy_path
+    fallback_root_path = os.path.join(CONFIG_DIR, filename)
+    if os.path.exists(fallback_root_path):
+        return fallback_root_path
     return default_path
 
 def load_yaml_config(file_path: str, default: Any = None) -> Any:
