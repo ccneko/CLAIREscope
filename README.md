@@ -1,11 +1,49 @@
-# 🔬 CLAIREscope: Cellular Landscape Analysis, Interpretation & Results Explorer
+# CLAIREscope (Cellular Landscape Analysis, Interpretation & Results Explorer)
 
-[![Release](https://img.shields.io/badge/Release-v1.0.0-crimson.svg)](https://github.com/ccneko/CLAIREscope/releases)
+[![PyPI Version](https://img.shields.io/badge/pypi-v1.0.0-blue.svg)](https://pypi.org/project/clairescope/)
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
 [![Documentation](https://img.shields.io/badge/Docs-ReadTheDocs-brightgreen.svg)](https://clairescope.readthedocs.io)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 An open-source, lightweight, and high-performance single-cell analysis platform built on **Python**, **Scanpy**, and **Streamlit**. CLAIREscope unifies end-to-end data preprocessing, live multi-project exploration, dynamic continuous trajectory kinetics modeling, on-the-fly differential expression (Volcano), hypergeometric pathway enrichment (ORA), and automated publication-grade packaging (300 DPI vector SVGs/PDFs and structured summary CSV matrices).
+
+---
+
+## 🚀 Quick Start
+
+### 1. Installation
+```bash
+# Clone the repository
+git clone https://github.com/ccneko/CLAIREscope.git
+cd CLAIREscope
+
+# Create virtual environment using uv (recommended)
+uv venv --python 3.12
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+uv pip install -r requirements.txt
+```
+
+### 2. Launch the Application
+
+#### Option A: Desktop Server Manager (Recommended)
+Launch the graphical server controller with one-click Start, Stop, and browser management:
+
+- **Windows (1-Click)**: Double-click `Server Manager.bat` (or `CLAIREscope Server Manager` desktop shortcut)
+- **Cross-Platform / CLI**:
+  ```bash
+  python launcher.py
+  # or after pip installation:
+  clairescope-gui
+  ```
+> **Features**: Instant status badges, customizable ports, WSL instance management, and auto-browser launch.
+
+#### Option B: Direct Streamlit CLI
+```bash
+streamlit run app.py
+```
+Open your browser and navigate to `http://localhost:8501`.
 
 ---
 
@@ -62,8 +100,6 @@ CLAIREscope provides an integrated suite of 11 high-performance analytical studi
 
 ---
 
----
-
 ## 💻 Hardware & System Requirements
 
 CLAIREscope is designed to be highly resource-efficient through dynamic on-demand memory management (`@st.cache_resource` and sparse CSR matrix support).
@@ -77,46 +113,6 @@ CLAIREscope is designed to be highly resource-efficient through dynamic on-deman
 | **Graphics (GPU)** | Not required (CPU accelerated via Scipy / Numpy) | Optional NVIDIA GPU (CUDA) for rapid UMAP/Harmony acceleration | NVIDIA RTX / A100 / V100 GPU |
 | **Python Environment**| Python $\ge 3.10$ ($\le 3.13$) | Python 3.11 or 3.12 managed via `uv` or `conda` | Python 3.11/3.12 with `uv` virtual environment |
 | **Web Browser** | Chrome, Firefox, Safari, Edge, Brave (HTML5 + WebSocket support) | Google Chrome, Mozilla Firefox, or Safari | Modern Chromium / WebKit engine |
-
----
-
----
-
-## 🚀 Quick Start
-
-### 1. Installation
-```bash
-# Clone the repository
-git clone https://github.com/ccneko/CLAIREscope.git
-cd CLAIREscope
-
-# Create virtual environment using uv (recommended)
-uv venv --python 3.12
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install dependencies
-uv pip install -r requirements.txt
-```
-
-### 2. Launch the Application
-
-#### Option A: Desktop Server Controller Window (Recommended)
-Launch the graphical server manager with one-click Start, Stop, Restart, and browser opening:
-
-- **Windows (1-Click)**: Double-click `CLAIREscope.bat`
-- **Cross-Platform / CLI**:
-  ```bash
-  python launcher.py
-  # or after pip installation:
-  clairescope-gui
-  ```
-> **Features**: Status indicators (🔴/🟢), customizable ports, LAN/Meshnet listener toggle, auto-browser launch, and an on-demand **Debug Mode** console toggle.
-
-#### Option B: Direct Streamlit CLI
-```bash
-streamlit run app.py
-```
-Open your browser and navigate to `http://localhost:8501`.
 
 ---
 
