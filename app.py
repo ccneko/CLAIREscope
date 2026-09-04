@@ -394,7 +394,10 @@ with st.sidebar:
     
     if st.session_state.get("selected_project_key") != selected_project_key:
         st.session_state["selected_project_key"] = selected_project_key
-        st.session_state.pop("selected_dataset_name", None)
+        # Cleanly purge stale project-specific widget states
+        for k in list(st.session_state.keys()):
+            if k not in ["selected_project_key", "page_navigation_mode", "project_picker_select"]:
+                st.session_state.pop(k, None)
         st.rerun()
 
 # Dynamic setup for active project
@@ -3006,7 +3009,7 @@ if app_mode == "Single Cell Analysis Viewer":
         if hm_selected_genes and hm_ordered_groups:
             gene_vars = [resolve_gene_var_name(adata, g, sym_to_display, display_to_var) for g in hm_selected_genes]
             gene_clean_names = [g.split(" (")[0] for g in hm_selected_genes]
-            valid_pairs = [(v, n) for v, n in zip(gene_vars, gene_clean_names) if v is not None]
+            valid_pairs = [(v, n) for v, n in zip(gene_vars, gene_clean_names) if v is not None and v in adata.var_names]
             
             if valid_pairs:
                 v_list = [p[0] for p in valid_pairs]
