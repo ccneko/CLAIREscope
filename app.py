@@ -158,22 +158,23 @@ def save_yaml(data):
     with open(YAML_PATH, "w", encoding="utf-8") as f:
         yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
 
-DATASET_CONFIG_PATH = os.path.join(APP_DIR, "dataset_config.yaml")
-
-# Helper to load dataset config
+# Helper to load dataset config (from config/user/ or defaults)
 def load_dataset_config():
-    if os.path.exists(DATASET_CONFIG_PATH):
+    ds_path = get_config_file_path("dataset_config.yaml")
+    if os.path.exists(ds_path):
         try:
-            with open(DATASET_CONFIG_PATH, "r", encoding="utf-8") as f:
+            with open(ds_path, "r", encoding="utf-8") as f:
                 cfg = yaml.safe_load(f)
                 return cfg if isinstance(cfg, dict) else {}
         except Exception:
             return {}
     return {}
 
-# Helper to save dataset config
+# Helper to save dataset config (persisted to config/user/)
 def save_dataset_config(cfg):
-    with open(DATASET_CONFIG_PATH, "w", encoding="utf-8") as f:
+    save_path = os.path.join(CONFIG_DIR, "user", "dataset_config.yaml")
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    with open(save_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(cfg, f, default_flow_style=False, sort_keys=False)
 
 # Scan folder dynamically for h5ad files
@@ -456,15 +457,15 @@ sample_col = get_sample_column(adata)
 # Determine dataset category
 yaml_key = "Fibroblasts" if "fibroblast" in selected_dataset_name.lower() or "fb" in selected_dataset_name.lower() else "Keratinocytes"
 
-# Canonical sample ordering
-canonical_samples = ["Control", "Rescued_1", "Rescued_2", "Mutant", "Control_P4", "Sample_Rescued_1", "Sample_Rescued_2", "Sample_Mutant", "Normal", "JEB", "Revertant"]
+# Canonical sample ordering from project config
+canonical_samples = curr_proj.get("canonical_samples", [])
 if sample_col and sample_col in adata.obs.columns:
     unique_in_data = adata.obs[sample_col].dropna().unique().tolist()
     ordered_samples = [s for s in canonical_samples if s in unique_in_data] + [s for s in unique_in_data if s not in canonical_samples]
 else:
     ordered_samples = []
 
-sample_color_map = {"Control": "#e74c3c", "Rescued_1": "#8e44ad", "Rescued_2": "#f1c40f", "Mutant": "#00a8ff", "Control_P4": "#e74c3c", "Sample_Rescued_1": "#8e44ad", "Sample_Rescued_2": "#f1c40f", "Sample_Mutant": "#00a8ff", "Normal": "#2ecc71", "JEB": "#e74c3c", "Revertant": "#3498db"}
+sample_color_map = dict(curr_proj.get("sample_colors", {}))
 for idx, s in enumerate(ordered_samples):
     if s not in sample_color_map:
         cmap = plt.get_cmap('tab10')

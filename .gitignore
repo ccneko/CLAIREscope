@@ -51,3 +51,6 @@ streamlit.log
 config/user/*
 !config/user/.gitkeep
 !config/user/README.md
+
+dataset_config.yaml
+*_cell_type_markers.yaml
