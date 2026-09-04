@@ -6,6 +6,7 @@ authors:
     given-names: Claire
     affiliation: "Department of Dermatology, Hokkaido University"
 version: 1.0.0
+doi: 10.5281/zenodo.22308479
 date-released: 2026-09-05
 url: "https://github.com/ccneko/CLAIREscope"
 repository-code: "https://github.com/ccneko/CLAIREscope"
