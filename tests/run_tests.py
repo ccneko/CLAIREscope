@@ -82,5 +82,11 @@ class TestSchema(unittest.TestCase):
         options, disp_to_var, sym_to_disp, var_to_disp = get_gene_display_mappings(var_df, list(var_df.index))
         self.assertIn("CDH1", sym_to_disp)
 
+
+class TestGUI(unittest.TestCase):
+    def test_gui_module_import(self):
+        from clairescope.gui import ServerControllerGUI, is_port_in_use
+        self.assertTrue(callable(is_port_in_use))
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

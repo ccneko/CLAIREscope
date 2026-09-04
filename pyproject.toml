@@ -34,6 +34,8 @@ dev = [
 
 [project.scripts]
 clairescope = "clairescope.cli:main"
+clairescope-gui = "clairescope.gui:main"
+
 
 [tool.setuptools.packages.find]
 where = ["."]
