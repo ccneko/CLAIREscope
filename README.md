@@ -99,6 +99,20 @@ uv pip install -r requirements.txt
 ```
 
 ### 2. Launch the Application
+
+#### Option A: Desktop Server Controller Window (Recommended)
+Launch the graphical server manager with one-click Start, Stop, Restart, and browser opening:
+
+- **Windows (1-Click)**: Double-click `CLAIREscope.bat`
+- **Cross-Platform / CLI**:
+  ```bash
+  python launcher.py
+  # or after pip installation:
+  clairescope-gui
+  ```
+> **Features**: Status indicators (🔴/🟢), customizable ports, LAN/Meshnet listener toggle, auto-browser launch, and an on-demand **Debug Mode** console toggle.
+
+#### Option B: Direct Streamlit CLI
 ```bash
 streamlit run app.py
 ```
