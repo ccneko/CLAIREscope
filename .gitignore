@@ -46,3 +46,8 @@ Thumbs.db
 # Logs & Streamlit server output
 *.log
 streamlit.log
+
+# User Custom Configurations (Never commit private lab configs)
+config/user/*
+!config/user/.gitkeep
+!config/user/README.md

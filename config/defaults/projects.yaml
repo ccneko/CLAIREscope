@@ -1,0 +1,59 @@
+DEMO_SKIN_ATLAS:
+  id: DEMO
+  name: Human Epidermal Single-Cell Demo Atlas
+  species: Human
+  description: Public demonstration single-cell RNA-seq reference of human epidermal
+    differentiation and homeostasis.
+  paths:
+    windows: data\demo_skin_atlas
+    wsl: /home/claire/dev/CLAIREscope/data/demo_skin_atlas
+    linux: data/demo_skin_atlas
+  scan_subdirs:
+  - data
+  - demo
+  default_dataset: demo_epidermis_h5ad
+  canonical_samples:
+  - Control_1
+  - Control_2
+  - Treated_1
+  - Treated_2
+  sample_colors:
+    Control_1: '#2563EB'
+    Control_2: '#38BDF8'
+    Treated_1: '#DC2626'
+    Treated_2: '#F97316'
+  default_pairs:
+  - - Treated_1
+    - Control_1
+  - - Treated_2
+    - Control_2
+  default_signatures:
+    Basal Anchoring & Adhesion:
+    - COL17A1
+    - ITGA6
+    - ITGB4
+    - DST
+    - LAMA3
+    - LAMB3
+    - LAMC2
+    - BCAM
+    Suprabasal Differentiation:
+    - KRT1
+    - KRT10
+    - DSG1
+    - DSC1
+    - DMKN
+    - SBSN
+    Terminal Cornification:
+    - FLG
+    - FLG2
+    - LOR
+    - IVL
+    - TGM1
+    Stress & Wound Activation:
+    - KRT6A
+    - KRT16
+    - KRT17
+    - ITGB6
+    - S100A8
+    - S100A9
