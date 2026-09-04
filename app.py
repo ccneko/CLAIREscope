@@ -61,11 +61,14 @@ def draggable_multiselect(label, options, default=None, key=None):
 # -------------------------------------------------------------
 from clairescope.config import (
     get_platform_path,
+    get_config_file_path,
     load_projects_config,
     load_settings_config,
     load_signatures_config,
     load_pathways_config,
     load_markers_config,
+    CONFIG_DIR,
+    USER_DIR,
 )
 from clairescope.stats.hypothesis import get_sig_label, format_sig_value, run_mann_whitney
 from clairescope.stats.correlation import compute_bivariate_correlation
