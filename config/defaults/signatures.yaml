@@ -1,17 +1,514 @@
-# Curated Gene Signatures & Biological Pathway Panels
 human:
-  "Adherens Junction Complex": ["CDH1", "CTNNB1", "CTNNA1", "CTNND1", "JUP"]
-  "Desmosomes": ["DSP", "PKP1", "PKP3", "DSG1", "DSG3", "DSC1", "DSC3", "PPL", "EVPL"]
-  "Hemidesmosome & Basement Membrane": ["COL17A1", "ITGB4", "ITGA6", "LAMA3", "LAMB3", "LAMC2", "DST"]
-  "Cell Cycle / Proliferation": ["MKI67", "TOP2A", "CCNB1", "CDK1", "PCNA"]
-  "G1/S Phase": ["CCNE1", "CCNE2", "CDK2", "E2F1", "PCNA", "MCM2", "MCM4", "MCM6"]
-  "G2/M Phase": ["CCNB1", "CCNB2", "CDK1", "TOP2A", "AURKA", "PLK1", "CENPE", "NUSAP1"]
-  "Epidermal Differentiation": ["KRT1", "KRT10", "FLG", "LOR", "IVL", "TGM1", "SPRR1A"]
-  "Basal Stemness": ["COL17A1", "ITGB4", "ITGA6", "TP63", "KRT14", "KRT5"]
-
+  Adherens Junction Complex:
+  - CDH1
+  - CTNNB1
+  - CTNNA1
+  - CTNND1
+  - JUP
+  Desmosome Architecture:
+  - DSP
+  - PKP1
+  - PKP3
+  - DSG1
+  - DSG3
+  - DSC1
+  - DSC3
+  - PPL
+  - EVPL
+  Hemidesmosome & Basement Membrane:
+  - COL17A1
+  - ITGB4
+  - ITGA6
+  - LAMA3
+  - LAMB3
+  - LAMC2
+  - DST
+  Tight Junctions & Paracellular Barrier:
+  - CLDN1
+  - CLDN4
+  - CLDN7
+  - TJP1
+  - TJP2
+  - OCLN
+  - F11R
+  Intercellular Channel Communication:
+  - GJB2
+  - GJB6
+  - ATP1B3
+  - ATP1A1
+  - ATP1B1
+  - ATP5F1B
+  - FXYD3
+  Basal Stem & Progenitor:
+  - KRT5
+  - KRT14
+  - COL17A1
+  - ITGA6
+  - ITGB4
+  - DST
+  - TP63
+  - BCAM
+  Suprabasal / Spinous Differentiation:
+  - KRT1
+  - KRT10
+  - DSG1
+  - DSC1
+  - SBSN
+  - DMKN
+  - CALML5
+  - KRTDAP
+  - SPINK5
+  Granular & Cornified Envelope Barrier:
+  - FLG
+  - FLG2
+  - LOR
+  - IVL
+  - LCE1A
+  - LCE2A
+  - LCE3D
+  - TGM1
+  - TGM3
+  - ALOX12B
+  - ALOXE3
+  Hair Follicle Bulge Stem Cell Niche:
+  - CD34
+  - LGR5
+  - POSTN
+  - KRT15
+  - KRT24
+  - SOX9
+  - LHX2
+  - NFATC1
+  - GLI1
+  Hair Follicle Inner Bulge & Quiescence:
+  - KRT6A
+  - KRT75
+  - FGF18
+  - TIMP3
+  Upper Follicle & Infundibulum:
+  - KRT79
+  - KRT17
+  - LRIG1
+  - SOSTDC1
+  - FST
+  - AQP3
+  - THBS1
+  Hair Follicle Wnt Inhibition (WNTI):
+  - SFRP1
+  - FRZB
+  - DKK3
+  - WIF1
+  - PHLDA1
+  - DIO2
+  - DPYSL2
+  - DCN
+  Sebaceous Gland & Lipogenesis:
+  - MGST1
+  - SCD
+  - SCD5
+  - APOE
+  - FADS2
+  - FAR2
+  - RBP1
+  - TKT
+  Wound Healing & Keratinocyte Activation:
+  - KRT6A
+  - KRT6B
+  - KRT16
+  - KRT17
+  - ITGB6
+  - SPRR1B
+  - AREG
+  - HBEGF
+  - SERPINB3
+  - PLAU
+  Wound ECM Remodeling & Fibrogenesis:
+  - FN1
+  - TNC
+  - COL1A1
+  - COL3A1
+  - COL5A1
+  - MMP1
+  - MMP3
+  - MMP9
+  - TGFB1
+  - CCN2
+  Angiogenesis & Endothelial Sprouting:
+  - VEGFA
+  - VEGFB
+  - KDR
+  - FLT1
+  - ANGPT2
+  - THBS1
+  - ENG
+  Antimicrobial Peptides & Host Defense:
+  - DEFB1
+  - DEFB4A
+  - DEFB103A
+  - S100A7
+  - S100A8
+  - S100A9
+  - CAMP
+  - LCN2
+  - PI3
+  Epidermal Inflammatory Activation:
+  - S100A7
+  - S100A8
+  - S100A9
+  - S100A12
+  - IFI27
+  - CXCL8
+  - CXCL1
+  - CCL20
+  - IL36G
+  - KRT16
+  - PI3
+  Langerhans & Dendritic Cell Antigen Presentation:
+  - CD207
+  - CD1A
+  - CD1C
+  - CLEC10A
+  - HLA-DRA
+  - HLA-DRB1
+  - ITGAX
+  Skin-Resident T Cell Activation:
+  - CD3D
+  - CD3E
+  - CD3G
+  - CD4
+  - CD8A
+  - CD69
+  - ITGAE
+  - GZMA
+  - GZMB
+  - IFNG
+  Melanogenesis & Melanosome Transfer:
+  - MITF
+  - PMEL
+  - TYRP1
+  - TYR
+  - MLANA
+  - DCT
+  - MC1R
+  Wnt / Beta-Catenin Signaling:
+  - WNT10A
+  - WNT5A
+  - LEF1
+  - TCF7L2
+  - AXIN2
+  - LRP5
+  - LRP6
+  - CTNNB1
+  Notch Signaling & Stratification:
+  - NOTCH1
+  - NOTCH2
+  - NOTCH3
+  - JAG1
+  - JAG2
+  - DLL1
+  - HES1
+  - HEY1
+  TGF-Beta & BMP Signaling:
+  - TGFB1
+  - TGFB2
+  - TGFBR1
+  - TGFBR2
+  - BMP2
+  - BMP4
+  - BMP6
+  - BMPR1A
+  - SMAD2
+  - SMAD3
+  - SMAD4
+  - ID1
+  - ID2
+  Sonic Hedgehog (Shh) Signaling:
+  - SHH
+  - IHH
+  - PTCH1
+  - SMO
+  - GLI1
+  - GLI2
+  - GLI3
+  Cell Cycle / Proliferation:
+  - MKI67
+  - TOP2A
+  - CCNB1
+  - CDK1
+  - PCNA
+  G1/S Phase Transition:
+  - CCNE1
+  - CCNE2
+  - CDK2
+  - E2F1
+  - PCNA
+  - MCM2
+  - MCM4
+  - MCM6
+  G2/M Phase Transition:
+  - CCNB1
+  - CCNB2
+  - CDK1
+  - TOP2A
+  - AURKA
+  - PLK1
+  - CENPE
+  - NUSAP1
 mouse:
-  "Adherens Junction Complex": ["Cdh1", "Ctnnb1", "Ctnna1", "Ctnnd1", "Dsp", "Jup", "Ppl", "Evpl", "Pkp1", "Pkp3", "Cdh2", "Ctnna2"]
-  "Desmosomes": ["Dsp", "Pkp1", "Pkp3", "Dsg1a", "Dsg3", "Dsc1", "Dsc3", "Ppl", "Evpl"]
-  "Hemidesmosome & Basement Membrane": ["Col17a1", "Itgb4", "Itga6", "Lama3", "Lamb3", "Lamc2", "Dst"]
-  "Cell Cycle / Proliferation": ["Mki67", "Top2a", "Ccnb1", "Cdk1", "Pcna"]
-  "Wound Activation": ["Krt6a", "Krt16", "Krt17", "Itgb6", "Sprr1b"]
+  Adherens Junction Complex:
+  - Cdh1
+  - Ctnnb1
+  - Ctnna1
+  - Ctnnd1
+  - Dsp
+  - Jup
+  - Ppl
+  - Evpl
+  - Pkp1
+  - Pkp3
+  - Cdh2
+  - Ctnna2
+  Desmosome Architecture:
+  - Dsp
+  - Pkp1
+  - Pkp3
+  - Dsg1a
+  - Dsg3
+  - Dsc1
+  - Dsc3
+  - Ppl
+  - Evpl
+  Hemidesmosome & Basement Membrane:
+  - Col17a1
+  - Itgb4
+  - Itga6
+  - Lama3
+  - Lamb3
+  - Lamc2
+  - Dst
+  Tight Junctions & Paracellular Barrier:
+  - Cldn1
+  - Cldn4
+  - Cldn7
+  - Tjp1
+  - Tjp2
+  - Ocln
+  - F11r
+  Intercellular Channel Communication:
+  - Gjb2
+  - Gjb6
+  - Atp1b3
+  - Atp1a1
+  - Atp1b1
+  - Atp5f1b
+  - Fxyd3
+  Basal Stem & Progenitor:
+  - Krt5
+  - Krt14
+  - Col17a1
+  - Itga6
+  - Itgb4
+  - Dst
+  - Trp63
+  - Bcam
+  Suprabasal / Spinous Differentiation:
+  - Krt1
+  - Krt10
+  - Dsg1a
+  - Dsc1
+  - Sbsn
+  - Dmkn
+  - Calml5
+  - Krtdap
+  - Spink5
+  Granular & Cornified Envelope Barrier:
+  - Flg
+  - Flg2
+  - Lor
+  - Ivl
+  - Lce1a1
+  - Lce1b
+  - Tgm1
+  - Tgm3
+  - Alox12b
+  - Aloxe3
+  Hair Follicle Bulge Stem Cell Niche:
+  - Cd34
+  - Lgr5
+  - Postn
+  - Krt15
+  - Krt24
+  - Sox9
+  - Lhx2
+  - Nfatc1
+  - Gli1
+  Hair Follicle Inner Bulge & Quiescence:
+  - Krt6a
+  - Krt75
+  - Fgf18
+  - Timp3
+  Upper Follicle & Infundibulum:
+  - Krt79
+  - Krt17
+  - Lrig1
+  - Sostdc1
+  - Fst
+  - Aqp3
+  - Thbs1
+  Hair Follicle Wnt Inhibition (WNTI):
+  - Sfrp1
+  - Frzb
+  - Dkk3
+  - Wif1
+  - Phlda1
+  - Dio2
+  - Dpysl2
+  - Dcn
+  Sebaceous Gland & Lipogenesis:
+  - Mgst1
+  - Scd1
+  - Scd2
+  - Apoe
+  - Fads2
+  - Far2
+  - Rbp1
+  - Tkt
+  Wound Healing & Keratinocyte Activation:
+  - Krt6a
+  - Krt6b
+  - Krt16
+  - Krt17
+  - Itgb6
+  - Sprr1b
+  - Areg
+  - Hbegf
+  - Serpinb3a
+  - Plau
+  Wound ECM Remodeling & Fibrogenesis:
+  - Fn1
+  - Tnc
+  - Col1a1
+  - Col3a1
+  - Col5a1
+  - Mmp1a
+  - Mmp3
+  - Mmp9
+  - Tgfb1
+  - Ccn2
+  Angiogenesis & Endothelial Sprouting:
+  - Vegfa
+  - Vegfb
+  - Kdr
+  - Flt1
+  - Angpt2
+  - Thbs1
+  - Eng
+  Antimicrobial Peptides & Host Defense:
+  - Defb1
+  - Defb4
+  - Defb14
+  - S100a7a
+  - S100a8
+  - S100a9
+  - Camp
+  - Lcn2
+  - Pi3
+  Epidermal Inflammatory Activation:
+  - S100a8
+  - S100a9
+  - Ifi27
+  - Cxcl1
+  - Cxcl2
+  - Ccl20
+  - Il36g
+  - Krt16
+  Langerhans & Dendritic Cell Antigen Presentation:
+  - Cd207
+  - Cd1d1
+  - Clec10a
+  - H2-Aa
+  - H2-Ab1
+  - Itgax
+  Skin-Resident T Cell Activation:
+  - Cd3d
+  - Cd3e
+  - Cd3g
+  - Cd4
+  - Cd8a
+  - Cd69
+  - Itgae
+  - Gzma
+  - Gzmb
+  - Ifng
+  Melanogenesis & Melanosome Transfer:
+  - Mitf
+  - Pmel
+  - Tyrp1
+  - Tyr
+  - Mlana
+  - Dct
+  - Mc1r
+  Wnt / Beta-Catenin Signaling:
+  - Wnt10a
+  - Wnt5a
+  - Lef1
+  - Tcf7l2
+  - Axin2
+  - Lrp5
+  - Lrp6
+  - Ctnnb1
+  Notch Signaling & Stratification:
+  - Notch1
+  - Notch2
+  - Notch3
+  - Jag1
+  - Jag2
+  - Dll1
+  - Hes1
+  - Hey1
+  TGF-Beta & BMP Signaling:
+  - Tgfb1
+  - Tgfb2
+  - Tgfbr1
+  - Tgfbr2
+  - Bmp2
+  - Bmp4
+  - Bmp6
+  - Bmpr1a
+  - Smad2
+  - Smad3
+  - Smad4
+  - Id1
+  - Id2
+  Sonic Hedgehog (Shh) Signaling:
+  - Shh
+  - Ihh
+  - Ptch1
+  - Smo
+  - Gli1
+  - Gli2
+  - Gli3
+  Cell Cycle / Proliferation:
+  - Mki67
+  - Top2a
+  - Ccnb1
+  - Cdk1
+  - Pcna
+  G1/S Phase Transition:
+  - Ccne1
+  - Ccne2
+  - Cdk2
+  - E2f1
+  - Pcna
+  - Mcm2
+  - Mcm4
+  - Mcm6
+  G2/M Phase Transition:
+  - Ccnb1
+  - Ccnb2
+  - Cdk1
+  - Top2a
+  - Aurka
+  - Plk1
+  - Cenpe
+  - Nusap1
