@@ -8,12 +8,12 @@
 CLAIREscope is an open-source platform for interactive, reproducible single-cell transcriptomics analysis, integrating exploratory visualization with statistical testing, trajectory modeling, differential expression, and pathway-level interpretation in a unified workflow. Built on Scanpy with a lightweight Python/Streamlit architecture, CLAIREscope enables researchers to iteratively explore complex cellular landscapes, refine analytical parameters in real time, and translate finalized analyses directly into publication-ready figures and structured statistical outputs.
 
 ## ✨ Highlights
-- **Interactive analysis beyond visualization** — perform statistical testing, signature scoring, correlation analysis, differential expression, trajectory modeling, and pathway enrichment directly within the exploratory workflow.
-- **Real-time analytical refinement** — interactively adjust cohorts, genes, comparisons, thresholds, and model parameters with immediate visual and statistical feedback.
-- **Cross-sample and cross-condition exploration** — examine cellular composition, expression programs, and state transitions across complex experimental designs.
-- **Continuous trajectory analysis** — model gene and signature dynamics along pseudotemporal trajectories using polynomial and spline-based approaches.
-- **Publication-ready output pipeline** — refine analyses interactively, then batch-export vector SVG/PDF, 300-DPI raster figures, and structured statistical CSV matrices.
-- **Reproducible by design** — reusable configurations, standardized outputs, and provenance-aware packaging support traceable analytical workflows.
+* **Interactive analysis beyond visualization** — perform statistical testing, signature scoring, correlation analysis, differential expression, trajectory modeling, and pathway enrichment directly within the exploratory workflow.
+* **Real-time analytical refinement** — interactively adjust cohorts, genes, comparisons, thresholds, and model parameters with immediate visual and statistical feedback.
+* **Cross-sample and cross-condition exploration** — examine cellular composition, expression programs, and state transitions across complex experimental designs.
+* **Continuous trajectory analysis** — model gene and signature dynamics along pseudotemporal trajectories using polynomial and spline-based approaches.
+* **Publication-ready output pipeline** — refine analyses interactively, then batch-export vector SVG/PDF, 300-DPI raster figures, and structured statistical CSV matrices.
+* **Reproducible by design** — reusable configurations, standardized outputs, and provenance-aware packaging support traceable analytical workflows.
 
 ---
 
@@ -87,7 +87,7 @@ CLAIREscope provides an integrated suite of 11 high-performance analytical studi
 
 7. **🌿 Trajectory Kinetics & Spline Modeling (Tab 7)**:
    * **Continuous Diffusion Pseudotime ($DPT$) Splines**: Third-order polynomial and B-spline regression curves along continuous developmental trajectories.
-   * **State Transition Tracking**: Quantifies stem cell pool maintenance (Basal 1: $DPT < 0.15$), premature state transition dynamics, and phenotypic rescue dynamics.
+   * **State Transition Tracking**: Quantifies dynamic changes in user-defined cell states, populations, and gene/signature activity along continuous trajectories.
 
 8. **🌋 Differential Expression & Volcano Studio (Tab 8)**:
    * **Bidirectional Wilcoxon DEG**: Fast computation of $\log_2(\text{Fold Change})$ and Benjamini-Hochberg FDR-adjusted $p$-values between any two cohorts.
