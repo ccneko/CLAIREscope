@@ -109,9 +109,23 @@ Open your browser and navigate to `http://localhost:8501`.
 ## 📖 Documentation & Tutorials
 For complete guides, configuration file specifications, and remote deployment protocols (NordVPN Meshnet, Cloudflare Tunnels), visit our [ReadTheDocs Manual](https://clairescope.readthedocs.io).
 
-## 📄 Citation
-If you use CLAIREscope in your research, please cite our manuscript:
-> **Chung C., et al.** (2026). *CLAIREscope: An Interactive, Lightweight Single-Cell Analysis Platform for Multi-Project Exploration, Dynamic Trajectory Kinetics, and Automated Publication Reporting.* (In Preparation).
+## 📖 Citation
+
+If you use CLAIREscope in your research, please cite:
+
+> Chung, C. (2026). *CLAIREscope: Cellular Landscape Analysis, Interpretation & Results Explorer for Single-Cell & Spatial Transcriptomics*. Department of Dermatology, Hokkaido University. https://github.com/ccneko/CLAIREscope
+
+```bibtex
+@software{chung2026clairescope,
+  author = {Chung, Claire},
+  title = {CLAIREscope: Cellular Landscape Analysis, Interpretation \& Results Explorer for Single-Cell \& Spatial Transcriptomics},
+  year = {2026},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/ccneko/CLAIREscope}},
+  institution = {Department of Dermatology, Hokkaido University}
+}
+```
 
 ## 📜 License
 CLAIREscope is open-source software released under the [MIT License](LICENSE).
