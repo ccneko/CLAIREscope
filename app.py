@@ -1164,7 +1164,7 @@ if app_mode == "Single Cell Analysis Viewer":
                     )
                 with col_f2:
                     if selected_col and all_categories:
-                        selected_cats = st.multiselect(
+                        selected_cats = draggable_multiselect(
                             f"Filter / Highlight {selected_col}:",
                             options=all_categories,
                             default=all_categories,
