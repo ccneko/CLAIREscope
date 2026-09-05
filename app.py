@@ -1980,8 +1980,21 @@ if app_mode == "Single Cell Analysis Viewer":
             @st.cache_data
             def compute_score(_adata, gene_list, score_label, dataset_tag):
                 adata_temp = _adata.copy()
-                sc.tl.score_genes(adata_temp, gene_list=gene_list, score_name=score_label)
-                return adata_temp.obs[score_label].values
+                valid_genes = [g for g in gene_list if g in adata_temp.var_names]
+                if not valid_genes:
+                    return np.zeros(adata_temp.n_obs, dtype=float)
+                try:
+                    sc.tl.score_genes(adata_temp, gene_list=valid_genes, score_name=score_label, use_raw=False)
+                    return adata_temp.obs[score_label].values
+                except Exception:
+                    try:
+                        indices = [adata_temp.var_names.get_loc(g) for g in valid_genes]
+                        mat = adata_temp.X[:, indices]
+                        if hasattr(mat, 'toarray'):
+                            mat = mat.toarray()
+                        return np.asarray(mat.mean(axis=1)).flatten()
+                    except Exception:
+                        return np.zeros(adata_temp.n_obs, dtype=float)
                 
             score_col_name = f"sig_score_{selected_sig_name.lower().replace(' ', '_')[:20]}"
             score_values = compute_score(adata, resolved_sig_var_keys, score_col_name, selected_dataset_name)
