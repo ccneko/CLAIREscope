@@ -1,6 +1,8 @@
 import os
 import sys
 import unittest
+import tempfile
+import shutil
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -12,6 +14,9 @@ from clairescope.config import (
     load_markers_config,
     load_css_styles,
     get_config_file_path,
+    save_user_project_config,
+    get_next_new_project_name,
+    scan_project_datasets,
 )
 from clairescope.stats.hypothesis import run_mann_whitney, get_sig_label, format_sig_value
 from clairescope.stats.correlation import compute_bivariate_correlation
@@ -29,6 +34,35 @@ class TestConfig(unittest.TestCase):
         projects = load_projects_config()
         self.assertIsInstance(projects, dict)
         self.assertTrue(len(projects) > 0)
+
+    def test_get_next_new_project_name(self):
+        dummy_projects = {
+            "PROJ_1": {"name": "New Project 1"},
+            "PROJ_2": {"name": "New Project 2"},
+        }
+        next_name, next_key = get_next_new_project_name(dummy_projects)
+        self.assertEqual(next_name, "New Project 3")
+        self.assertEqual(next_key, "PROJ_NEW_003")
+
+    def test_scan_project_datasets(self):
+        temp_dir = tempfile.mkdtemp()
+        try:
+            root_h5ad = os.path.join(temp_dir, "dataset_root.h5ad")
+            with open(root_h5ad, "w") as f:
+                f.write("mock")
+                
+            sub_dir = os.path.join(temp_dir, "out", "2026-09-05_test")
+            os.makedirs(sub_dir, exist_ok=True)
+            sub_h5ad = os.path.join(sub_dir, "dataset_sub.h5ad")
+            with open(sub_h5ad, "w") as f:
+                f.write("mock")
+
+            active, all_ds = scan_project_datasets(temp_dir, scan_subdirs=["out/2026-09-05_test"])
+            self.assertEqual(len(all_ds), 2)
+            self.assertTrue(any("dataset_root" in k for k in all_ds.keys()))
+            self.assertTrue(any("dataset_sub" in k for k in all_ds.keys()))
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
     def test_load_settings_config(self):
         settings = load_settings_config()
@@ -81,7 +115,6 @@ class TestSchema(unittest.TestCase):
         var_df = pd.DataFrame({"gene_name": ["CDH1"]}, index=["CDH1_idx"])
         options, disp_to_var, sym_to_disp, var_to_disp = get_gene_display_mappings(var_df, list(var_df.index))
         self.assertIn("CDH1", sym_to_disp)
-
 
 class TestGUI(unittest.TestCase):
     def test_gui_module_import(self):

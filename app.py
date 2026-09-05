@@ -63,6 +63,9 @@ from clairescope.config import (
     get_platform_path,
     get_config_file_path,
     load_projects_config,
+    save_user_project_config,
+    get_next_new_project_name,
+    scan_project_datasets,
     load_settings_config,
     load_signatures_config,
     load_pathways_config,
@@ -182,24 +185,9 @@ def save_dataset_config(cfg):
 
 # Scan folder dynamically for h5ad files
 def scan_datasets(data_dir):
-    active_datasets = {}
-    all_datasets = {}
-    target_dirs = SCAN_DIRS if 'SCAN_DIRS' in globals() else [data_dir]
-    cfg = load_dataset_config()
-    hidden_list = cfg.get("hidden_datasets", [])
-    
-    for d in target_dirs:
-        if not os.path.exists(d):
-            continue
-        for filename in sorted(os.listdir(d)):
-            if filename.endswith(".h5ad") and not filename.startswith("."):
-                filepath = os.path.join(d, filename)
-                folder_tag = os.path.basename(d)
-                ds_name = f"{filename[:-5]} ({folder_tag})"
-                all_datasets[ds_name] = filepath
-                if ds_name not in hidden_list:
-                    active_datasets[ds_name] = filepath
-    return active_datasets, all_datasets
+    proj_base = PROJ_BASE if 'PROJ_BASE' in globals() else data_dir
+    scan_subs = scan_subdirs if 'scan_subdirs' in globals() else None
+    return scan_project_datasets(proj_base, scan_subs)
 
 
 # -------------------------------------------------------------
@@ -380,15 +368,16 @@ with st.sidebar:
     # Project selection dropdown below page switcher
     st.markdown("### 📂 Project Selection")
     project_keys = list(PROJECT_REGISTRY.keys())
+    project_options = project_keys + ["__NEW_PROJECT__"]
     curr_proj_idx = 0
-    if "selected_project_key" in st.session_state and st.session_state["selected_project_key"] in project_keys:
-        curr_proj_idx = project_keys.index(st.session_state["selected_project_key"])
+    if "selected_project_key" in st.session_state and st.session_state["selected_project_key"] in project_options:
+        curr_proj_idx = project_options.index(st.session_state["selected_project_key"])
         
     selected_project_key = st.selectbox(
         "Active Project:",
-        options=project_keys,
+        options=project_options,
         index=curr_proj_idx,
-        format_func=lambda k: PROJECT_REGISTRY[k]["name"],
+        format_func=lambda k: "➕ New Project..." if k == "__NEW_PROJECT__" else PROJECT_REGISTRY[k]["name"],
         key="project_picker_select"
     )
     
@@ -399,6 +388,108 @@ with st.sidebar:
             if k not in ["selected_project_key", "page_navigation_mode", "project_picker_select"]:
                 st.session_state.pop(k, None)
         st.rerun()
+
+# ----------------- NEW PROJECT CREATION VIEW -----------------
+if selected_project_key == "__NEW_PROJECT__":
+    st.title("📂 Create New Project & Ingest Dataset")
+    st.markdown("Upload a single-cell dataset (`.h5ad`, `.h5`, `.rds`, `.loom`) or specify an existing file on disk to initialize a new project workspace.")
+    
+    default_proj_name, default_proj_key = get_next_new_project_name(PROJECT_REGISTRY)
+    
+    col_left, col_right = st.columns([1.1, 1], gap="large")
+    
+    with col_left:
+        st.markdown("#### 1. Ingest Data File")
+        uploaded_file = st.file_uploader(
+            "Upload or drag & drop single-cell dataset:",
+            type=["h5ad", "h5", "rds", "loom"],
+            help="Drag & drop or browse for an AnnData (.h5ad) or single-cell matrix file."
+        )
+        
+        local_file_path = st.text_input(
+            "Or specify local file path on disk (optional):",
+            placeholder=r"e.g. G:\マイドライブ\Academic\Derma Lab\Data\MyProjectdata.h5ad",
+            help="Full absolute path to an existing .h5ad dataset on your local drive or Google Drive.",
+            key="new_proj_local_file_input"
+        )
+        
+        # Determine auto root folder suggestion
+        suggested_root = ""
+        if local_file_path and os.path.exists(local_file_path):
+            suggested_root = os.path.dirname(os.path.abspath(local_file_path))
+        elif uploaded_file is not None:
+            if os.name == 'nt' and os.path.exists(r"G:\マイドライブ\Academic\Derma Lab\Data"):
+                suggested_root = os.path.join(r"G:\マイドライブ\Academic\Derma Lab\Data", default_proj_name.replace(" ", "_"))
+            elif os.path.exists("/mnt/g/マイドライブ/Academic/Derma Lab/Data"):
+                suggested_root = os.path.join("/mnt/g/マイドライブ/Academic/Derma Lab/Data", default_proj_name.replace(" ", "_"))
+            else:
+                suggested_root = os.path.expanduser(f"~/CLAIREscope_data/{default_proj_name.replace(' ', '_')}")
+        else:
+            if os.name == 'nt' and os.path.exists(r"G:\マイドライブ\Academic\Derma Lab\Data"):
+                suggested_root = os.path.join(r"G:\マイドライブ\Academic\Derma Lab\Data", default_proj_name.replace(" ", "_"))
+            elif os.path.exists("/mnt/g/マイドライブ/Academic/Derma Lab/Data"):
+                suggested_root = os.path.join("/mnt/g/マイドライブ/Academic/Derma Lab/Data", default_proj_name.replace(" ", "_"))
+            else:
+                suggested_root = os.path.expanduser(f"~/CLAIREscope_data/{default_proj_name.replace(' ', '_')}")
+
+    with col_right:
+        st.markdown("#### 2. Project Metadata & Root Folder")
+        proj_name = st.text_input("Project Name:", value=default_proj_name, help="Display title for the new project in navigation menu.")
+        proj_id = st.text_input("Project ID / Code:", value=default_proj_key, help="Unique alphanumeric identifier key for the project.")
+        proj_desc = st.text_area("Description (Optional):", value="Single-cell transcriptomics dataset analysis workspace.", help="Brief project overview or biological context.")
+        root_folder = st.text_input("Root Folder Path:", value=suggested_root, help="Parent directory where project datasets and outputs reside.")
+        species = st.selectbox("Species:", ["Human", "Mouse", "Other"], index=0)
+
+    st.markdown("---")
+    c_btn, _ = st.columns([1, 2])
+    with c_btn:
+        start_btn = st.button("🚀 Start Analysis & Save Project", type="primary", use_container_width=True)
+
+    if start_btn:
+        if not proj_name.strip():
+            st.error("Please enter a valid Project Name.")
+            st.stop()
+            
+        if not root_folder.strip():
+            st.error("Please specify a valid Root Folder path.")
+            st.stop()
+            
+        os.makedirs(root_folder, exist_ok=True)
+        final_file_path = None
+        
+        if uploaded_file is not None:
+            final_file_path = os.path.join(root_folder, uploaded_file.name)
+            with st.spinner(f"Saving uploaded file to `{final_file_path}`..."):
+                with open(final_file_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+        elif local_file_path and os.path.exists(local_file_path):
+            final_file_path = local_file_path
+        else:
+            st.warning("Please upload a data file or specify an existing file path to start analysis.")
+            st.stop()
+
+        # Build project definition
+        new_proj_entry = {
+            "id": proj_id.strip() if proj_id.strip() else default_proj_key,
+            "name": proj_name.strip(),
+            "desc": proj_desc.strip(),
+            "species": species,
+            "win_base": root_folder,
+            "wsl_base": root_folder,
+            "scan_subdirs": [".", "out", "data"],
+            "default_preload": os.path.basename(final_file_path),
+            "canonical_samples": [],
+            "sample_colors": {},
+            "default_signatures": GLOBAL_SIGNATURES.get(species.lower(), {})
+        }
+        
+        save_user_project_config(proj_id.strip(), new_proj_entry)
+        PROJECT_REGISTRY[proj_id.strip()] = new_proj_entry
+        st.session_state["selected_project_key"] = proj_id.strip()
+        st.success(f"🎉 Project '{proj_name}' created and saved! Launching analysis...")
+        st.rerun()
+        
+    st.stop()
 
 # Dynamic setup for active project
 curr_proj = PROJECT_REGISTRY[selected_project_key]
@@ -411,10 +502,6 @@ else:
 
 PROJ_BASE = get_platform_path(win_p, wsl_p)
 scan_subdirs = curr_proj.get("scan_subdirs", ["."])
-SCAN_DIRS = [os.path.abspath(os.path.join(PROJ_BASE, sub)) for sub in scan_subdirs]
-if not any(os.path.exists(d) for d in SCAN_DIRS):
-    SCAN_DIRS = [PROJ_BASE]
-DATA_DIR = SCAN_DIRS[0]
 
 canonical_samples = curr_proj.get("canonical_samples", [])
 sample_color_map = dict(curr_proj.get("sample_colors", {}))
@@ -426,8 +513,8 @@ if not os.path.exists(YAML_PATH):
     YAML_PATH = os.path.join(APP_DIR, "cell_type_markers.yaml")
 
 
-# Dynamic Dataset Picker
-active_datasets, all_detected_datasets = scan_datasets(DATA_DIR)
+# Dynamic Dataset Picker from Project Root & Subdirectories
+active_datasets, all_detected_datasets = scan_project_datasets(PROJ_BASE, scan_subdirs)
 if "custom_pipeline_adata" in st.session_state and st.session_state["custom_pipeline_adata"] is not None:
     active_datasets = {"✨ Processed Pipeline Dataset (In-Memory)": None, **active_datasets}
 if not active_datasets:
@@ -435,13 +522,23 @@ if not active_datasets:
         st.sidebar.warning("All datasets are currently marked hidden in Dataset Settings.")
         active_datasets = all_detected_datasets
     else:
-        st.error("No `.h5ad` files found in specified directories.")
+        st.error(f"No `.h5ad` files found in project root path `{PROJ_BASE}` or its subdirectories.")
         st.stop()
 
 cfg = load_dataset_config()
 default_ds_name = cfg.get("default_dataset", None)
+default_preload = curr_proj.get("default_preload", None)
 active_keys = list(active_datasets.keys())
-default_ds_idx = active_keys.index(default_ds_name) if default_ds_name in active_keys else 0
+
+default_ds_idx = 0
+if default_ds_name in active_keys:
+    default_ds_idx = active_keys.index(default_ds_name)
+elif default_preload:
+    for idx, k in enumerate(active_keys):
+        p = active_datasets[k]
+        if p and (os.path.basename(p) == default_preload or default_preload in k):
+            default_ds_idx = idx
+            break
 
 selected_dataset_name = st.sidebar.selectbox("Select Dataset:", active_keys, index=default_ds_idx)
 h5ad_path = active_datasets[selected_dataset_name]
