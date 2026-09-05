@@ -1124,6 +1124,24 @@ if app_mode == "Single Cell Analysis Viewer":
             else:
                 all_categories = []
             
+            # Auto-switch to "Highlight selected" when filtering a subset of cell states/samples while in "Color all cells"
+            curr_cats_state = st.session_state.get("plotly_filter_categories", None)
+            curr_samps_state = st.session_state.get("plotly_filter_samples", None)
+            
+            is_cat_subset = bool(curr_cats_state is not None and all_categories and 0 < len(curr_cats_state) < len(all_categories))
+            is_samp_subset = bool(curr_samps_state is not None and all_samples and 0 < len(curr_samps_state) < len(all_samples))
+            
+            current_filter_tuple = (
+                tuple(sorted(curr_cats_state)) if curr_cats_state is not None else None,
+                tuple(sorted(curr_samps_state)) if curr_samps_state is not None else None
+            )
+            prev_filter_tuple = st.session_state.get("_prev_plotly_filter_tuple", None)
+            
+            if (is_cat_subset or is_samp_subset) and current_filter_tuple != prev_filter_tuple:
+                if st.session_state.get("plotly_view_mode") == "Color all cells":
+                    st.session_state["plotly_view_mode"] = "Highlight selected (dim unselected in grey)"
+            st.session_state["_prev_plotly_filter_tuple"] = current_filter_tuple
+            
             with st.expander("Filter & Highlight Controls", expanded=True):
                 c_mode, c_size = st.columns([2, 1])
                 with c_mode:
