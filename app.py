@@ -2903,14 +2903,27 @@ if app_mode == "Single Cell Analysis Viewer":
                     plt.close(fig_dyn)
             
             # 3. Precomputed Pipeline Trajectory Figures Gallery
-            data_folder = os.path.dirname(h5ad_path)
-            traj_pngs = [f for f in sorted(os.listdir(data_folder)) if f.endswith('.png') and any(k in f.lower() for k in ['trajectory', 'pseudotime', 'paga'])] if os.path.exists(data_folder) else []
-            
-            # Also check scan dirs for precomputed trajectory pngs
-            for d in SCAN_DIRS:
-                if os.path.exists(d) and d != data_folder:
-                    extra_pngs = [os.path.join(d, f) for f in os.listdir(d) if f.endswith('.png') and any(k in f.lower() for k in ['trajectory', 'pseudotime', 'paga'])]
-                    traj_pngs.extend(extra_pngs)
+            data_folder = os.path.dirname(h5ad_path) if h5ad_path else PROJ_BASE
+            candidate_fig_dirs = [data_folder]
+            if 'scan_subdirs' in globals() and scan_subdirs:
+                for sub in scan_subdirs:
+                    p = os.path.abspath(os.path.join(PROJ_BASE, sub))
+                    if p not in candidate_fig_dirs and os.path.exists(p):
+                        candidate_fig_dirs.append(p)
+            if PROJ_BASE not in candidate_fig_dirs and os.path.exists(PROJ_BASE):
+                candidate_fig_dirs.append(PROJ_BASE)
+
+            traj_pngs = []
+            for d in candidate_fig_dirs:
+                if os.path.exists(d):
+                    try:
+                        for f in sorted(os.listdir(d)):
+                            if f.endswith('.png') and any(k in f.lower() for k in ['trajectory', 'pseudotime', 'paga']):
+                                f_path = os.path.join(d, f) if d != data_folder else f
+                                if f_path not in traj_pngs:
+                                    traj_pngs.append(f_path)
+                    except Exception:
+                        pass
                     
             if traj_pngs:
                 st.markdown("---")
