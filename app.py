@@ -875,6 +875,71 @@ if app_mode == "Single Cell Analysis Viewer":
         plt.tight_layout()
         return fig
 
+    # Global sample and category options
+    all_samples = ordered_samples if ordered_samples else (list(adata.obs[sample_col].unique()) if sample_col else [])
+    if selected_col and hasattr(adata.obs[selected_col], "cat"):
+        all_categories = list(adata.obs[selected_col].cat.categories)
+    elif selected_col:
+        all_categories = sorted(adata.obs[selected_col].dropna().unique().tolist())
+    else:
+        all_categories = []
+
+    # 11 Main Analysis Tabs
+    tab_static, tab_interactive, tab_composition, tab_gene_violin, tab_score_violin, tab_scatter, tab_trajectory, tab_de, tab_heatmap, tab_enrichment, tab_bulk_download = st.tabs([
+        "🗺️ Static UMAP", 
+        "✨ Interactive UMAP", 
+        "📊 Sample Composition",
+        "🎻 Gene Expression Violins",
+        "📈 Signature & Pathway Scoring",
+        "📉 Correlation & Scatter",
+        "🌿 Trajectory Analysis",
+        "🌋 Differential Expression",
+        "🔥 Expression Heatmap",
+        "🧬 Pathway Enrichment",
+        "📦 Bulk Download & Export"
+    ])
+
+    # ---------------- TAB 1: STATIC UMAP ----------------
+    with tab_static:
+        with st.expander("🎨 Colormap, Scale & Contrast Controls", expanded=bool(resolved_var_name)):
+            c_scale, c_cmap, c_pct, c_vmax = st.columns([1.2, 1.0, 1.8, 1.0])
+            with c_scale:
+                use_log2 = st.checkbox("Log2(Normalized + 1) Scale", value=True, help="Applies log2 transformation like Loupe Browser for balanced contrast.", key="tab1_use_log2")
+            with c_cmap:
+                cmap_choice = st.selectbox("Colormap:", ["viridis", "YlOrRd", "Reds", "inferno", "plasma", "magma", "turbo"], index=0, key="tab1_cmap_choice")
+                
+            expr_for_scale = raw_log2_vals if use_log2 else raw_vals
+            max_possible = max_possible_log2 if use_log2 else max_possible_lin
+            suggested_vmax = float(np.percentile(expr_for_scale, pct_slider)) if resolved_var_name and len(expr_for_scale) > 1 else max_possible
+            if suggested_vmax <= 0:
+                suggested_vmax = max_possible if max_possible > 0 else 1.0
+
+            # Reactively synchronize colormap max whenever gene, percentile threshold, or scale changes
+            prev_gene_key = st.session_state.get("_last_synced_tab1_gene", None)
+            prev_pct_val = st.session_state.get("_last_synced_tab1_pct", None)
+            prev_scale_val = st.session_state.get("_last_synced_tab1_scale", None)
+
+            if (resolved_var_name != prev_gene_key or pct_slider != prev_pct_val or use_log2 != prev_scale_val):
+                st.session_state["tab1_custom_vmax"] = round(suggested_vmax, 2)
+                st.session_state["_last_synced_tab1_gene"] = resolved_var_name
+                st.session_state["_last_synced_tab1_pct"] = pct_slider
+                st.session_state["_last_synced_tab1_scale"] = use_log2
+
+            with c_vmax:
+                custom_vmax = st.number_input(
+                    "Colormap Max (vmax):",
+                    min_value=0.01,
+                    max_value=max(max_possible * 2.0, 10000.0),
+                    value=float(st.session_state.get("tab1_custom_vmax", round(suggested_vmax, 2))),
+                    step=0.5 if use_log2 else 10.0,
+                    help="Direct numeric limit for colormap maximum. Automatically synced with percentile slider and selected gene.",
+                    key="tab1_custom_vmax"
+                )
+            chosen_vmax = float(custom_vmax)
+            chosen_scale_label = "Log2(Norm+1)" if use_log2 else "Linear"
+            chosen_vmax_t2 = chosen_vmax
+            chosen_scale_label_t2 = chosen_scale_label
+
         with st.expander("⚙️ Static Grid Layout & Subsetting Controls", expanded=False):
             c_sm1, c_sm2 = st.columns([1.4, 1.0])
             with c_sm1:
