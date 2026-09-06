@@ -6,6 +6,7 @@ import pandas as pd
 import yaml
 import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.patheffects as pe
 import seaborn as sns
 import numpy as np
 import scipy as sp
@@ -780,7 +781,7 @@ if app_mode == "Single Cell Analysis Viewer":
 
     # Caching static multi-panel grid generator with Sample UMAP as 1st plot and custom vmax
     @st.cache_data
-    def generate_static_grid(_adata, var_key, disp_title, col, s_col, dataset_name, log2_mode, v_max, cmap_name, grid_cols=3, grid_rows="Auto", col_color_tag=""):
+    def generate_static_grid(_adata, var_key, disp_title, col, s_col, dataset_name, log2_mode, v_max, cmap_name, grid_cols=3, grid_rows="Auto", col_color_tag="", legend_pos="Bottom (Full Width)", on_data_labels=False):
         if scipy.sparse.issparse(_adata.X):
             expr_raw = _adata[:, var_key].X.toarray().flatten()
         else:
@@ -829,7 +830,18 @@ if app_mode == "Single Cell Analysis Viewer":
             ax_samp.set_ylim(u_ylim)
             ax_samp.set_aspect("equal", adjustable="box")
             ax_samp.tick_params(axis='both', which='major', labelsize=9.5)
-            ax_samp.legend(title="Sample", bbox_to_anchor=(0.5, -0.2), loc="upper center", markerscale=6, fontsize=9.5, ncol=2, frameon=False)
+            if legend_pos.startswith("Bottom"):
+                n_samp_cols = min(len(ordered_samples), 4) if ordered_samples else 2
+                ax_samp.legend(title="Sample", bbox_to_anchor=(0.5, -0.2), loc="upper center", markerscale=6, fontsize=9.5, ncol=n_samp_cols, frameon=False)
+            elif legend_pos.startswith("Right"):
+                ax_samp.legend(title="Sample", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=6, fontsize=9.0, frameon=False)
+            if on_data_labels or legend_pos.startswith("On-Data"):
+                for s in ordered_samples:
+                    if s in _adata.obs[s_col].values:
+                        s_mask = _adata.obs[s_col] == s
+                        if np.sum(s_mask) > 0:
+                            sx, sy = np.median(umap_coords[s_mask, 0]), np.median(umap_coords[s_mask, 1])
+                            ax_samp.text(sx, sy, str(s), fontsize=8.5, fontweight='bold', ha='center', va='center', bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8, edgecolor='none'), path_effects=[pe.withStroke(linewidth=2.5, foreground='white')])
         else:
             ax_samp.text(0.5, 0.5, "No Sample Column", ha='center', va='center', fontsize=11)
             ax_samp.axis('off')
@@ -858,7 +870,20 @@ if app_mode == "Single Cell Analysis Viewer":
             ax_ct.set_ylim(u_ylim)
             ax_ct.set_aspect("equal", adjustable="box")
             ax_ct.tick_params(axis='both', which='major', labelsize=9.5)
-            ax_ct.legend(title="Cell State", bbox_to_anchor=(0.5, -0.2), loc="upper center", markerscale=6, fontsize=9.0, ncol=2, frameon=False)
+            if legend_pos.startswith("Bottom"):
+                max_len = max([len(str(c)) for c in categories]) if categories else 0
+                ncol_ct = 3 if max_len < 16 else (2 if max_len < 32 else 1)
+                if len(categories) <= 4: ncol_ct = len(categories)
+                ax_ct.legend(title="Cell State", bbox_to_anchor=(0.5, -0.2), loc="upper center", markerscale=6, fontsize=8.5, ncol=ncol_ct, frameon=False)
+            elif legend_pos.startswith("Right"):
+                ncol_ct = 2 if len(categories) > 8 else 1
+                ax_ct.legend(title="Cell State", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=6, fontsize=8.0, ncol=ncol_ct, frameon=False)
+            if on_data_labels or legend_pos.startswith("On-Data"):
+                for cat in categories:
+                    c_mask = _adata.obs[col] == cat
+                    if np.sum(c_mask) > 0:
+                        cx, cy = np.median(umap_coords[c_mask, 0]), np.median(umap_coords[c_mask, 1])
+                        ax_ct.text(cx, cy, str(cat), fontsize=8.0, fontweight='bold', ha='center', va='center', bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8, edgecolor='none'), path_effects=[pe.withStroke(linewidth=2.5, foreground='white')])
         else:
             ax_ct.text(0.5, 0.5, "No Annotation Column Selected", ha='center', va='center', fontsize=11)
             ax_ct.axis('off')
@@ -1000,16 +1025,20 @@ if app_mode == "Single Cell Analysis Viewer":
             chosen_scale_label_t2 = chosen_scale_label
 
         with st.expander("⚙️ Static Grid Layout Controls", expanded=False):
-            c_sg1, c_sg2 = st.columns(2)
+            c_sg1, c_sg2, c_sg3, c_sg4 = st.columns(4)
             with c_sg1:
                 stat_grid_cols = st.selectbox("Grid Columns:", [1, 2, 3, 4, 5, 6], index=2, key="stat_grid_cols")
             with c_sg2:
                 stat_grid_rows = st.selectbox("Grid Rows:", ["Auto", 1, 2, 3, 4, 5, 6], index=0, key="stat_grid_rows")
+            with c_sg3:
+                stat_legend_pos = st.selectbox("Legend Position:", ["Bottom (Full Width)", "Right (Side)", "On-Data Labels (Centroids)", "Hidden"], index=0, key="stat_legend_pos")
+            with c_sg4:
+                stat_on_data = st.checkbox("🏷️ Overlay On-Plot Labels", value=False, help="Annotate cluster names directly on cluster centroids.", key="stat_on_data")
                 
         if resolved_var_name:
             with st.spinner("Generating static UMAP grid..."):
                 color_tag_str = str(get_cluster_color_map(adata, selected_col)[0]) if selected_col else ''
-                fig_grid = generate_static_grid(adata, resolved_var_name, resolved_display_name, selected_col, sample_col, selected_dataset_name, use_log2, chosen_vmax, cmap_choice, grid_cols=stat_grid_cols, grid_rows=stat_grid_rows, col_color_tag=color_tag_str)
+                fig_grid = generate_static_grid(adata, resolved_var_name, resolved_display_name, selected_col, sample_col, selected_dataset_name, use_log2, chosen_vmax, cmap_choice, grid_cols=stat_grid_cols, grid_rows=stat_grid_rows, col_color_tag=color_tag_str, legend_pos=stat_legend_pos, on_data_labels=stat_on_data)
                 st.pyplot(fig_grid)
                 
                 svg_grid_buf = io.BytesIO()
@@ -1045,7 +1074,8 @@ if app_mode == "Single Cell Analysis Viewer":
                     
                     # 1. Sample Reference
                     with col_ref1:
-                        fig_s, ax_s = plt.subplots(figsize=(4.4, 4.0))
+                        f_w, f_h = (4.8, 5.0) if stat_legend_pos.startswith("Bottom") else (4.8, 4.2)
+                        fig_s, ax_s = plt.subplots(figsize=(f_w, f_h))
                         ax_s.set_aspect('equal', 'box')
                         ax_s.set_box_aspect(1)
                         if sample_col and sample_col in adata.obs.columns:
@@ -1057,7 +1087,18 @@ if app_mode == "Single Cell Analysis Viewer":
                             ax_s.set_title(f"Samples / Conditions ({sample_col})", fontsize=11, fontweight='bold')
                             ax_s.set_xlabel("UMAP 1", fontsize=8)
                             ax_s.set_ylabel("UMAP 2", fontsize=8)
-                            ax_s.legend(title="Sample", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=5, fontsize=8, frameon=False)
+                            if stat_legend_pos.startswith("Bottom"):
+                                n_samp_cols = min(len(ordered_samples), 4) if ordered_samples else 2
+                                ax_s.legend(title="Sample", bbox_to_anchor=(0.5, -0.16), loc="upper center", markerscale=5, fontsize=8, ncol=n_samp_cols, frameon=False)
+                            elif stat_legend_pos.startswith("Right"):
+                                ax_s.legend(title="Sample", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=5, fontsize=8, frameon=False)
+                            if stat_on_data or stat_legend_pos.startswith("On-Data"):
+                                for s in ordered_samples:
+                                    if s in adata.obs[sample_col].values:
+                                        s_mask = adata.obs[sample_col] == s
+                                        if np.sum(s_mask) > 0:
+                                            sx, sy = np.median(umap_coords[s_mask, 0]), np.median(umap_coords[s_mask, 1])
+                                            ax_s.text(sx, sy, str(s), fontsize=8, fontweight='bold', ha='center', va='center', bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8, edgecolor='none'), path_effects=[pe.withStroke(linewidth=2.5, foreground='white')])
                         plt.tight_layout()
                         st.pyplot(fig_s)
                         svg_s_buf = io.BytesIO()
@@ -1067,7 +1108,8 @@ if app_mode == "Single Cell Analysis Viewer":
                     # 2. Cell States Reference
                     with col_ref2:
                         if selected_col:
-                            fig_ref, ax_ref = plt.subplots(figsize=(5.0, 4.0))
+                            f_w, f_h = (4.8, 5.0) if stat_legend_pos.startswith("Bottom") else (4.8, 4.2)
+                            fig_ref, ax_ref = plt.subplots(figsize=(f_w, f_h))
                             ax_ref.set_aspect('equal', 'box')
                             ax_ref.set_box_aspect(1)
                             categories = adata.obs[selected_col].cat.categories.tolist() if hasattr(adata.obs[selected_col], "cat") else sorted(adata.obs[selected_col].dropna().unique().tolist())
@@ -1087,8 +1129,20 @@ if app_mode == "Single Cell Analysis Viewer":
                             ax_ref.set_title(f"Cell States ({selected_col})", fontsize=11, fontweight='bold')
                             ax_ref.set_xlabel("UMAP 1", fontsize=8)
                             ax_ref.set_ylabel("UMAP 2", fontsize=8)
-                            ncol_val = 2 if len(categories) > 8 else 1
-                            ax_ref.legend(title="Cell State", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=5, fontsize=7.5, ncol=ncol_val, frameon=False)
+                            if stat_legend_pos.startswith("Bottom"):
+                                max_len = max([len(str(c)) for c in categories]) if categories else 0
+                                ncol_val = 3 if max_len < 16 else (2 if max_len < 32 else 1)
+                                if len(categories) <= 4: ncol_val = len(categories)
+                                ax_ref.legend(title="Cell State", bbox_to_anchor=(0.5, -0.16), loc="upper center", markerscale=5, fontsize=7.5, ncol=ncol_val, frameon=False)
+                            elif stat_legend_pos.startswith("Right"):
+                                ncol_val = 2 if len(categories) > 8 else 1
+                                ax_ref.legend(title="Cell State", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=5, fontsize=7.5, ncol=ncol_val, frameon=False)
+                            if stat_on_data or stat_legend_pos.startswith("On-Data"):
+                                for cat in categories:
+                                    c_mask = adata.obs[selected_col] == cat
+                                    if np.sum(c_mask) > 0:
+                                        cx, cy = np.median(umap_coords[c_mask, 0]), np.median(umap_coords[c_mask, 1])
+                                        ax_ref.text(cx, cy, str(cat), fontsize=7.5, fontweight='bold', ha='center', va='center', bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8, edgecolor='none'), path_effects=[pe.withStroke(linewidth=2.5, foreground='white')])
                             plt.tight_layout()
                             st.pyplot(fig_ref)
                             svg_c_buf = io.BytesIO()
