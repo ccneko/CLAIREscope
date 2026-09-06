@@ -1,7 +1,138 @@
-"""CLAIREscope schema standardizer, column resolvers, and gene mappers."""
+"""CLAIREscope schema standardizer, column resolvers, gene mappers, and color palette engine."""
 import re
 from typing import List, Tuple, Dict, Optional, Any
 import pandas as pd
+import numpy as np
+
+SEMANTIC_RULES = [
+    (r'\bife basal\b|\bbasal 1\b|\bbasal stem\b', '#1f77b4'),         # Blue
+    (r'\bbasal 2\b|\bsecretory basal\b', '#ff7f0e'),                 # Orange
+    (r'\bbasal\b', '#1f77b4'),                                       # Blue
+    (r'\bspinous\b|\bsuprabasal\b', '#f1c40f'),                      # Gold
+    (r'\bgranular\b|\bterminally differentiated\b', '#2ca02c'),       # Green
+    (r'\bcycling\b|\bmitotic\b', '#d62728'),                         # Red
+    (r'\bisthmus\b|\bjunctional zone\b', '#00bcd4'),                 # Cyan
+    (r'\binfundibulum\b|\bsg-opening\b', '#17becf'),                 # Teal
+    (r'\bhfsc\b|\bbulge\b', '#8c564b'),                              # Brown
+    (r'\bwound-activated.*migrating\b', '#e67e22'),                  # Dark Orange
+    (r'\bwound-activated|\bhyperproliferative\b', '#e91e63'),        # Deep Pink
+    (r'\bchannel\b', '#9467bd'),                                     # Purple
+    (r'\bfollicular\b', '#e377c2'),                                  # Pink
+    (r'\bschwann\b', '#795548'),                                     # Deep Brown
+    (r'\bt cell\b|\bimmune\b', '#8bc34a'),                           # Light Green
+    (r'\blymphatic\b|\bendothelial\b', '#3f51b5'),                   # Indigo
+    (r'\bpericyte\b|\bsmc\b', '#673ab7'),                            # Deep Purple
+    (r'\bmel1\b|\bmelanocyte\b', '#607d8b'),                         # Slate
+    (r'\bmel2\b', '#455a64'),                                        # Dark Slate
+    (r'\bwnt1\b', '#ff9800'),                                        # Amber
+    (r'\blow quality\b|\bmitochondrial\b', '#9e9e9e'),               # Silver
+]
+
+PALETTE_POOL = [
+    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#17becf',
+    '#bcbd22', '#f1c40f', '#e67e22', '#e74c3c', '#3498db', '#9b59b6', '#1abc9c', '#2ecc71',
+    '#34495e', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#00bcd4', '#009688',
+    '#4caf50', '#8bc34a', '#cddc39', '#ffeb3b', '#ffc107', '#ff9800', '#ff5722', '#795548',
+    '#607d8b', '#006699', '#990066', '#669900', '#cc3300', '#009999', '#9900cc', '#cc0066',
+    '#003366', '#336600', '#660033', '#330066', '#006633', '#663300', '#ff6666', '#66ff66',
+    '#6666ff', '#ff66ff', '#ffff66', '#66ffff'
+]
+
+def rank_cell_state(cat_str: str) -> Tuple[int, str]:
+    """Sort cell states in differentiation order."""
+    c_low = str(cat_str).lower()
+    if 'ife basal' in c_low or 'basal 1' in c_low or 'basal stem' in c_low:
+        return (0, str(cat_str))
+    elif 'basal 2' in c_low or 'secretory basal' in c_low:
+        return (1, str(cat_str))
+    elif 'basal' in c_low:
+        return (2, str(cat_str))
+    elif 'spinous' in c_low or 'suprabasal' in c_low:
+        return (3, str(cat_str))
+    elif 'granular' in c_low or 'terminally differentiated' in c_low:
+        return (4, str(cat_str))
+    elif 'cycling' in c_low or 'mitotic' in c_low:
+        return (5, str(cat_str))
+    elif 'wound' in c_low or 'migrating' in c_low:
+        return (6, str(cat_str))
+    elif 'isthmus' in c_low or 'infundibulum' in c_low or 'bulge' in c_low or 'hfsc' in c_low:
+        return (7, str(cat_str))
+    elif 'low quality' in c_low or 'contamination' in c_low:
+        return (9, str(cat_str))
+    else:
+        return (8, str(cat_str))
+
+def get_cluster_color_map(adata_obj, col_name: str) -> Tuple[Dict[str, str], List[str]]:
+    """Generate high-contrast, unique colors for all categories in an annotation column."""
+    if not col_name or col_name not in adata_obj.obs.columns:
+        return {}, []
+    if hasattr(adata_obj.obs[col_name], 'cat'):
+        categories = adata_obj.obs[col_name].cat.categories.tolist()
+    else:
+        categories = sorted(adata_obj.obs[col_name].dropna().unique().tolist())
+        
+    if any(k in str(c).lower() for c in categories for k in ['basal', 'spinous', 'granular', 'differentiated']):
+        categories = sorted(categories, key=rank_cell_state)
+        
+    color_key = f"{col_name}_colors"
+    if col_name == 'predicted_labels':
+        pred_map = {}
+        for cat in categories:
+            c_str = str(cat).lower()
+            if 'undiff' in c_str:
+                pred_map[cat] = '#b0bec5'
+            elif 'diff' in c_str:
+                pred_map[cat] = '#f5deb3'
+            else:
+                pred_map[cat] = '#b0bec5'
+        colors = [pred_map[c] for c in categories]
+        try:
+            adata_obj.uns[color_key] = colors
+        except Exception:
+            pass
+        return pred_map, categories
+
+    # Build semantic and distinct palette
+    result = {}
+    used_colors = set()
+    
+    # 1. Semantic rules matching
+    for cat in categories:
+        c_low = str(cat).lower()
+        matched_color = None
+        for pattern, color in SEMANTIC_RULES:
+            if re.search(pattern, c_low):
+                if color not in used_colors:
+                    matched_color = color
+                    break
+        if matched_color:
+            result[cat] = matched_color
+            used_colors.add(matched_color)
+            
+    # 2. Pool assignment for unmatched categories
+    pool_idx = 0
+    for cat in categories:
+        if cat not in result:
+            while pool_idx < len(PALETTE_POOL) and PALETTE_POOL[pool_idx] in used_colors:
+                pool_idx += 1
+            if pool_idx < len(PALETTE_POOL):
+                color = PALETTE_POOL[pool_idx]
+                pool_idx += 1
+            else:
+                import matplotlib.pyplot as plt
+                import matplotlib.colors as mcolors
+                cmap = plt.get_cmap('tab20b')
+                color = mcolors.to_hex(cmap(len(result) % 20))
+            result[cat] = color
+            used_colors.add(color)
+
+    colors_list = [result[c] for c in categories]
+    try:
+        adata_obj.uns[color_key] = colors_list
+    except Exception:
+        pass
+
+    return result, categories
 
 def get_annotation_columns(adata) -> List[str]:
     """Identify categorical annotation columns suitable for cell clustering."""
@@ -136,7 +267,6 @@ def resolve_gene_var_name(adata, gene_name: str, sym_to_display: Dict[str, str],
             return res
             
     # 5. Check if case-insensitive match exists directly in adata.var_names
-    # (Cached or linear scan for small/fallback cases)
     if hasattr(adata, "var") and "gene_symbols" in adata.var.columns:
         matches = adata.var[adata.var["gene_symbols"].astype(str).str.upper() == q_upper]
         if not matches.empty:

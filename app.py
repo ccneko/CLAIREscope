@@ -68,6 +68,8 @@ from clairescope.core.schema import (
     resolve_gene_var_name,
     get_annotation_columns,
     get_sample_column,
+    get_cluster_color_map,
+    rank_cell_state,
 )
 
 # Load External Configurations (Zero Hardcoded Inlines)
@@ -459,6 +461,7 @@ if st.session_state.get("_last_dataset_signature") != current_dataset_signature:
         "comp_samples_filter", "comp_cats_filter", "v_gene_states", "v_gene_pairs",
         "sv_states", "sv_pairs", "scat_filter_s", "scat_filter_st",
         "plotly_filter_samples", "plotly_filter_categories",
+        "stat_filter_samples", "stat_filter_categories",
         "hm_ordered_groups", "hm_selected_genes",
         "bulk_selected_genes", "bulk_selected_pathways",
     ]
@@ -684,9 +687,9 @@ if app_mode == "Single Cell Analysis Viewer":
                 
         return dict(zip(categories, colors)), categories
 
-    # Caching static multi-panel grid generator with Sample UMAP as 1st plot and custom vmax
+    # Caching static multi-panel grid generator with Sample UMAP as 1st plot, custom vmax, and highlight/filter modes
     @st.cache_data
-    def generate_static_grid(_adata, var_key, disp_title, col, s_col, dataset_name, log2_mode, v_max, cmap_name, grid_cols=3, grid_rows="Auto", col_color_tag="", legend_pos="Bottom (Full Width)"):
+    def generate_static_grid(_adata, var_key, disp_title, col, s_col, dataset_name, log2_mode, v_max, cmap_name, grid_cols=3, grid_rows="Auto", col_color_tag="", legend_pos="Bottom (Full Width)", view_mode="Color all cells", selected_samples=None, selected_cats=None, pt_size=1.5):
         if scipy.sparse.issparse(_adata.X):
             expr_raw = _adata[:, var_key].X.toarray().flatten()
         else:
@@ -720,15 +723,33 @@ if app_mode == "Single Cell Analysis Viewer":
         fig, axes = plt.subplots(n_rows, n_cols, figsize=(4.6 * n_cols, 3.9 * n_rows))
         axes_flat = axes.flatten() if hasattr(axes, 'flatten') else [axes]
         
+        # Subsetting / Highlighting masks
+        mask_s = _adata.obs[s_col].isin(selected_samples) if (s_col and s_col in _adata.obs.columns and selected_samples) else np.ones(len(_adata), dtype=bool)
+        mask_c = _adata.obs[col].isin(selected_cats) if (col and col in _adata.obs.columns and selected_cats) else np.ones(len(_adata), dtype=bool)
+        sel_mask = np.array(mask_s & mask_c)
+        is_highlight = (view_mode == "Highlight selected (dim unselected in grey)")
+        is_filter = (view_mode == "Filter view (show selected only)")
+        
         # 1. Sample UMAP Plot (Leading 1st Plot)
         ax_samp = axes_flat[0]
         if s_col and s_col in _adata.obs.columns:
+            if is_highlight and np.sum(~sel_mask) > 0:
+                ax_samp.scatter(umap_coords[~sel_mask, 0], umap_coords[~sel_mask, 1], color='#E2E8F0', s=max(pt_size - 0.5, 0.6), alpha=0.4, label='_nolegend_')
+                
             for s in ordered_samples:
                 if s in _adata.obs[s_col].values:
-                    mask = _adata.obs[s_col] == s
-                    coords = umap_coords[mask]
-                    ax_samp.scatter(coords[:, 0], coords[:, 1], label=s, color=sample_color_map.get(s, "#7f8c8d"), s=1.5, alpha=0.85)
-            ax_samp.set_title(f"Samples / Conditions ({s_col})", fontsize=12, fontweight='bold')
+                    if is_filter:
+                        mask = (_adata.obs[s_col] == s) & sel_mask
+                    elif is_highlight:
+                        mask = (_adata.obs[s_col] == s) & sel_mask
+                    else:
+                        mask = (_adata.obs[s_col] == s)
+                    if np.sum(mask) > 0:
+                        coords = umap_coords[mask]
+                        ax_samp.scatter(coords[:, 0], coords[:, 1], label=s, color=sample_color_map.get(s, "#7f8c8d"), s=pt_size, alpha=0.85)
+                        
+            samp_sub_tag = f" (Filtered: {np.sum(sel_mask):,} cells)" if is_filter else (f" (Highlighted: {np.sum(sel_mask):,} cells)" if is_highlight else "")
+            ax_samp.set_title(f"Samples / Conditions ({s_col}){samp_sub_tag}", fontsize=11, fontweight='bold')
             ax_samp.set_xlabel("UMAP 1", fontsize=10)
             ax_samp.set_ylabel("UMAP 2", fontsize=10)
             ax_samp.set_xlim(u_xlim)
@@ -737,13 +758,13 @@ if app_mode == "Single Cell Analysis Viewer":
             ax_samp.tick_params(axis='both', which='major', labelsize=9.5)
             if legend_pos.startswith("Bottom"):
                 n_samp_cols = min(len(ordered_samples), 4) if ordered_samples else 2
-                ax_samp.legend(title="Sample", bbox_to_anchor=(0.5, -0.2), loc="upper center", markerscale=6, fontsize=9.5, ncol=n_samp_cols, frameon=False)
+                ax_samp.legend(title="Sample", bbox_to_anchor=(0.5, -0.2), loc="upper center", markerscale=6, fontsize=9.0, ncol=n_samp_cols, frameon=False)
             elif legend_pos.startswith("Right"):
-                ax_samp.legend(title="Sample", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=6, fontsize=9.0, frameon=False)
+                ax_samp.legend(title="Sample", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=6, fontsize=8.5, frameon=False)
             if legend_pos.startswith("On-Data"):
                 for s in ordered_samples:
                     if s in _adata.obs[s_col].values:
-                        s_mask = _adata.obs[s_col] == s
+                        s_mask = (_adata.obs[s_col] == s) & (sel_mask if (is_filter or is_highlight) else np.ones(len(_adata), dtype=bool))
                         if np.sum(s_mask) > 0:
                             sx, sy = np.median(umap_coords[s_mask, 0]), np.median(umap_coords[s_mask, 1])
                             ax_samp.text(sx, sy, str(s), fontsize=8.5, fontweight='bold', ha='center', va='center', bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8, edgecolor='none'), path_effects=[pe.withStroke(linewidth=2.5, foreground='white')])
@@ -751,24 +772,26 @@ if app_mode == "Single Cell Analysis Viewer":
             ax_samp.text(0.5, 0.5, "No Sample Column", ha='center', va='center', fontsize=11)
             ax_samp.axis('off')
         
-        # 2. Cell States Reference
+        # 2. Cell States Reference (Unique High-Contrast Palette)
         ax_ct = axes_flat[1]
-        if col:
-            categories = _adata.obs[col].cat.categories.tolist() if hasattr(_adata.obs[col], "cat") else sorted(_adata.obs[col].dropna().unique().tolist())
-            color_key = f"{col}_colors"
-            if color_key in _adata.uns:
-                colors = list(_adata.uns[color_key])
-            else:
-                cmap = plt.get_cmap('tab20')
-                colors = [matplotlib.colors.to_hex(cmap(i % 20)) for i in range(len(categories))]
-            color_map = dict(zip(categories, colors))
-            
-            for cat in categories:
-                mask = _adata.obs[col] == cat
-                coords = umap_coords[mask]
-                ax_ct.scatter(coords[:, 0], coords[:, 1], label=cat, color=color_map.get(cat, "#7f8c8d"), s=1.5, alpha=0.8)
+        if col and col in _adata.obs.columns:
+            color_map, categories = get_cluster_color_map(_adata, col)
+            if is_highlight and np.sum(~sel_mask) > 0:
+                ax_ct.scatter(umap_coords[~sel_mask, 0], umap_coords[~sel_mask, 1], color='#E2E8F0', s=max(pt_size - 0.5, 0.6), alpha=0.4, label='_nolegend_')
                 
-            ax_ct.set_title(f"Cell States ({col})", fontsize=12, fontweight='bold')
+            for cat in categories:
+                if is_filter:
+                    mask = (_adata.obs[col] == cat) & sel_mask
+                elif is_highlight:
+                    mask = (_adata.obs[col] == cat) & sel_mask
+                else:
+                    mask = (_adata.obs[col] == cat)
+                if np.sum(mask) > 0:
+                    coords = umap_coords[mask]
+                    ax_ct.scatter(coords[:, 0], coords[:, 1], label=cat, color=color_map.get(cat, "#7f8c8d"), s=pt_size, alpha=0.85)
+                
+            state_sub_tag = f" (Filtered: {np.sum(sel_mask):,} cells)" if is_filter else (f" (Highlighted: {np.sum(sel_mask):,} cells)" if is_highlight else "")
+            ax_ct.set_title(f"Cell States ({col}){state_sub_tag}", fontsize=11, fontweight='bold')
             ax_ct.set_xlabel("UMAP 1", fontsize=10)
             ax_ct.set_ylabel("UMAP 2", fontsize=10)
             ax_ct.set_xlim(u_xlim)
@@ -777,60 +800,74 @@ if app_mode == "Single Cell Analysis Viewer":
             ax_ct.tick_params(axis='both', which='major', labelsize=9.5)
             if legend_pos.startswith("Bottom"):
                 max_len = max([len(str(c)) for c in categories]) if categories else 0
-                ncol_ct = 3 if max_len < 16 else (2 if max_len < 32 else 1)
+                ncol_ct = 3 if max_len < 18 else (2 if max_len < 32 else 1)
                 if len(categories) <= 4: ncol_ct = len(categories)
-                ax_ct.legend(title="Cell State", bbox_to_anchor=(0.5, -0.2), loc="upper center", markerscale=6, fontsize=8.5, ncol=ncol_ct, frameon=False)
+                ax_ct.legend(title="Cell State", bbox_to_anchor=(0.5, -0.2), loc="upper center", markerscale=6, fontsize=8.0, ncol=ncol_ct, frameon=False)
             elif legend_pos.startswith("Right"):
                 ncol_ct = 2 if len(categories) > 8 else 1
-                ax_ct.legend(title="Cell State", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=6, fontsize=8.0, ncol=ncol_ct, frameon=False)
+                ax_ct.legend(title="Cell State", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=6, fontsize=7.5, ncol=ncol_ct, frameon=False)
             if legend_pos.startswith("On-Data"):
                 for cat in categories:
-                    c_mask = _adata.obs[col] == cat
+                    c_mask = (_adata.obs[col] == cat) & (sel_mask if (is_filter or is_highlight) else np.ones(len(_adata), dtype=bool))
                     if np.sum(c_mask) > 0:
                         cx, cy = np.median(umap_coords[c_mask, 0]), np.median(umap_coords[c_mask, 1])
-                        ax_ct.text(cx, cy, str(cat), fontsize=8.0, fontweight='bold', ha='center', va='center', bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8, edgecolor='none'), path_effects=[pe.withStroke(linewidth=2.5, foreground='white')])
+                        disp_cat = (cat[:20] + '..') if len(str(cat)) > 22 else str(cat)
+                        ax_ct.text(cx, cy, disp_cat, fontsize=7.5, fontweight='bold', ha='center', va='center', bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8, edgecolor='none'), path_effects=[pe.withStroke(linewidth=2.5, foreground='white')])
         else:
             ax_ct.text(0.5, 0.5, "No Annotation Column Selected", ha='center', va='center', fontsize=11)
             ax_ct.axis('off')
 
         # 3. Global Expression
         ax_all = axes_flat[2]
-        sort_idx = np.argsort(expr)
-        sc_all = ax_all.scatter(umap_coords[sort_idx, 0], umap_coords[sort_idx, 1], c=expr[sort_idx], cmap=cmap_name, s=1.5, alpha=0.85, vmin=0, vmax=v_max)
+        if is_highlight and np.sum(~sel_mask) > 0:
+            ax_all.scatter(umap_coords[~sel_mask, 0], umap_coords[~sel_mask, 1], color='#E2E8F0', s=max(pt_size - 0.5, 0.6), alpha=0.4)
+            
+        if is_filter or is_highlight:
+            plot_indices = np.where(sel_mask)[0]
+        else:
+            plot_indices = np.arange(len(expr))
+            
+        if len(plot_indices) > 0:
+            sort_order = np.argsort(expr[plot_indices])
+            sorted_idx = plot_indices[sort_order]
+            sc_all = ax_all.scatter(umap_coords[sorted_idx, 0], umap_coords[sorted_idx, 1], c=expr[sorted_idx], cmap=cmap_name, s=pt_size, alpha=0.85, vmin=0, vmax=v_max)
+            cbar = fig.colorbar(sc_all, ax=ax_all, label=f"{'Log2' if log2_mode else 'Linear'} Expr")
+            cbar.ax.tick_params(labelsize=9.5)
+            cbar.set_label(f"{'Log2' if log2_mode else 'Linear'} Expr", fontsize=10)
+            
         clean_name = disp_title.split(" (")[0]
         scale_tag = "Log2" if log2_mode else "Linear"
-        ax_all.set_title(f"{clean_name} - All Cells ({scale_tag}, max={v_max:.1f})", fontsize=12, fontweight='bold')
+        ax_all.set_title(f"{clean_name} - All Cells ({scale_tag}, max={v_max:.1f})", fontsize=11, fontweight='bold')
         ax_all.set_xlabel("UMAP 1", fontsize=10)
         ax_all.set_ylabel("UMAP 2", fontsize=10)
         ax_all.set_xlim(u_xlim)
         ax_all.set_ylim(u_ylim)
         ax_all.set_aspect("equal", adjustable="box")
         ax_all.tick_params(axis='both', which='major', labelsize=9.5)
-        cbar = fig.colorbar(sc_all, ax=ax_all, label=f"{scale_tag} Expr")
-        cbar.ax.tick_params(labelsize=9.5)
-        cbar.set_label(f"{scale_tag} Expr", fontsize=10)
         
         # 4..N. Splits per sample
         for idx, sample in enumerate(samples_list):
             ax_sub = axes_flat[3 + idx]
-            mask = _adata.obs[s_col] == sample
-            bg_x = umap_coords[~mask, 0]
-            bg_y = umap_coords[~mask, 1]
-            ax_sub.scatter(bg_x, bg_y, color='lightgrey', s=0.5, alpha=0.3)
+            mask_sample_all = (_adata.obs[s_col] == sample)
+            bg_mask = ~mask_sample_all | (~sel_mask if (is_filter or is_highlight) else np.zeros(len(_adata), dtype=bool))
+            ax_sub.scatter(umap_coords[bg_mask, 0], umap_coords[bg_mask, 1], color='#E2E8F0', s=0.5, alpha=0.3)
             
-            sub_expr = expr[mask]
-            sub_coords = umap_coords[mask]
-            sub_sort = np.argsort(sub_expr)
-            sc_sub = ax_sub.scatter(sub_coords[sub_sort, 0], sub_coords[sub_sort, 1], c=sub_expr[sub_sort], cmap=cmap_name, s=1.5, alpha=0.85, vmin=0, vmax=v_max)
-            ax_sub.set_title(f"{sample} only", fontsize=12, fontweight='bold')
+            fg_mask = mask_sample_all & (sel_mask if (is_filter or is_highlight) else np.ones(len(_adata), dtype=bool))
+            if np.sum(fg_mask) > 0:
+                fg_indices = np.where(fg_mask)[0]
+                sub_sort = np.argsort(expr[fg_indices])
+                sorted_fg = fg_indices[sub_sort]
+                sc_sub = ax_sub.scatter(umap_coords[sorted_fg, 0], umap_coords[sorted_fg, 1], c=expr[sorted_fg], cmap=cmap_name, s=pt_size, alpha=0.85, vmin=0, vmax=v_max)
+                cbar_s = fig.colorbar(sc_sub, ax=ax_sub)
+                cbar_s.ax.tick_params(labelsize=9.0)
+                
+            ax_sub.set_title(f"{sample} only", fontsize=11, fontweight='bold')
             ax_sub.set_xlabel("UMAP 1", fontsize=10)
             ax_sub.set_ylabel("UMAP 2", fontsize=10)
             ax_sub.set_xlim(u_xlim)
             ax_sub.set_ylim(u_ylim)
             ax_sub.set_aspect("equal", adjustable="box")
             ax_sub.tick_params(axis='both', which='major', labelsize=9.5)
-            cbar_s = fig.colorbar(sc_sub, ax=ax_sub)
-            cbar_s.ax.tick_params(labelsize=9.5)
             
         for extra_idx in range(3 + num_splits, len(axes_flat)):
             axes_flat[extra_idx].axis('off')
@@ -838,98 +875,37 @@ if app_mode == "Single Cell Analysis Viewer":
         plt.tight_layout()
         return fig
 
-    @st.cache_data
-    def get_umap_embeddings_csv(_adata, s_col, a_col, var_name, disp_name):
-        if 'X_umap' not in _adata.obsm:
-            return None
-        df_out = pd.DataFrame({
-            "Barcode": _adata.obs_names,
-            "UMAP_1": _adata.obsm['X_umap'][:, 0],
-            "UMAP_2": _adata.obsm['X_umap'][:, 1]
-        })
-        if s_col and s_col in _adata.obs:
-            df_out["Sample"] = _adata.obs[s_col].values
-        if a_col and a_col in _adata.obs:
-            df_out[a_col] = _adata.obs[a_col].values
-        if var_name and var_name in _adata.var_names:
-            if scipy.sparse.issparse(_adata.X):
-                g_raw = _adata[:, var_name].X.toarray().flatten()
-            else:
-                g_raw = _adata[:, var_name].X.flatten()
-            clean_sym = disp_name.split(" (")[0] if disp_name else "Gene"
-            df_out[f"Expression_{clean_sym}_Raw"] = g_raw
-            df_out[f"Expression_{clean_sym}_Log2"] = np.log2(g_raw + 1)
-        return df_out.to_csv(index=False).encode('utf-8')
-
-    # 11 Main Analysis Tabs
-    tab_static, tab_interactive, tab_composition, tab_gene_violin, tab_score_violin, tab_scatter, tab_trajectory, tab_de, tab_heatmap, tab_enrichment, tab_bulk_download = st.tabs([
-        "🗺️ Static UMAP", 
-        "✨ Interactive UMAP", 
-        "📊 Sample Composition",
-        "🎻 Gene Expression Violins",
-        "📈 Signature & Pathway Scoring",
-        "📉 Correlation & Scatter",
-        "🌿 Trajectory Analysis",
-        "🌋 Differential Expression",
-        "🔥 Expression Heatmap",
-        "🧬 Pathway Enrichment",
-        "📦 Bulk Download & Export"
-    ])
-
-    
-    # ---------------- TAB 1: STATIC UMAP ----------------
-    with tab_static:
-        with st.expander("🎨 Colormap, Scale & Contrast Controls", expanded=bool(resolved_var_name)):
-            c_scale, c_cmap, c_pct, c_vmax = st.columns([1.2, 1.0, 1.8, 1.0])
-            with c_scale:
-                use_log2 = st.checkbox("Log2(Normalized + 1) Scale", value=True, help="Applies log2 transformation like Loupe Browser for balanced contrast.", key="tab1_use_log2")
-            with c_cmap:
-                cmap_choice = st.selectbox("Colormap:", ["viridis", "YlOrRd", "Reds", "inferno", "plasma", "magma", "turbo"], index=0, key="tab1_cmap_choice")
-                
-            expr_for_scale = raw_log2_vals if use_log2 else raw_vals
-            max_possible = max_possible_log2 if use_log2 else max_possible_lin
-            
-            with c_pct:
-                pct_slider = st.select_slider(
-                    "Max Percentile Threshold (Anchors):",
-                    options=[50, 60, 70, 75, 80, 85, 90, 95, 98, 99, 99.5, 100],
-                    value=100,
-                    format_func=lambda x: f"{x}%" if x in [80, 90, 95, 99, 100] else f"{x}",
-                    help="Clip upper colormap limit to enhance visual contrast against outliers.",
-                    key="tab1_vmax_pct_slider"
+        with st.expander("⚙️ Static Grid Layout & Subsetting Controls", expanded=False):
+            c_sm1, c_sm2 = st.columns([1.4, 1.0])
+            with c_sm1:
+                stat_view_mode = st.radio(
+                    "View / Highlight Mode:",
+                    ["Color all cells", "Highlight selected (dim unselected in grey)", "Filter view (show selected only)"],
+                    horizontal=True,
+                    key="stat_view_mode"
                 )
-                
-            suggested_vmax = float(np.percentile(expr_for_scale, pct_slider)) if resolved_var_name and len(expr_for_scale) > 1 else max_possible
-            if suggested_vmax <= 0:
-                suggested_vmax = max_possible if max_possible > 0 else 1.0
+            with c_sm2:
+                stat_pt_size = st.slider("Point Size:", min_value=1.0, max_value=6.0, value=1.5, step=0.5, key="stat_pt_size")
 
-            # Reactively synchronize colormap max whenever gene, percentile threshold, or scale changes
-            prev_gene_key = st.session_state.get("_last_synced_tab1_gene", None)
-            prev_pct_val = st.session_state.get("_last_synced_tab1_pct", None)
-            prev_scale_val = st.session_state.get("_last_synced_tab1_scale", None)
-
-            if (resolved_var_name != prev_gene_key or pct_slider != prev_pct_val or use_log2 != prev_scale_val):
-                st.session_state["tab1_custom_vmax"] = round(suggested_vmax, 2)
-                st.session_state["_last_synced_tab1_gene"] = resolved_var_name
-                st.session_state["_last_synced_tab1_pct"] = pct_slider
-                st.session_state["_last_synced_tab1_scale"] = use_log2
-
-            with c_vmax:
-                custom_vmax = st.number_input(
-                    "Colormap Max (vmax):",
-                    min_value=0.01,
-                    max_value=max(max_possible * 2.0, 10000.0),
-                    value=float(st.session_state.get("tab1_custom_vmax", round(suggested_vmax, 2))),
-                    step=0.5 if use_log2 else 10.0,
-                    help="Direct numeric limit for colormap maximum. Automatically synced with percentile slider and selected gene.",
-                    key="tab1_custom_vmax"
+            c_sf1, c_sf2 = st.columns(2)
+            with c_sf1:
+                stat_selected_samples = draggable_multiselect(
+                    "Filter / Highlight Samples:",
+                    options=all_samples,
+                    default=all_samples,
+                    key="stat_filter_samples"
                 )
-            chosen_vmax = float(custom_vmax)
-            chosen_scale_label = "Log2(Norm+1)" if use_log2 else "Linear"
-            chosen_vmax_t2 = chosen_vmax
-            chosen_scale_label_t2 = chosen_scale_label
+            with c_sf2:
+                if selected_col and all_categories:
+                    stat_selected_cats = draggable_multiselect(
+                        f"Filter / Highlight {selected_col}:",
+                        options=all_categories,
+                        default=all_categories,
+                        key="stat_filter_categories"
+                    )
+                else:
+                    stat_selected_cats = []
 
-        with st.expander("⚙️ Static Grid Layout Controls", expanded=False):
             c_sg1, c_sg2, c_sg3 = st.columns(3)
             with c_sg1:
                 stat_grid_cols = st.selectbox("Grid Columns:", [1, 2, 3, 4, 5, 6], index=2, key="stat_grid_cols")
@@ -937,11 +913,18 @@ if app_mode == "Single Cell Analysis Viewer":
                 stat_grid_rows = st.selectbox("Grid Rows:", ["Auto", 1, 2, 3, 4, 5, 6], index=0, key="stat_grid_rows")
             with c_sg3:
                 stat_legend_pos = st.selectbox("Legend Position:", ["Bottom (Full Width)", "Right (Side)", "On-Data Labels (Centroids)", "Hidden"], index=0, key="stat_legend_pos")
-                
+
         if resolved_var_name:
             with st.spinner("Generating static UMAP grid..."):
                 color_tag_str = str(get_cluster_color_map(adata, selected_col)[0]) if selected_col else ''
-                fig_grid = generate_static_grid(adata, resolved_var_name, resolved_display_name, selected_col, sample_col, selected_dataset_name, use_log2, chosen_vmax, cmap_choice, grid_cols=stat_grid_cols, grid_rows=stat_grid_rows, col_color_tag=color_tag_str, legend_pos=stat_legend_pos)
+                fig_grid = generate_static_grid(
+                    adata, resolved_var_name, resolved_display_name, selected_col, sample_col,
+                    selected_dataset_name, use_log2, chosen_vmax, cmap_choice,
+                    grid_cols=stat_grid_cols, grid_rows=stat_grid_rows, col_color_tag=color_tag_str,
+                    legend_pos=stat_legend_pos, view_mode=stat_view_mode,
+                    selected_samples=stat_selected_samples, selected_cats=stat_selected_cats,
+                    pt_size=stat_pt_size
+                )
                 st.pyplot(fig_grid)
                 
                 svg_grid_buf = io.BytesIO()
@@ -1187,12 +1170,45 @@ if app_mode == "Single Cell Analysis Viewer":
                 df_unselected = df_plotly[~selected_mask]
                 
                 color_discrete_map = None
-                if selected_col:
-                    color_key = f"{selected_col}_colors"
-                    if color_key in adata_sub.uns:
-                        colors_list = list(adata_sub.uns[color_key])
-                        unique_states = adata_sub.obs[selected_col].cat.categories.tolist() if hasattr(adata_sub.obs[selected_col], "cat") else sorted(adata_sub.obs[selected_col].dropna().unique().tolist())
-                        color_discrete_map = dict(zip(unique_states, colors_list))
+                unique_states = []
+                if selected_col and selected_col in adata_sub.obs.columns:
+                    color_discrete_map, unique_states = get_cluster_color_map(adata_sub, selected_col)
+
+                # Configure Legend Layout parameters
+                if plotly_legend_pos == "Bottom (Horizontal)":
+                    legend_layout = dict(
+                        orientation="h",
+                        yanchor="top",
+                        y=-0.18,
+                        xanchor="center",
+                        x=0.5,
+                        itemsizing='constant',
+                        font=dict(size=11, family="Segoe UI, sans-serif"),
+                        title=dict(font=dict(size=12, family="Segoe UI, sans-serif")),
+                        bgcolor="rgba(255,255,255,0.9)",
+                        bordercolor="#CBD5E1",
+                        borderwidth=1
+                    )
+                    plot_h = 580
+                    plot_m = dict(l=10, r=10, t=50, b=90)
+                    show_leg = True
+                elif plotly_legend_pos == "Right Side (Compact)":
+                    legend_layout = dict(
+                        itemsizing='constant',
+                        font=dict(size=9.5, family="Segoe UI, sans-serif"),
+                        title=dict(font=dict(size=10.5, family="Segoe UI, sans-serif")),
+                        bgcolor="rgba(255,255,255,0.9)",
+                        bordercolor="#CBD5E1",
+                        borderwidth=1
+                    )
+                    plot_h = 540
+                    plot_m = dict(l=10, r=10, t=50, b=10)
+                    show_leg = True
+                else: # On-Plot Centroids or Hide Legend
+                    legend_layout = None
+                    plot_h = 540
+                    plot_m = dict(l=10, r=10, t=50, b=10)
+                    show_leg = False
                         
                 # 3 Side-by-Side Plots when gene selected, or 2 plots when no gene selected
                 if resolved_var_name:
@@ -1258,18 +1274,27 @@ if app_mode == "Single Cell Analysis Viewer":
                         
                     fig_samp.update_xaxes(range=x_range, title_text="UMAP 1", title_font=dict(size=16, family="Segoe UI, sans-serif"), tickfont=dict(size=14, family="Segoe UI, sans-serif"), zeroline=False, showgrid=True, gridcolor="#F8FAFC")
                     fig_samp.update_yaxes(range=y_range, title_text="UMAP 2", title_font=dict(size=16, family="Segoe UI, sans-serif"), tickfont=dict(size=14, family="Segoe UI, sans-serif"), scaleanchor="x", scaleratio=1, zeroline=False, showgrid=True, gridcolor="#F8FAFC")
+                    if plotly_legend_pos == "On-Plot Centroids" and sample_col and sample_col in df_plotly.columns:
+                        for s in ordered_samples:
+                            sub_s = df_plotly[df_plotly["Sample"] == s]
+                            if not sub_s.empty:
+                                sx, sy = float(sub_s["UMAP 1"].median()), float(sub_s["UMAP 2"].median())
+                                fig_samp.add_annotation(
+                                    x=sx, y=sy,
+                                    text=f"<b>{s}</b>",
+                                    showarrow=False,
+                                    font=dict(size=10.5, color="#1e293b", family="Segoe UI, sans-serif"),
+                                    bgcolor="rgba(255,255,255,0.85)",
+                                    bordercolor="#94A3B8",
+                                    borderwidth=0.8,
+                                    borderpad=2
+                                )
                     fig_samp.update_layout(
-                        height=540,
-                        title_font=dict(size=18, family="Segoe UI, sans-serif"),
-                        margin=dict(l=10, r=10, t=50, b=10),
-                        legend=dict(
-                            itemsizing='constant',
-                            font=dict(size=14, family="Segoe UI, sans-serif"),
-                            title=dict(font=dict(size=15, family="Segoe UI, sans-serif")),
-                            bgcolor="rgba(255,255,255,0.9)",
-                            bordercolor="#CBD5E1",
-                            borderwidth=1
-                        )
+                        height=plot_h,
+                        title_font=dict(size=16, family="Segoe UI, sans-serif"),
+                        margin=plot_m,
+                        showlegend=show_leg,
+                        legend=legend_layout if show_leg else None
                     )
                     st.plotly_chart(fig_samp, width="stretch")
 
@@ -1330,18 +1355,32 @@ if app_mode == "Single Cell Analysis Viewer":
                         
                     fig_states.update_xaxes(range=x_range, title_text="UMAP 1", title_font=dict(size=16, family="Segoe UI, sans-serif"), tickfont=dict(size=14, family="Segoe UI, sans-serif"), zeroline=False, showgrid=True, gridcolor="#F8FAFC")
                     fig_states.update_yaxes(range=y_range, title_text="UMAP 2", title_font=dict(size=16, family="Segoe UI, sans-serif"), tickfont=dict(size=14, family="Segoe UI, sans-serif"), scaleanchor="x", scaleratio=1, zeroline=False, showgrid=True, gridcolor="#F8FAFC")
+                    # Truncate overly long legend label names to prevent layout squeezing
+                    fig_states.for_each_trace(
+                        lambda t: t.update(name=(t.name[:24] + '..') if len(str(t.name)) > 26 else t.name)
+                    )
+                    if plotly_legend_pos == "On-Plot Centroids" and selected_col and selected_col in df_plotly.columns:
+                        for cat in (selected_cats if selected_cats else unique_states):
+                            sub_c = df_plotly[df_plotly["Cell State"] == cat]
+                            if not sub_c.empty:
+                                cx, cy = float(sub_c["UMAP 1"].median()), float(sub_c["UMAP 2"].median())
+                                disp_c = (cat[:20] + '..') if len(str(cat)) > 22 else str(cat)
+                                fig_states.add_annotation(
+                                    x=cx, y=cy,
+                                    text=f"<b>{disp_c}</b>",
+                                    showarrow=False,
+                                    font=dict(size=9.5, color="#1e293b", family="Segoe UI, sans-serif"),
+                                    bgcolor="rgba(255,255,255,0.85)",
+                                    bordercolor="#94A3B8",
+                                    borderwidth=0.8,
+                                    borderpad=2
+                                )
                     fig_states.update_layout(
-                        height=540,
-                        title_font=dict(size=18, family="Segoe UI, sans-serif"),
-                        margin=dict(l=10, r=10, t=50, b=10),
-                        legend=dict(
-                            itemsizing='constant',
-                            font=dict(size=14, family="Segoe UI, sans-serif"),
-                            title=dict(font=dict(size=15, family="Segoe UI, sans-serif")),
-                            bgcolor="rgba(255,255,255,0.9)",
-                            bordercolor="#CBD5E1",
-                            borderwidth=1
-                        )
+                        height=plot_h,
+                        title_font=dict(size=16, family="Segoe UI, sans-serif"),
+                        margin=plot_m,
+                        showlegend=show_leg,
+                        legend=legend_layout if show_leg else None
                     )
                     st.plotly_chart(fig_states, width="stretch")
 
@@ -1413,11 +1452,10 @@ if app_mode == "Single Cell Analysis Viewer":
                         fig_expr.update_xaxes(range=x_range, title_text="UMAP 1", title_font=dict(size=16, family="Segoe UI, sans-serif"), tickfont=dict(size=14, family="Segoe UI, sans-serif"), zeroline=False, showgrid=True, gridcolor="#F8FAFC")
                         fig_expr.update_yaxes(range=y_range, title_text="UMAP 2", title_font=dict(size=16, family="Segoe UI, sans-serif"), tickfont=dict(size=14, family="Segoe UI, sans-serif"), scaleanchor="x", scaleratio=1, zeroline=False, showgrid=True, gridcolor="#F8FAFC")
                         fig_expr.update_layout(
-                            height=540,
-                            title_font=dict(size=18, family="Segoe UI, sans-serif"),
-                            margin=dict(l=10, r=10, t=50, b=10),
-                            legend=dict(itemsizing='constant', font=dict(size=14, family="Segoe UI, sans-serif")),
-                            coloraxis_colorbar=dict(title_font=dict(size=15, family="Segoe UI, sans-serif"), tickfont=dict(size=13, family="Segoe UI, sans-serif"))
+                            height=plot_h,
+                            title_font=dict(size=16, family="Segoe UI, sans-serif"),
+                            margin=plot_m,
+                            coloraxis_colorbar=dict(title_font=dict(size=13, family="Segoe UI, sans-serif"), tickfont=dict(size=11, family="Segoe UI, sans-serif"))
                         )
                         st.plotly_chart(fig_expr, width="stretch")
 

@@ -21,7 +21,12 @@ from clairescope.config import (
 from clairescope.stats.hypothesis import run_mann_whitney, get_sig_label, format_sig_value
 from clairescope.stats.correlation import compute_bivariate_correlation
 from clairescope.stats.enrichment import run_hypergeometric_enrichment
-from clairescope.core.schema import get_gene_display_mappings, resolve_gene_var_name
+from clairescope.core.schema import (
+    get_gene_display_mappings,
+    resolve_gene_var_name,
+    get_cluster_color_map,
+    rank_cell_state,
+)
 from clairescope.ui.widgets import draggable_multiselect
 import numpy as np
 import pandas as pd
@@ -132,6 +137,29 @@ class TestSchema(unittest.TestCase):
         self.assertEqual(resolve_gene_var_name(adata, "Col17a1 (ENSMUSG00000025064)", sym_to_disp, disp_to_var), "Col17a1")
         # Ensure unmatched Human Ensembl ID safely returns None without raising KeyError
         self.assertIsNone(resolve_gene_var_name(adata, "ENSG00000144749", sym_to_disp, disp_to_var))
+
+    def test_get_cluster_color_map_unique_colors(self):
+        obs_df = pd.DataFrame({
+            "cell_state": [
+                "Low Quality / Mitochondrial-rich KC",
+                "IFE Basal / Basal stem-like (Krt14+/Krt5+)",
+                "IFE Suprabasal / Spinous (Krt10+/Krt1+)",
+                "Granular / Terminally Differentiated (Mt4+/Lor+)",
+                "Cycling KC (Top2a+/Mki67+)",
+                "Isthmus / Junctional Zone-like (Lrig1+/Plet1+)",
+                "HFSC / Bulge-like (Lgr5+/Cd34+)",
+                "Infundibulum / SG-opening (Defb6+/S100a9+/Lgals7a+)",
+                "Wound-activated / Hyperproliferative KC (Krt6a+/Krt16+)",
+                "Schwann Cell (Contamination)",
+                "T Cell (Contamination)",
+                "Lymphatic Endothelial (Contamination)"
+            ]
+        })
+        adata = ad.AnnData(X=np.zeros((12, 2)), obs=obs_df)
+        cmap_dict, categories = get_cluster_color_map(adata, "cell_state")
+        self.assertEqual(len(categories), 12)
+        unique_colors = set(cmap_dict.values())
+        self.assertEqual(len(unique_colors), 12)
 
 class TestWidgets(unittest.TestCase):
     def test_draggable_multiselect_filtering(self):
