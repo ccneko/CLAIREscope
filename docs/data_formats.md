@@ -21,6 +21,22 @@
 
 ---
 
+### Dynamic Gene Identifier & Cross-Platform Mapping
+
+<span class="brand">CLAIREscope</span> features an automatic bidirectional gene resolver that inspects the active AnnData object's index and `.var` metadata in real time. It dynamically standardizes gene symbols and Ensembl IDs across species and annotation conventions without requiring manual pre-formatting.
+
+| Dataset Indexing Convention | Native Index (`adata.var_names`) | Var Metadata (`adata.var`) | Formatted Display Label | Accepted Query Inputs |
+| :--- | :--- | :--- | :--- | :--- |
+| **Gene Symbol Index**<br>*(e.g., Murine / Standard Gene Index)* | `Col17a1` | `gene_ids: ENSMUSG00000025064` | `Col17a1 (ENSMUSG00000025064)` | `Col17a1`, `COL17A1`, `col17a1`, `ENSMUSG00000025064` |
+| **Ensembl ID Index**<br>*(e.g., Human / Ensembl-Indexed)* | `ENSG00000065618` | `gene_symbols: COL17A1` | `COL17A1 (ENSG00000065618)` | `COL17A1`, `Col17a1`, `col17a1`, `ENSG00000065618` |
+| **Symbol-Only Index**<br>*(Direct Symbol Indexing)* | `COL17A1` | *(Symbols as index)* | `COL17A1` | `COL17A1`, `col17a1`, `Col17a1` |
+
+- **Species-Aware Casing**: Preserves standard casing for the target species (e.g. initial-capital for mouse, all-caps for human) while accepting case-insensitive searches.
+- **Bidirectional ID & Symbol Lookup**: Users can query either by common gene symbol or by Ensembl accession number.
+- **Cross-Dataset Resilience**: If an identifier from another dataset or species is queried, the resolver safely handles the mismatch rather than raising indexing errors.
+
+---
+
 ## 2. Converting Seurat (R) Objects to AnnData (`.h5ad`)
 
 If your analysis was performed in R with Seurat, you can export to `.h5ad` using **`zellkonverter`** (Bioconductor) or **`SeuratDisk`**:
@@ -103,10 +119,10 @@ A `.xlsx` file containing designated sheets:
 ### Project Configuration (`config/user/projects.yaml`)
 ```yaml
 projects:
-  Project_A_Lab A_Condition B:
-    name: "Project_A: Condition B Somatic Condition A snRNA-seq (Lab A)"
-    root: "data/Project_A"
-    desc: "Single-nucleus RNA-seq of Junctional Epidermolysis Bullosa (Control, A1, A2, B)"
+  DEMO_SKIN_ATLAS:
+    name: "Epidermal Single-Cell Demo Atlas"
+    root: "data/demo_skin_atlas"
+    desc: "Demonstration single-cell RNA-seq reference of epidermal differentiation states"
     sample_col: "sample"
     annotation_col: "cell_state_annotated"
 ```
