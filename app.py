@@ -972,19 +972,32 @@ if app_mode == "Single Cell Analysis Viewer":
             suggested_vmax = float(np.percentile(expr_for_scale, pct_slider)) if resolved_var_name and len(expr_for_scale) > 1 else max_possible
             if suggested_vmax <= 0:
                 suggested_vmax = max_possible if max_possible > 0 else 1.0
-                
+
+            # Reactively synchronize colormap max whenever gene, percentile threshold, or scale changes
+            prev_gene_key = st.session_state.get("_last_synced_tab1_gene", None)
+            prev_pct_val = st.session_state.get("_last_synced_tab1_pct", None)
+            prev_scale_val = st.session_state.get("_last_synced_tab1_scale", None)
+
+            if (resolved_var_name != prev_gene_key or pct_slider != prev_pct_val or use_log2 != prev_scale_val):
+                st.session_state["tab1_custom_vmax"] = round(suggested_vmax, 2)
+                st.session_state["_last_synced_tab1_gene"] = resolved_var_name
+                st.session_state["_last_synced_tab1_pct"] = pct_slider
+                st.session_state["_last_synced_tab1_scale"] = use_log2
+
             with c_vmax:
                 custom_vmax = st.number_input(
                     "Colormap Max (vmax):",
                     min_value=0.01,
                     max_value=max(max_possible * 2.0, 10000.0),
-                    value=round(suggested_vmax, 2),
+                    value=float(st.session_state.get("tab1_custom_vmax", round(suggested_vmax, 2))),
                     step=0.5 if use_log2 else 10.0,
-                    help="Direct numeric limit for colormap maximum.",
+                    help="Direct numeric limit for colormap maximum. Automatically synced with percentile slider and selected gene.",
                     key="tab1_custom_vmax"
                 )
             chosen_vmax = float(custom_vmax)
             chosen_scale_label = "Log2(Norm+1)" if use_log2 else "Linear"
+            chosen_vmax_t2 = chosen_vmax
+            chosen_scale_label_t2 = chosen_scale_label
 
         with st.expander("⚙️ Static Grid Layout Controls", expanded=False):
             c_sg1, c_sg2 = st.columns(2)
@@ -3087,24 +3100,34 @@ if app_mode == "Single Cell Analysis Viewer":
                     help="Clip upper colormap limit to enhance visual contrast against outliers.",
                     key="hm_vmax_pct_slider"
                 )
+            prev_hm_scale = st.session_state.get("_last_synced_hm_scale", None)
+            prev_hm_pct = st.session_state.get("_last_synced_hm_pct", None)
+            if hm_scale != prev_hm_scale or hm_pct_slider != prev_hm_pct:
+                if hm_scale.startswith("Z-score"):
+                    sug_z = max(1.0, round(2.5 * (hm_pct_slider / 100.0), 1))
+                    st.session_state["hm_custom_vmax_z"] = sug_z
+                st.session_state["_last_synced_hm_scale"] = hm_scale
+                st.session_state["_last_synced_hm_pct"] = hm_pct_slider
+
             with c_hm_vmax:
                 if hm_scale.startswith("Z-score"):
                     hm_custom_vmax = st.number_input(
                         "Colormap Max (+/- Z):",
                         min_value=0.5,
                         max_value=10.0,
-                        value=2.0,
+                        value=float(st.session_state.get("hm_custom_vmax_z", 2.0)),
                         step=0.5,
                         help="Symmetric dynamic range for Z-score (-vmax to +vmax).",
                         key="hm_custom_vmax_z"
                     )
                     v_min, v_max = -float(hm_custom_vmax), float(hm_custom_vmax)
                 else:
+                    def_nonz = 4.0 if hm_scale.startswith("Log2") else 50.0
                     hm_custom_vmax = st.number_input(
                         "Colormap Max (vmax):",
                         min_value=0.1,
                         max_value=10000.0,
-                        value=4.0 if hm_scale.startswith("Log2") else 50.0,
+                        value=float(st.session_state.get("hm_custom_vmax_nonz", def_nonz)),
                         step=0.5 if hm_scale.startswith("Log2") else 5.0,
                         help="Direct numeric limit for heatmap upper scale.",
                         key="hm_custom_vmax_nonz"
