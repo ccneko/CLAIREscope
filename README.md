@@ -12,14 +12,13 @@ CLAIREscope is an open-source platform for interactive, reproducible single-cell
   <img src="docs/images/clairescope_preview.png" alt="CLAIREscope Single Cell Analysis Viewer" width="100%">
 </p>
 
-### 🎬 Interactive Tour & Feature Walkthrough (2-Minute Demo)
-
 <p align="center">
-  <video src="docs/media/clairescope_walkthrough_demo.mp4" controls width="100%" poster="docs/images/clairescope_preview.png">
-    <source src="docs/media/clairescope_walkthrough_demo.mp4" type="video/mp4">
-    Your browser does not support the video tag. <a href="docs/media/clairescope_walkthrough_demo.mp4">Download and watch the 2-minute demonstration MP4</a>.
-  </video>
+  <a href="https://clairescope.readthedocs.io/en/latest/demo_video/">
+    <img src="https://img.shields.io/badge/🎬%20Watch%20Walkthrough-2--Minute%20Video%20Demonstration-303F9F?style=for-the-badge" alt="Watch 2-Minute Video Demonstration">
+  </a>
 </p>
+
+> 🎬 **Interactive Demonstration**: Watch the full **[2-Minute Feature Walkthrough Video](https://clairescope.readthedocs.io/en/latest/demo_video/)** on ReadTheDocs to see interactive 2D/3D WebGL exploration, continuous trajectory kinetics, dynamic colormap thresholding, and automated multi-panel export in action.
 
 ## ✨ Highlights
 * **Interactive analysis beyond visualization** — perform statistical testing, signature scoring, correlation analysis, differential expression, trajectory modeling, and pathway enrichment directly within the exploratory workflow.
