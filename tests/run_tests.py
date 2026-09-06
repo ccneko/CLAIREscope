@@ -3,6 +3,7 @@ import sys
 import unittest
 import tempfile
 import shutil
+import ast
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -31,6 +32,35 @@ from clairescope.ui.widgets import draggable_multiselect
 import numpy as np
 import pandas as pd
 import anndata as ad
+
+class TestAppIntegrity(unittest.TestCase):
+    def test_app_syntax_and_ast_compilation(self):
+        app_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app.py")
+        self.assertTrue(os.path.exists(app_path))
+        with open(app_path, "r", encoding="utf-8") as f:
+            code = f.read()
+        
+        # Verify valid AST parse
+        tree = ast.parse(code, filename="app.py")
+        self.assertIsNotNone(tree)
+        
+        # Verify compilation
+        compiled = compile(code, app_path, "exec")
+        self.assertIsNotNone(compiled)
+        
+        # Verify essential symbols and UI bindings exist in app.py
+        required_symbols = [
+            "get_cluster_color_map",
+            "generate_static_grid",
+            "get_umap_embeddings_csv",
+            "tab_static",
+            "tab_interactive",
+            "tab_composition",
+            "plotly_legend_pos",
+            "draggable_multiselect",
+        ]
+        for sym in required_symbols:
+            self.assertIn(sym, code, f"Missing critical symbol '{sym}' in app.py")
 
 class TestConfig(unittest.TestCase):
     def test_config_resolution(self):
@@ -135,7 +165,6 @@ class TestSchema(unittest.TestCase):
         self.assertEqual(resolve_gene_var_name(adata, "COL17A1", sym_to_disp, disp_to_var), "Col17a1")
         self.assertEqual(resolve_gene_var_name(adata, "ENSMUSG00000025064", sym_to_disp, disp_to_var), "Col17a1")
         self.assertEqual(resolve_gene_var_name(adata, "Col17a1 (ENSMUSG00000025064)", sym_to_disp, disp_to_var), "Col17a1")
-        # Ensure unmatched Human Ensembl ID safely returns None without raising KeyError
         self.assertIsNone(resolve_gene_var_name(adata, "ENSG00000144749", sym_to_disp, disp_to_var))
 
     def test_get_cluster_color_map_unique_colors(self):

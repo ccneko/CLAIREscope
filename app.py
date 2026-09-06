@@ -736,8 +736,8 @@ if app_mode == "Single Cell Analysis Viewer":
             if is_highlight and np.sum(~sel_mask) > 0:
                 ax_samp.scatter(umap_coords[~sel_mask, 0], umap_coords[~sel_mask, 1], color='#E2E8F0', s=max(pt_size - 0.5, 0.6), alpha=0.4, label='_nolegend_')
                 
-            for s in ordered_samples:
-                if s in _adata.obs[s_col].values:
+            active_samp_order = [s for s in (selected_samples if selected_samples else ordered_samples) if s in _adata.obs[s_col].values]
+            for s in active_samp_order:
                     if is_filter:
                         mask = (_adata.obs[s_col] == s) & sel_mask
                     elif is_highlight:
@@ -779,7 +779,8 @@ if app_mode == "Single Cell Analysis Viewer":
             if is_highlight and np.sum(~sel_mask) > 0:
                 ax_ct.scatter(umap_coords[~sel_mask, 0], umap_coords[~sel_mask, 1], color='#E2E8F0', s=max(pt_size - 0.5, 0.6), alpha=0.4, label='_nolegend_')
                 
-            for cat in categories:
+            active_cats_order = [c for c in (selected_cats if selected_cats else categories) if c in _adata.obs[col].values]
+            for cat in active_cats_order:
                 if is_filter:
                     mask = (_adata.obs[col] == cat) & sel_mask
                 elif is_highlight:
@@ -1316,11 +1317,13 @@ if app_mode == "Single Cell Analysis Viewer":
                 with col_p0:
                     samp_title = f"Samples ({sample_col})" if sample_col else "Samples"
                     if view_mode == "Filter view (show selected only)":
+                        active_samp_order = [s for s in (selected_samples if selected_samples else ordered_samples) if s in df_selected["Sample"].values]
                         fig_samp = px.scatter(
                             df_selected, x="UMAP 1", y="UMAP 2",
                             color="Sample",
                             hover_data=["Cell State", "Expression"],
                             color_discrete_map=sample_color_map,
+                            category_orders={"Sample": active_samp_order},
                             title=f"{samp_title} (Filtered: {len(df_selected)} cells)",
                             template="plotly_white"
                         )
@@ -1335,7 +1338,7 @@ if app_mode == "Single Cell Analysis Viewer":
                                 name='Other / Dimmed',
                                 hoverinfo='skip'
                             ))
-                        samps_to_plot = [s for s in ordered_samples if s in df_selected["Sample"].values]
+                        samps_to_plot = [s for s in (selected_samples if selected_samples else ordered_samples) if s in df_selected["Sample"].values]
                         for s in samps_to_plot:
                             sub_s_df = df_selected[df_selected["Sample"] == s]
                             if not sub_s_df.empty:
@@ -1357,11 +1360,13 @@ if app_mode == "Single Cell Analysis Viewer":
                             template="plotly_white"
                         )
                     else:
+                        active_samp_order = [s for s in (selected_samples if selected_samples else ordered_samples) if s in df_plotly["Sample"].values]
                         fig_samp = px.scatter(
                             df_plotly, x="UMAP 1", y="UMAP 2",
                             color="Sample",
                             hover_data=["Cell State", "Expression"],
                             color_discrete_map=sample_color_map,
+                            category_orders={"Sample": active_samp_order},
                             title=f"{samp_title} (All Cells)",
                             template="plotly_white"
                         )
@@ -1397,11 +1402,13 @@ if app_mode == "Single Cell Analysis Viewer":
                 with col_p1:
                     state_title = f"Cell States ({selected_col})" if selected_col else "Cell States"
                     if view_mode == "Filter view (show selected only)":
+                        active_cats_order = [c for c in (selected_cats if selected_cats else unique_states) if c in df_selected["Cell State"].values]
                         fig_states = px.scatter(
                             df_selected, x="UMAP 1", y="UMAP 2",
                             color="Cell State",
                             hover_data=["Sample", "Expression"],
                             color_discrete_map=color_discrete_map,
+                            category_orders={"Cell State": active_cats_order},
                             title=f"{state_title} (Filtered: {len(df_selected)} cells)",
                             template="plotly_white"
                         )
@@ -1416,7 +1423,7 @@ if app_mode == "Single Cell Analysis Viewer":
                                 name='Other / Dimmed',
                                 hoverinfo='skip'
                             ))
-                        cats_to_plot = all_categories if all_categories else sorted(df_selected["Cell State"].unique())
+                        cats_to_plot = [c for c in (selected_cats if selected_cats else (all_categories if all_categories else sorted(df_selected["Cell State"].unique()))) if c in df_selected["Cell State"].values]
                         for cat in cats_to_plot:
                             sub_cat_df = df_selected[df_selected["Cell State"] == cat]
                             if not sub_cat_df.empty:
@@ -1438,11 +1445,13 @@ if app_mode == "Single Cell Analysis Viewer":
                             template="plotly_white"
                         )
                     else:
+                        active_cats_order = [c for c in (selected_cats if selected_cats else unique_states) if c in df_plotly["Cell State"].values]
                         fig_states = px.scatter(
                             df_plotly, x="UMAP 1", y="UMAP 2",
                             color="Cell State",
                             hover_data=["Sample", "Expression"],
                             color_discrete_map=color_discrete_map,
+                            category_orders={"Cell State": active_cats_order},
                             title=f"{state_title} (All Cells)",
                             template="plotly_white"
                         )
