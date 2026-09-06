@@ -8,6 +8,10 @@
 
 CLAIREscope is an open-source platform for interactive, reproducible single-cell transcriptomics analysis, integrating exploratory visualization with statistical testing, trajectory modeling, differential expression, and pathway-level interpretation in a unified workflow. Built on Scanpy with a lightweight Python/Streamlit architecture, CLAIREscope enables researchers to iteratively explore complex cellular landscapes, refine analytical parameters in real time, and translate finalized analyses directly into publication-ready figures and structured statistical outputs.
 
+<p align="center">
+  <img src="docs/images/clairescope_preview.png" alt="CLAIREscope Single Cell Analysis Viewer" width="100%">
+</p>
+
 ## ✨ Highlights
 * **Interactive analysis beyond visualization** — perform statistical testing, signature scoring, correlation analysis, differential expression, trajectory modeling, and pathway enrichment directly within the exploratory workflow.
 * **Real-time analytical refinement** — interactively adjust cohorts, genes, comparisons, thresholds, and model parameters with immediate visual and statistical feedback.
