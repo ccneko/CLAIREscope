@@ -5,9 +5,9 @@ authors:
   - family-names: Chung
     given-names: Claire
     affiliation: "Department of Dermatology, Hokkaido University"
-version: 1.0.0
+version: 1.0.1
 doi: 10.5281/zenodo.22308479
-date-released: 2026-09-05
+date-released: 2026-09-06
 url: "https://github.com/ccneko/CLAIREscope"
 repository-code: "https://github.com/ccneko/CLAIREscope"
 license: MIT

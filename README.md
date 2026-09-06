@@ -1,7 +1,7 @@
 # CLAIREscope (Cellular Landscape Analysis, Interpretation & Results Explorer)
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22308479.svg)](https://doi.org/10.5281/zenodo.22308479)
-[![PyPI Version](https://img.shields.io/badge/pypi-v1.0.0-blue.svg)](https://pypi.org/project/clairescope/)
+[![PyPI Version](https://img.shields.io/badge/pypi-v1.0.1-blue.svg)](https://pypi.org/project/clairescope/)
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
 [![Documentation](https://img.shields.io/badge/Docs-ReadTheDocs-brightgreen.svg)](https://clairescope.readthedocs.io)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -140,7 +140,7 @@ If you use CLAIREscope in your research, please cite:
   title = {CLAIREscope: Cellular Landscape Analysis, Interpretation \& Results Explorer for Single-Cell \& Spatial Transcriptomics},
   year = {2026},
   publisher = {Zenodo},
-  version = {1.0.0},
+  version = {1.0.1},
   doi = {10.5281/zenodo.22308479},
   url = {https://doi.org/10.5281/zenodo.22308479},
   institution = {Department of Dermatology, Hokkaido University}
