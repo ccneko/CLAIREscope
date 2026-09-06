@@ -1,6 +1,6 @@
 # 🌐 Remote Access & Deployment Guide
 
-This guide details methods for accessing a PC- or server-hosted **CLAIREscope** instance remotely from laptops, tablets, mobile devices, and collaborating research groups.
+This guide details methods for accessing a PC- or server-hosted <span class="brand">CLAIREscope</span> instance remotely from laptops, tablets, mobile devices, and collaborating research groups.
 
 ---
 

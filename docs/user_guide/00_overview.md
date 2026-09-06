@@ -1,6 +1,6 @@
 # User Guide Overview
 
-CLAIREscope is organized into modular exploratory studios accessible via the top navigation tabs:
+<span class="brand">CLAIREscope</span> is organized into modular exploratory studios accessible via the top navigation tabs:
 
 1. **🎨 Static UMAP Grid**: Side-by-side sample and global expression grids with Loupe-like dynamic contrast controls and bottom legend wrapping.
 2. **✨ Interactive UMAP**: Hardware-accelerated Plotly 2D/3D WebGL scatter viewer with lasso selection, auto-highlighting, and camera persistence.

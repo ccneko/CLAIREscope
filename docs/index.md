@@ -1,10 +1,10 @@
-# 🔬 CLAIREscope: Cellular Landscape Analysis, Interpretation & Results Explorer
+# 🔬 <span class="brand">CLAIREscope</span>: Cellular Landscape Analysis, Interpretation & Results Explorer
 
 [![Release](https://img.shields.io/github/v/release/ccneko/CLAIREscope?color=B32141&label=Release)](https://github.com/ccneko/CLAIREscope/releases)
 [![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**CLAIREscope** is a unified, publication-grade interactive single-cell analysis platform designed for exploratory transcriptomics, multi-project switching, developmental trajectory kinetics modeling, on-the-fly functional genomics, and automated multi-panel export.
+<span class="brand">CLAIREscope</span> is a unified, publication-grade interactive single-cell analysis platform designed for exploratory transcriptomics, multi-project switching, developmental trajectory kinetics modeling, on-the-fly functional genomics, and automated multi-panel export.
 
 ---
 

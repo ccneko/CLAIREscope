@@ -20,3 +20,16 @@
 [data-md-color-scheme="slate"] .md-tabs {
   background-color: #0F172A;
 }
+
+/* Brand Typography */
+.brand,
+.clairescope-brand {
+  font-weight: 700;
+  color: #303F9F;
+  letter-spacing: 0.01em;
+}
+
+[data-md-color-scheme="slate"] .brand,
+[data-md-color-scheme="slate"] .clairescope-brand {
+  color: #9FA8DA;
+}

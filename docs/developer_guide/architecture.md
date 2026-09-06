@@ -1,7 +1,7 @@
 # Architecture & Developer Guide
 
 ## System Overview
-CLAIREscope is built as a lightweight Python application using Streamlit and Scanpy:
+<span class="brand">CLAIREscope</span> is built as a lightweight Python application using Streamlit and Scanpy:
 
 - **Core Framework**: Python 3.10+
 - **Computational Engine**: Scanpy, SciPy, NumPy, Pandas

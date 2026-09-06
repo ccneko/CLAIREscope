@@ -1,12 +1,12 @@
 # 📂 Supported Data Formats & Ingestion Guide
 
-CLAIREscope natively integrates with standard single-cell genomics data structures, tabular matrices, and configuration formats.
+<span class="brand">CLAIREscope</span> natively integrates with standard single-cell genomics data structures, tabular matrices, and configuration formats.
 
 ---
 
 ## 1. AnnData (`.h5ad`) Data Structure
 
-CLAIREscope reads standard **AnnData** (Annotated Data) `.h5ad` objects. Memory scaling is optimized through sparse CSR matrix representations and on-demand caching.
+<span class="brand">CLAIREscope</span> reads standard **AnnData** (Annotated Data) `.h5ad` objects. Memory scaling is optimized through sparse CSR matrix representations and on-demand caching.
 
 ### Expected AnnData Slots
 
@@ -64,7 +64,7 @@ adata.write("my_dataset.h5ad")
 
 ## 3. Custom Gene Lists & Pathway Signatures (CSV / Excel)
 
-CLAIREscope supports on-the-fly importing of gene sets and pathway signatures across multiple file formats in the **Signature & Pathway Scoring Studio**:
+<span class="brand">CLAIREscope</span> supports on-the-fly importing of gene sets and pathway signatures across multiple file formats in the **Signature & Pathway Scoring Studio**:
 
 ### A. Single-Column Gene List (`.csv` / `.txt`)
 A simple one-column text or CSV file listing target gene symbols:
@@ -98,7 +98,7 @@ A `.xlsx` file containing designated sheets:
 
 ## 4. Configuration YAML Files
 
-CLAIREscope uses structured YAML configuration files under `config/` to manage active projects, cell-type marker databases, and signature catalogs:
+<span class="brand">CLAIREscope</span> uses structured YAML configuration files under `config/` to manage active projects, cell-type marker databases, and signature catalogs:
 
 ### Project Configuration (`config/user/projects.yaml`)
 ```yaml

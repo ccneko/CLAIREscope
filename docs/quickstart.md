@@ -1,12 +1,12 @@
 # 🚀 Quickstart Guide
 
-This guide will walk you through setting up and launching **CLAIREscope** on your local machine or high-performance compute server.
+This guide will walk you through setting up and launching <span class="brand">CLAIREscope</span> on your local machine or high-performance compute server.
 
 ---
 
 ## 💻 Hardware & System Requirements
 
-CLAIREscope is designed to be lightweight and resource-efficient. Memory footprint scales with the number of cells in your active AnnData (`.h5ad`) object:
+<span class="brand">CLAIREscope</span> is designed to be lightweight and resource-efficient. Memory footprint scales with the number of cells in your active AnnData (`.h5ad`) object:
 
 | Cohort Scale | Number of Cells | Minimum RAM | Recommended RAM | Recommended CPU |
 | :--- | :--- | :--- | :--- | :--- |
@@ -47,7 +47,7 @@ Run the unified launcher:
 streamlit run app.py
 ```
 
-CLAIREscope will initialize and open your default browser at **`http://localhost:8501`**.
+<span class="brand">CLAIREscope</span> will initialize and open your default browser at **`http://localhost:8501`**.
 
 ---
 
