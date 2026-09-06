@@ -39,23 +39,7 @@ import streamlit.components.v1 as components
 # Setup paths
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Custom Draggable Multiselect Component
-COMPONENT_DIR = os.path.join(APP_DIR, "components", "draggable_multiselect")
-if os.path.exists(COMPONENT_DIR):
-    _draggable_multiselect_comp = components.declare_component("draggable_multiselect", path=COMPONENT_DIR)
-else:
-    _draggable_multiselect_comp = None
-
-def draggable_multiselect(label, options, default=None, key=None):
-    if default is None:
-        default = []
-    if _draggable_multiselect_comp is not None:
-        val = _draggable_multiselect_comp(label=label, options=options, default=default, key=key)
-        if val is None:
-            return list(default)
-        return list(val)
-    else:
-        return st.multiselect(label, options=options, default=default, key=key)
+# Draggable multiselect is imported modularly from clairescope.ui.widgets
 
 # -------------------------------------------------------------
 # MULTI-PROJECT REGISTRY & ENVIRONMENT RESOLUTION
@@ -466,6 +450,21 @@ if not anno_cols:
     selected_col = None
 else:
     selected_col = st.sidebar.selectbox("Annotation Column:", anno_cols)
+
+# Reset transient dataset/column-specific filter keys when switching dataset or annotation column
+current_dataset_signature = f"{selected_project_key}::{selected_dataset_name}::{selected_col}"
+if st.session_state.get("_last_dataset_signature") != current_dataset_signature:
+    st.session_state["_last_dataset_signature"] = current_dataset_signature
+    transient_filter_keys = [
+        "comp_samples_filter", "comp_cats_filter", "v_gene_states", "v_gene_pairs",
+        "sv_states", "sv_pairs", "scat_filter_s", "scat_filter_st",
+        "plotly_filter_samples", "plotly_filter_categories",
+        "hm_ordered_groups", "hm_selected_genes",
+        "bulk_selected_genes", "bulk_selected_pathways",
+    ]
+    for k in transient_filter_keys:
+        if k in st.session_state:
+            del st.session_state[k]
 
 sample_col = get_sample_column(adata)
 
@@ -1470,12 +1469,20 @@ if app_mode == "Single Cell Analysis Viewer":
                 with c_donut_opt:
                     show_donut_pct = st.checkbox("Show % in Donut Slices", value=True, key="comp_show_pct")
                     
-            if not selected_comp_samples or not selected_comp_cats:
+            # Ensure selections are valid subsets of active data
+            valid_comp_samples = [s for s in selected_comp_samples if s in all_dataset_samples] if selected_comp_samples else []
+            valid_comp_cats = [c for c in selected_comp_cats if c in categories] if selected_comp_cats else []
+            if not valid_comp_samples and all_dataset_samples:
+                valid_comp_samples = list(all_dataset_samples)
+            if not valid_comp_cats and categories:
+                valid_comp_cats = list(categories)
+
+            if not valid_comp_samples or not valid_comp_cats:
                 st.warning("Please select at least one sample and one cell state to display composition charts.")
             else:
-                ct_counts_full = pd.crosstab(adata.obs[selected_col], adata.obs[sample_col]).reindex(index=categories, columns=selected_comp_samples, fill_value=0)
+                ct_counts_full = pd.crosstab(adata.obs[selected_col], adata.obs[sample_col]).reindex(index=categories, columns=all_dataset_samples, fill_value=0)
                 full_sample_totals = ct_counts_full.sum(axis=0)
-                ct_counts = ct_counts_full.loc[selected_comp_cats, selected_comp_samples]
+                ct_counts = ct_counts_full.reindex(index=valid_comp_cats, columns=valid_comp_samples, fill_value=0)
                 selected_sample_totals = ct_counts.sum(axis=0)
                 
                 if pct_baseline == "Total All Cells in Sample":
@@ -1489,7 +1496,7 @@ if app_mode == "Single Cell Analysis Viewer":
                     st.markdown("#### Stacked Population Composition")
                     fig_bar = go.Figure()
                     pct_label = "% of Sample" if pct_baseline == "Total All Cells in Sample" else "% of Subset"
-                    for cat in selected_comp_cats:
+                    for cat in valid_comp_cats:
                         cat_col = color_map.get(cat, "#7f8c8d")
                         if bar_metric == "Percentage (%)":
                             y_vals = ct_pct.loc[cat]
@@ -1501,7 +1508,7 @@ if app_mode == "Single Cell Analysis Viewer":
                             custom_data = ct_pct.loc[cat]
                             
                         fig_bar.add_trace(go.Bar(
-                            x=selected_comp_samples,
+                            x=valid_comp_samples,
                             y=y_vals,
                             name=cat,
                             marker=dict(color=cat_col, line=dict(color='#FFFFFF', width=0.5)),
@@ -1531,7 +1538,7 @@ if app_mode == "Single Cell Analysis Viewer":
                     
                 with col_chart2:
                     st.markdown("#### Sample Percentage Ring (Donut) Charts")
-                    num_s = len(selected_comp_samples)
+                    num_s = len(valid_comp_samples)
                     if num_s <= 4:
                         n_rows, n_cols = 1, num_s
                         donut_height = 520
@@ -1551,46 +1558,46 @@ if app_mode == "Single Cell Analysis Viewer":
                         vertical_spacing=0.15
                     )
                     
-                    for idx, s in enumerate(selected_comp_samples):
+                    for idx, s in enumerate(valid_comp_samples):
                         r_idx = (idx // n_cols) + 1
                         c_idx = (idx % n_cols) + 1
-                        s_counts = [int(ct_counts.loc[c, s]) for c in selected_comp_cats]
-                        s_pcts = [float(ct_pct.loc[c, s]) for c in selected_comp_cats]
+                        s_counts = [int(ct_counts.loc[c, s]) for c in valid_comp_cats]
+                        s_pcts = [float(ct_pct.loc[c, s]) for c in valid_comp_cats]
                         
                         if pct_baseline == "Total All Cells in Sample":
                             unselected_count = int(full_sample_totals[s] - selected_sample_totals[s])
                             if unselected_count > 0:
-                                d_labels = selected_comp_cats + ["Unselected"]
+                                d_labels = valid_comp_cats + ["Unselected"]
                                 d_values = s_counts + [unselected_count]
-                                d_colors = [color_map.get(c, "#7f8c8d") for c in selected_comp_cats] + ["rgba(0,0,0,0)"]
-                                d_line_colors = ['#FFFFFF'] * len(selected_comp_cats) + ['rgba(0,0,0,0)']
-                                d_line_widths = [1.5] * len(selected_comp_cats) + [0]
+                                d_colors = [color_map.get(c, "#7f8c8d") for c in valid_comp_cats] + ["rgba(0,0,0,0)"]
+                                d_line_colors = ['#FFFFFF'] * len(valid_comp_cats) + ['rgba(0,0,0,0)']
+                                d_line_widths = [1.5] * len(valid_comp_cats) + [0]
                                 d_texts = [f"{p:.1f}%" if show_donut_pct else "" for p in s_pcts] + [""]
                                 d_hovers = [
                                     f"<b>{c}</b><br>Sample: {s}<br>Count: {cnt:,} cells<br>% of Sample: {pct:.1f}%<extra></extra>"
-                                    for c, cnt, pct in zip(selected_comp_cats, s_counts, s_pcts)
+                                    for c, cnt, pct in zip(valid_comp_cats, s_counts, s_pcts)
                                 ] + [f"<b>Other / Unselected</b><br>Sample: {s}<br>Count: {unselected_count:,} cells<br>% of Sample: {(unselected_count / full_sample_totals[s]) * 100:.1f}%<extra></extra>"]
                             else:
-                                d_labels = selected_comp_cats
+                                d_labels = valid_comp_cats
                                 d_values = s_counts
-                                d_colors = [color_map.get(c, "#7f8c8d") for c in selected_comp_cats]
-                                d_line_colors = ['#FFFFFF'] * len(selected_comp_cats)
-                                d_line_widths = [1.5] * len(selected_comp_cats)
+                                d_colors = [color_map.get(c, "#7f8c8d") for c in valid_comp_cats]
+                                d_line_colors = ['#FFFFFF'] * len(valid_comp_cats)
+                                d_line_widths = [1.5] * len(valid_comp_cats)
                                 d_texts = [f"{p:.1f}%" if show_donut_pct else "" for p in s_pcts]
                                 d_hovers = [
                                     f"<b>{c}</b><br>Sample: {s}<br>Count: {cnt:,} cells<br>% of Sample: {pct:.1f}%<extra></extra>"
-                                    for c, cnt, pct in zip(selected_comp_cats, s_counts, s_pcts)
+                                    for c, cnt, pct in zip(valid_comp_cats, s_counts, s_pcts)
                                 ]
                         else:
-                            d_labels = selected_comp_cats
+                            d_labels = valid_comp_cats
                             d_values = s_counts
-                            d_colors = [color_map.get(c, "#7f8c8d") for c in selected_comp_cats]
-                            d_line_colors = ['#FFFFFF'] * len(selected_comp_cats)
-                            d_line_widths = [1.5] * len(selected_comp_cats)
+                            d_colors = [color_map.get(c, "#7f8c8d") for c in valid_comp_cats]
+                            d_line_colors = ['#FFFFFF'] * len(valid_comp_cats)
+                            d_line_widths = [1.5] * len(valid_comp_cats)
                             d_texts = [f"{p:.1f}%" if show_donut_pct else "" for p in s_pcts]
                             d_hovers = [
                                 f"<b>{c}</b><br>Sample: {s}<br>Count: {cnt:,} cells<br>% of Subset: {pct:.1f}%<extra></extra>"
-                                for c, cnt, pct in zip(selected_comp_cats, s_counts, s_pcts)
+                                for c, cnt, pct in zip(valid_comp_cats, s_counts, s_pcts)
                             ]
                         
                         fig_donuts.add_trace(

@@ -22,6 +22,7 @@ from clairescope.stats.hypothesis import run_mann_whitney, get_sig_label, format
 from clairescope.stats.correlation import compute_bivariate_correlation
 from clairescope.stats.enrichment import run_hypergeometric_enrichment
 from clairescope.core.schema import get_gene_display_mappings, resolve_gene_var_name
+from clairescope.ui.widgets import draggable_multiselect
 import numpy as np
 import pandas as pd
 import anndata as ad
@@ -131,6 +132,18 @@ class TestSchema(unittest.TestCase):
         self.assertEqual(resolve_gene_var_name(adata, "Col17a1 (ENSMUSG00000025064)", sym_to_disp, disp_to_var), "Col17a1")
         # Ensure unmatched Human Ensembl ID safely returns None without raising KeyError
         self.assertIsNone(resolve_gene_var_name(adata, "ENSG00000144749", sym_to_disp, disp_to_var))
+
+class TestWidgets(unittest.TestCase):
+    def test_draggable_multiselect_filtering(self):
+        options = ["basal", "spinous", "granular"]
+        res = draggable_multiselect("Test", options=options, default=["basal", "invalid_state"])
+        self.assertIn("basal", res)
+        self.assertNotIn("invalid_state", res)
+
+    def test_draggable_multiselect_empty_fallback(self):
+        options = ["basal", "spinous", "granular"]
+        res = draggable_multiselect("Test", options=options, default=["completely_different_state"])
+        self.assertEqual(res, options)
 
 class TestGUI(unittest.TestCase):
     def test_gui_module_import(self):
