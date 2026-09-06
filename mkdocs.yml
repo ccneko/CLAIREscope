@@ -36,6 +36,7 @@ extra_css:
 nav:
   - Home: index.md
   - Quickstart: quickstart.md
+  - Video Demonstration: demo_video.md
   - Remote Deployment: remote_access.md
   - User Guide:
       - Overview: user_guide/00_overview.md

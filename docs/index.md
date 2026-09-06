@@ -6,6 +6,9 @@
 
 <span class="brand">CLAIREscope</span> is a unified, publication-grade interactive single-cell analysis platform designed for exploratory transcriptomics, multi-project switching, developmental trajectory kinetics modeling, on-the-fly functional genomics, and automated multi-panel export.
 
+> 🎬 **Interactive Tour**: Watch the [2-Minute Video Demonstration](demo_video.md) to see CLAIREscope's real-time analysis studios in action.
+
+
 ---
 
 ## 🌟 Key Capabilities

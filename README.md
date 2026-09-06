@@ -12,6 +12,15 @@ CLAIREscope is an open-source platform for interactive, reproducible single-cell
   <img src="docs/images/clairescope_preview.png" alt="CLAIREscope Single Cell Analysis Viewer" width="100%">
 </p>
 
+### 🎬 Interactive Tour & Feature Walkthrough (2-Minute Demo)
+
+<p align="center">
+  <video src="docs/media/clairescope_walkthrough_demo.mp4" controls width="100%" poster="docs/images/clairescope_preview.png">
+    <source src="docs/media/clairescope_walkthrough_demo.mp4" type="video/mp4">
+    Your browser does not support the video tag. <a href="docs/media/clairescope_walkthrough_demo.mp4">Download and watch the 2-minute demonstration MP4</a>.
+  </video>
+</p>
+
 ## ✨ Highlights
 * **Interactive analysis beyond visualization** — perform statistical testing, signature scoring, correlation analysis, differential expression, trajectory modeling, and pathway enrichment directly within the exploratory workflow.
 * **Real-time analytical refinement** — interactively adjust cohorts, genes, comparisons, thresholds, and model parameters with immediate visual and statistical feedback.
