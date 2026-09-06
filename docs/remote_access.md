@@ -38,7 +38,7 @@ cloudflared tunnel --url http://localhost:8501
 
 ### Setup Instructions
 1. **Enable Meshnet on Host Machine (Windows / Server)**:
-   - Open the **NordVPN app** $\rightarrow$ Click the **Meshnet icon** in the left sidebar $\rightarrow$ Toggle **Meshnet ON**.
+   - Open the **NordVPN app** → Click the **Meshnet icon** in the left sidebar → Toggle **Meshnet ON**.
    - Note the assigned **Meshnet IP** (e.g. \100.64.x.x\) or **Nord Name** (e.g. \claire-desktop.nord\).
 
 2. **Configure Windows WSL2 Port Forwarding** (Run once in PowerShell as Administrator if running inside WSL):

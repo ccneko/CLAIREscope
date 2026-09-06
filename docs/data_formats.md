@@ -2,7 +2,7 @@
 
 ## 1. AnnData (`.h5ad`)
 CLAIREscope natively reads standard AnnData `.h5ad` files:
-- **`adata.X`**: Log-normalized expression matrix ($\log 1p$ normalized or CP10k).
+- **`adata.X`**: Log-normalized expression matrix (log1p normalized or CP10k).
 - **`adata.obs`**: Cell-level metadata (must include sample columns and cell-type annotations).
 - **`adata.var`**: Gene metadata with symbols and Ensembl IDs.
 - **`adata.obsm['X_umap']`**: 2D UMAP coordinates for static and interactive scatter plots.
