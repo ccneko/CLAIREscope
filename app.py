@@ -1183,8 +1183,8 @@ if app_mode == "Single Cell Analysis Viewer":
                     st.session_state["plotly_view_mode"] = "Highlight selected (dim unselected in grey)"
             st.session_state["_prev_plotly_filter_tuple"] = current_filter_tuple
             
-            with st.expander("Filter & Highlight Controls", expanded=True):
-                c_mode, c_size = st.columns([2, 1])
+            with st.expander("Display & Subsetting Options", expanded=True):
+                c_mode, c_size, c_legend = st.columns([1.4, 1.0, 1.2])
                 with c_mode:
                     view_mode = st.radio(
                         "View / Highlight Mode:",
@@ -1194,6 +1194,13 @@ if app_mode == "Single Cell Analysis Viewer":
                     )
                 with c_size:
                     pt_size = st.slider("Point Size:", min_value=1.5, max_value=8.0, value=3.5, step=0.5, key="plotly_pt_size")
+                with c_legend:
+                    plotly_legend_pos = st.selectbox(
+                        "Legend Layout:",
+                        ["Bottom (Horizontal)", "Right Side (Compact)", "On-Plot Centroids", "Hide Legend"],
+                        index=0,
+                        key="plotly_legend_pos"
+                    )
                 
                 col_f1, col_f2 = st.columns(2)
                 with col_f1:
