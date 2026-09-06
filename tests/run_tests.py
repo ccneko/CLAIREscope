@@ -24,6 +24,7 @@ from clairescope.stats.enrichment import run_hypergeometric_enrichment
 from clairescope.core.schema import get_gene_display_mappings, resolve_gene_var_name
 import numpy as np
 import pandas as pd
+import anndata as ad
 
 class TestConfig(unittest.TestCase):
     def test_config_resolution(self):
@@ -111,10 +112,25 @@ class TestStats(unittest.TestCase):
         self.assertFalse(df.empty)
 
 class TestSchema(unittest.TestCase):
-    def test_gene_display_mappings(self):
+    def test_gene_display_mappings_human(self):
         var_df = pd.DataFrame({"gene_name": ["CDH1"]}, index=["CDH1_idx"])
         options, disp_to_var, sym_to_disp, var_to_disp = get_gene_display_mappings(var_df, list(var_df.index))
         self.assertIn("CDH1", sym_to_disp)
+
+    def test_gene_display_mappings_mouse_d002(self):
+        var_df = pd.DataFrame({
+            "gene_ids": ["ENSMUSG00000025064", "ENSMUSG00000051951"]
+        }, index=["Col17a1", "Xkr4"])
+        options, disp_to_var, sym_to_disp, var_to_disp = get_gene_display_mappings(var_df, list(var_df.index))
+        self.assertIn("Col17a1 (ENSMUSG00000025064)", options)
+        
+        adata = ad.AnnData(X=np.zeros((2, 2)), var=var_df)
+        self.assertEqual(resolve_gene_var_name(adata, "Col17a1", sym_to_disp, disp_to_var), "Col17a1")
+        self.assertEqual(resolve_gene_var_name(adata, "COL17A1", sym_to_disp, disp_to_var), "Col17a1")
+        self.assertEqual(resolve_gene_var_name(adata, "ENSMUSG00000025064", sym_to_disp, disp_to_var), "Col17a1")
+        self.assertEqual(resolve_gene_var_name(adata, "Col17a1 (ENSMUSG00000025064)", sym_to_disp, disp_to_var), "Col17a1")
+        # Ensure unmatched Human Ensembl ID safely returns None without raising KeyError
+        self.assertIsNone(resolve_gene_var_name(adata, "ENSG00000144749", sym_to_disp, disp_to_var))
 
 class TestGUI(unittest.TestCase):
     def test_gui_module_import(self):

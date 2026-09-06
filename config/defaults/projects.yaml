@@ -65,14 +65,13 @@ CHENG_2018_HUMAN_SKIN:
     basal stem (Basal 1), secretory (Basal 2), spinous, and granular differentiation
     states.
   paths:
-    windows: data\cheng2018_human_skin
-    wsl: /home/claire/dev/CLAIREscope/data/cheng2018_human_skin
-    linux: data/cheng2018_human_skin
+    windows: data/Data\Project_A
+    wsl: data/Data/Project_A
+    linux: data/Data/Project_A
   scan_subdirs:
-  - data
-  - demo
-  - cheng2018
-  default_dataset: cheng2018_trunk_counts
+  - out/2026-09-05_cheng2018
+  - data/2025-11-26_EGA_Cheng2018
+  default_dataset: cheng2018_trunk_processed (2026-09-05_cheng2018)
   canonical_samples:
   - Trunk
   - Foreskin
@@ -166,3 +165,267 @@ CHENG_2018_HUMAN_SKIN:
     - PCNA
     - AURKA
     - PLK1
+  default_preload: cheng2018_trunk_processed.h5ad
+  win_base: data/Data\Project_A
+  wsl_base: data/Data/Project_A
+Project_A:
+  id: Project_A
+  name: 'Project A'
+  desc: Analysis A
+    (Control, A1, A2, B)
+  win_base: data/Data\Project_A
+  wsl_base: data/Data/Project_A
+  scan_subdirs:
+  - out/2026-08-23_human_epidermal_subclustering
+  - out/2026-07-06_adherens_junction_and_col17a1_correlation_analysis
+  - out/2026-02-09_celltypist
+  - out/2026-02-26_harmony
+  - data/2025-03-18_scRNAseq
+  - data/2025-11-26_EGA_Cheng2018
+  default_preload: adata_kc_norm_cell_typed.h5ad
+  canonical_samples:
+  - Control
+  - A1
+  - A2
+  - B
+  - Control_P4
+  - A1
+  - A2
+  - B
+  - Normal
+  - Condition B
+  - Condition A
+  sample_colors:
+    Control: '#e74c3c'
+    A1: '#8e44ad'
+    A2: '#f1c40f'
+    B: '#00a8ff'
+    Control_P4: '#e74c3c'
+    A1: '#8e44ad'
+    A2: '#f1c40f'
+    B: '#00a8ff'
+    Normal: '#2ecc71'
+    Condition B: '#e74c3c'
+    Condition A: '#3498db'
+  default_pairs:
+  - - Control
+    - B
+  - - A2
+    - B
+  - - A1
+    - B
+  default_signatures:
+    Adherens Junction Complex:
+    - CDH1
+    - CTNNB1
+    - CTNNA1
+    - CTNND1
+    - JUP
+    Desmosomes:
+    - DSP
+    - PKP1
+    - PKP3
+    - DSG1
+    - DSG3
+    - DSC1
+    - DSC3
+    - PPL
+    - EVPL
+    Hemidesmosome & Basement Membrane:
+    - COL17A1
+    - ITGB4
+    - ITGA6
+    - LAMA3
+    - LAMB3
+    - LAMC2
+    - DST
+    Cell Cycle / Proliferation:
+    - MKI67
+    - TOP2A
+    - CCNB1
+    - CDK1
+    - PCNA
+Project_B:
+  id: Project_B
+  name: 'Project B'
+  desc: Murine Cutaneous Wound Healing Single-Cell Multiome Dynamics (Full, Full_adj,
+    SB, SB_adj)
+  species: Mouse
+  win_base: data/Data\Project_B
+  wsl_base: data/Data/Project_B
+  scan_subdirs:
+  - out/2026-08-19_subclustering
+  - out/2026-08-10_KC_subcluster
+  - out/2026-08-10_fibroblast_subcluster
+  - data
+  default_preload: kc_subset_annotated_with.h5ad
+  canonical_samples:
+  - Full_adj
+  - Full
+  - SB_adj
+  - SB
+  sample_colors:
+    Full: '#c0392b'
+    Full_adj: '#e8a598'
+    SB: '#2465a8'
+    SB_adj: '#9cc3e0'
+  default_pairs:
+  - - Full_adj
+    - Full
+  - - SB_adj
+    - SB
+  default_signatures:
+    Adherens Junction Complex:
+    - Cdh1
+    - Ctnnb1
+    - Ctnna1
+    - Ctnnd1
+    - Dsp
+    - Jup
+    - Ppl
+    - Evpl
+    - Pkp1
+    - Pkp3
+    - Cdh2
+    - Ctnna2
+    Desmosomes:
+    - Dsp
+    - Pkp1
+    - Pkp3
+    - Dsg1a
+    - Dsg3
+    - Dsc1
+    - Dsc3
+    - Ppl
+    - Evpl
+    Hemidesmosome & Basement Membrane:
+    - Col17a1
+    - Itgb4
+    - Itga6
+    - Lama3
+    - Lamb3
+    - Lamc2
+    - Dst
+    Cell Cycle / Proliferation:
+    - Mki67
+    - Top2a
+    - Ccnb1
+    - Cdk1
+    - Pcna
+    Wound Activation:
+    - Krt6a
+    - Krt16
+    - Krt17
+    - Itgb6
+    - Sprr1b
+    Fibrogenesis & ECM Remodeling:
+    - Fn1
+    - Tnc
+    - Col1a1
+    - Col3a1
+    - Mmp3
+    - Mmp9
+    - Tgfb1
+Project_C:
+  id: Project_C
+  name: 'Project C'
+  desc: Human Foreskin Epidermis Single-Cell Dynamics across Basal Stem Transition,
+    Cell Cycle, and Differentiation (5 Donors, Wang et al. 2020 Nat Commun)
+  species: Human
+  win_base: data/Data\Project_C
+  wsl_base: data/Data/Project_C
+  scan_subdirs:
+  - out/2026-09-05_epidermis_cell_cycle
+  - data/GSE147482
+  - data
+  default_preload: adata_wang2020_epidermis.h5ad
+  canonical_samples:
+  - Donor_1
+  - Donor_2
+  - Donor_3
+  - Donor_4
+  - Donor_5
+  sample_colors:
+    Donor_1: '#3B82F6'
+    Donor_2: '#10B981'
+    Donor_3: '#F59E0B'
+    Donor_4: '#EC4899'
+    Donor_5: '#8B5CF6'
+  default_pairs:
+  - - Donor_1
+    - Donor_2
+  - - Donor_3
+    - Donor_4
+  default_signatures:
+    Basal Stem & Anchor:
+    - COL17A1
+    - DST
+    - ITGB4
+    - ITGA6
+    - BCAM
+    - POSTN
+    - TP63
+    - KRT14
+    - KRT5
+    Replication Stress & Cell Cycle:
+    - TOP2A
+    - PCNA
+    - RA2
+    - FEN1
+    - MKI67
+    - CDK1
+    - CCNB1
+    - BRCA1
+    - RAD51
+    - CHEK1
+    - MCM2
+    - MCM5
+    Basal-to-Suprabasal Transition:
+    - KRT14
+    - KRT5
+    - KRT1
+    - KRT10
+    - DSG1
+    - DSC1
+    - AREG
+    - MIF
+    Spinous Differentiation:
+    - KRT1
+    - KRT10
+    - DSG1
+    - DSC1
+    - DMKN
+    - SBSN
+    - KRTDAP
+    - CALML5
+    - SPINK5
+    Granular & Cornification:
+    - FLG
+    - FLG2
+    - LOR
+    - IVL
+    - TGM1
+    - TGM3
+    - LCE1A
+    - LCE2A
+    - LCE3D
+    - SPRR1A
+    - SPRR1B
+    Adherens Junctions:
+    - CDH1
+    - CTNNB1
+    - CTNNA1
+    - CTNND1
+    - JUP
+    - PLEKHA7
+    - PNN
+    Desmosomes:
+    - DSP
+    - PKP1
+    - PKP3
+    - DSG1
+    - DSG3
+    - DSC1
+    - DSC3
+    - PPL
+    - EVPL

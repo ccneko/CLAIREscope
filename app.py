@@ -245,104 +245,7 @@ def load_adata(h5ad_path):
     adata = sc.read_h5ad(h5ad_path)
     return adata
 
-# Cache gene records: returns display_options with "gene_name (gene_id)" formatting and bidirectional lookups
-@st.cache_data
-def get_gene_display_mappings(_var_df, _var_names):
-    records = []
-    has_symbols = 'gene_symbols' in _var_df.columns
-    has_ids = 'gene_ids' in _var_df.columns
-    
-    for idx_name in _var_names:
-        row = _var_df.loc[idx_name] if idx_name in _var_df.index else None
-        
-        # Determine symbol
-        if has_symbols and row is not None and pd.notna(row['gene_symbols']):
-            sym = str(row['gene_symbols']).strip()
-        else:
-            sym = str(idx_name).strip()
-            
-        # Determine ID
-        if has_ids and row is not None and pd.notna(row['gene_ids']):
-            gid = str(row['gene_ids']).strip()
-        elif idx_name.startswith(('ENSG', 'ENSMUSG', 'ENS')):
-            gid = str(idx_name).strip()
-        else:
-            gid = None
-            
-        if gid and gid != sym:
-            display_str = f"{sym} ({gid})"
-        else:
-            display_str = sym
-            
-        records.append((display_str, sym, gid, idx_name))
-        
-    records.sort(key=lambda x: x[1].upper())
-    
-    display_to_var = {r[0]: r[3] for r in records}
-    sym_to_display = {r[1].upper(): r[0] for r in records}
-    var_to_display = {r[3]: r[0] for r in records}
-    display_options = ["None"] + [r[0] for r in records]
-    
-    return display_options, display_to_var, sym_to_display, var_to_display
-
-# Helper to find categorical obs columns
-def get_annotation_columns(adata):
-    candidates = []
-    for col in adata.obs.columns:
-        dtype = adata.obs[col].dtype
-        if isinstance(dtype, pd.CategoricalDtype):
-            candidates.append(col)
-        elif dtype.name in ['object', 'string', 'int64', 'int32']:
-            if adata.obs[col].nunique() < 100:
-                candidates.append(col)
-    preferred = ['predicted_labels', 'majority_voting', 'state_group', 'cell_state_annotated', 'cell_type', 'celltype', 'leiden', 'louvain', 'sample', 'condition']
-    candidates = sorted(candidates, key=lambda x: (0 if x in preferred else 1, preferred.index(x) if x in preferred else x))
-    return candidates
-
-# Helper to find sample/condition column
-def get_sample_column(adata):
-    for col in ['sample', 'condition', 'donor_id', 'source', 'batch']:
-        if col in adata.obs.columns:
-            return col
-    return adata.obs.columns[0] if len(adata.obs.columns) > 0 else 'sample'
-
-# Significance label helper
-def get_sig_label(p):
-    if p < 0.0001: return "****"
-    if p < 0.001: return "***"
-    if p < 0.01: return "**"
-    if p < 0.05: return "*"
-    return "ns"
-
-# Format p-values and q-values with 4 sig figs and scientific notation for < 0.0001
-def format_sig_value(val):
-    if pd.isna(val):
-        return "N/A"
-    try:
-        v = float(val)
-        if v == 0.0:
-            return "0.0"
-        if abs(v) < 0.0001 or abs(v) >= 10000:
-            return f"{v:.4e}"
-        else:
-            return f"{float(f'{v:.4g}'):g}"
-    except Exception:
-        return str(val)
-
-# Resolve case-insensitive gene match to var_name index
-def resolve_gene_var_name(adata, gene_name, sym_to_display, display_to_var):
-    if not gene_name or gene_name == "None":
-        return None
-    q = gene_name.strip()
-    if q in display_to_var:
-        return display_to_var[q]
-    if q in adata.var_names:
-        return q
-    q_upper = q.upper()
-    if q_upper in sym_to_display:
-        disp = sym_to_display[q_upper]
-        return display_to_var.get(disp, None)
-    return None
+# Core schema, statistics, and formatting utilities imported from clairescope package
 
 # Sidebar Branding & Navigation
 with st.sidebar:
@@ -601,23 +504,26 @@ if app_mode == "Single Cell Analysis Viewer":
     if "gene_dropdown_key" not in st.session_state:
         st.session_state.gene_dropdown_key = "None"
         
-    markers_config = load_yaml()
-    dataset_markers = markers_config.get(yaml_key, {})
+    markers_config = load_markers_config()
+    species_key = curr_proj.get("species", "Human")
+    if species_key in markers_config:
+        dataset_markers = markers_config[species_key]
+    elif species_key.capitalize() in markers_config:
+        dataset_markers = markers_config[species_key.capitalize()]
+    elif species_key.lower() in markers_config:
+        dataset_markers = markers_config[species_key.lower()]
+    else:
+        dataset_markers = markers_config.get("Human", markers_config)
     
     def on_marker_change():
         sel = st.session_state.get("marker_select_key", "None")
         if sel and sel != "None":
-            disp = sym_to_display.get(sel.upper(), None)
-            if not disp:
-                disp = sym_to_display.get(sel, None)
-            if not disp:
-                for d in display_options:
-                    if d.startswith(f"{sel} (") or d == sel or d.upper().startswith(f"{sel.upper()} ("):
-                        disp = d
-                        break
-            if disp:
-                st.session_state.selected_gene_display = disp
-                st.session_state.gene_dropdown_key = disp
+            resolved_v = resolve_gene_var_name(adata, sel, sym_to_display, display_to_var)
+            if resolved_v:
+                disp = var_to_display.get(resolved_v, None)
+                if disp:
+                    st.session_state.selected_gene_display = disp
+                    st.session_state.gene_dropdown_key = disp
                 
     def on_gene_dropdown_change():
         sel = st.session_state.get("gene_dropdown_key", "None")
@@ -2043,7 +1949,7 @@ if app_mode == "Single Cell Analysis Viewer":
                 custom_sig_str = st.text_input("Enter comma-separated gene list:", value="Cdh1, Ctnnb1, Dsp, Jup, Col17a1", key="score_custom_genes")
                 target_genes = [g.strip() for g in custom_sig_str.split(",") if g.strip()]
             else:
-                target_genes = DEFAULT_SIGNATURES[selected_sig_name]
+                target_genes = DEFAULT_SIGNATURES.get(selected_sig_name, [])
                 st.markdown(f'<div style="margin-top: 30px; font-size: 15.5px; color: #334155;"><strong>Genes in panel:</strong> {", ".join(target_genes)}</div>', unsafe_allow_html=True)
                 
         resolved_sig_var_keys = []
@@ -2337,7 +2243,7 @@ if app_mode == "Single Cell Analysis Viewer":
                     x_cust_genes = st.text_input("Custom X genes (comma-separated):", value="Cdh1, Ctnnb1, Col17a1", key="scat_x_cust")
                     x_sig_genes = [g.strip() for g in x_cust_genes.split(",") if g.strip()]
                 else:
-                    x_sig_genes = DEFAULT_SIGNATURES[selected_x_sig]
+                    x_sig_genes = DEFAULT_SIGNATURES.get(selected_x_sig, [])
                 x_resolved_var = [resolve_gene_var_name(adata, g, sym_to_display, display_to_var) for g in x_sig_genes]
                 x_resolved_var = [v for v in x_resolved_var if v is not None]
                 x_label_name = f"{selected_x_sig} Score"
@@ -2363,7 +2269,7 @@ if app_mode == "Single Cell Analysis Viewer":
                     y_cust_genes = st.text_input("Custom Y genes (comma-separated):", value="Mki67, Top2a, Pcna", key="scat_y_cust")
                     y_sig_genes = [g.strip() for g in y_cust_genes.split(",") if g.strip()]
                 else:
-                    y_sig_genes = DEFAULT_SIGNATURES[selected_y_sig]
+                    y_sig_genes = DEFAULT_SIGNATURES.get(selected_y_sig, [])
                 y_resolved_var = [resolve_gene_var_name(adata, g, sym_to_display, display_to_var) for g in y_sig_genes]
                 y_resolved_var = [v for v in y_resolved_var if v is not None]
                 y_label_name = f"{selected_y_sig} Score"
