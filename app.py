@@ -875,6 +875,29 @@ if app_mode == "Single Cell Analysis Viewer":
         plt.tight_layout()
         return fig
 
+    @st.cache_data
+    def get_umap_embeddings_csv(_adata, s_col, a_col, var_name, disp_name):
+        if 'X_umap' not in _adata.obsm:
+            return None
+        df_out = pd.DataFrame({
+            "Barcode": _adata.obs_names,
+            "UMAP_1": _adata.obsm['X_umap'][:, 0],
+            "UMAP_2": _adata.obsm['X_umap'][:, 1]
+        })
+        if s_col and s_col in _adata.obs:
+            df_out["Sample"] = _adata.obs[s_col].values
+        if a_col and a_col in _adata.obs:
+            df_out[a_col] = _adata.obs[a_col].values
+        if var_name and var_name in _adata.var_names:
+            if scipy.sparse.issparse(_adata.X):
+                g_raw = _adata[:, var_name].X.toarray().flatten()
+            else:
+                g_raw = _adata[:, var_name].X.flatten()
+            clean_sym = disp_name.split(" (")[0] if disp_name else "Gene"
+            df_out[f"Expression_{clean_sym}_Raw"] = g_raw
+            df_out[f"Expression_{clean_sym}_Log2"] = np.log2(g_raw + 1)
+        return df_out.to_csv(index=False).encode('utf-8')
+
     # Global sample and category options
     all_samples = ordered_samples if ordered_samples else (list(adata.obs[sample_col].unique()) if sample_col else [])
     if selected_col and hasattr(adata.obs[selected_col], "cat"):
