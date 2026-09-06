@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-09-07
+
+### Added
+- **Bidirectional Gene & Species Resolution**: Robust case-insensitive gene identifier mapping supporting Ensembl IDs, Gene Symbols, and mouse/human orthologs across multi-species datasets (e.g. D002 Watanabe Lab, D004 Wang 2020).
+- **Synchronized Multiselect Legend Ordering**: Both Static UMAP (multi-panel grids and reference plots) and Interactive Plotly UMAPs strictly reflect user custom drag-and-drop sort order in legends.
+- **Dynamic View Filtering & Highlighting on Static UMAP**: Extended "Color all cells", "Highlight selected", and "Filter view" modes with interactive background dimming to static grids and reference plots.
+- **Configurable Plotly Legend Layouts**: Added customizable Interactive UMAP legend orientations (`Bottom (Horizontal)`, `Right Side (Compact)`, `On-Plot Centroids`, `Hide Legend`) with label truncation to prevent plot compression.
+- **Comprehensive AST & Code Integrity Tests**: Added syntax and symbol presence verification in test suite (`tests/run_tests.py`), expanding suite to 21 unit & integrity tests.
+
+### Changed
+- **Overhauled Categorical Color Mapping Engine**: Implemented semantic skin lineage color mappings with a 50+ high-contrast palette pool in `clairescope/core/schema.py`, eliminating unintended grey collapses across cell states.
+- **Point Size Slider Integration**: Unified `Point Size:` controls across all static grid subplots and reference plots with adaptive background point sizing.
+- **Transient State Isolation**: Added automatic widget key cleanup upon dataset/column switching, preventing stale filter exceptions.
+
+### Fixed
+- **Dataset Switch KeyError**: Resolved transient filter state collisions when toggling between datasets with differing annotation columns and categories.
+
+---
+
 ## [1.0.1] - 2026-09-06
 
 ### Added
