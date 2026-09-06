@@ -781,7 +781,7 @@ if app_mode == "Single Cell Analysis Viewer":
 
     # Caching static multi-panel grid generator with Sample UMAP as 1st plot and custom vmax
     @st.cache_data
-    def generate_static_grid(_adata, var_key, disp_title, col, s_col, dataset_name, log2_mode, v_max, cmap_name, grid_cols=3, grid_rows="Auto", col_color_tag="", legend_pos="Bottom (Full Width)", on_data_labels=False):
+    def generate_static_grid(_adata, var_key, disp_title, col, s_col, dataset_name, log2_mode, v_max, cmap_name, grid_cols=3, grid_rows="Auto", col_color_tag="", legend_pos="Bottom (Full Width)"):
         if scipy.sparse.issparse(_adata.X):
             expr_raw = _adata[:, var_key].X.toarray().flatten()
         else:
@@ -835,7 +835,7 @@ if app_mode == "Single Cell Analysis Viewer":
                 ax_samp.legend(title="Sample", bbox_to_anchor=(0.5, -0.2), loc="upper center", markerscale=6, fontsize=9.5, ncol=n_samp_cols, frameon=False)
             elif legend_pos.startswith("Right"):
                 ax_samp.legend(title="Sample", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=6, fontsize=9.0, frameon=False)
-            if on_data_labels or legend_pos.startswith("On-Data"):
+            if legend_pos.startswith("On-Data"):
                 for s in ordered_samples:
                     if s in _adata.obs[s_col].values:
                         s_mask = _adata.obs[s_col] == s
@@ -878,7 +878,7 @@ if app_mode == "Single Cell Analysis Viewer":
             elif legend_pos.startswith("Right"):
                 ncol_ct = 2 if len(categories) > 8 else 1
                 ax_ct.legend(title="Cell State", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=6, fontsize=8.0, ncol=ncol_ct, frameon=False)
-            if on_data_labels or legend_pos.startswith("On-Data"):
+            if legend_pos.startswith("On-Data"):
                 for cat in categories:
                     c_mask = _adata.obs[col] == cat
                     if np.sum(c_mask) > 0:
@@ -1025,20 +1025,18 @@ if app_mode == "Single Cell Analysis Viewer":
             chosen_scale_label_t2 = chosen_scale_label
 
         with st.expander("⚙️ Static Grid Layout Controls", expanded=False):
-            c_sg1, c_sg2, c_sg3, c_sg4 = st.columns(4)
+            c_sg1, c_sg2, c_sg3 = st.columns(3)
             with c_sg1:
                 stat_grid_cols = st.selectbox("Grid Columns:", [1, 2, 3, 4, 5, 6], index=2, key="stat_grid_cols")
             with c_sg2:
                 stat_grid_rows = st.selectbox("Grid Rows:", ["Auto", 1, 2, 3, 4, 5, 6], index=0, key="stat_grid_rows")
             with c_sg3:
                 stat_legend_pos = st.selectbox("Legend Position:", ["Bottom (Full Width)", "Right (Side)", "On-Data Labels (Centroids)", "Hidden"], index=0, key="stat_legend_pos")
-            with c_sg4:
-                stat_on_data = st.checkbox("🏷️ Overlay On-Plot Labels", value=False, help="Annotate cluster names directly on cluster centroids.", key="stat_on_data")
                 
         if resolved_var_name:
             with st.spinner("Generating static UMAP grid..."):
                 color_tag_str = str(get_cluster_color_map(adata, selected_col)[0]) if selected_col else ''
-                fig_grid = generate_static_grid(adata, resolved_var_name, resolved_display_name, selected_col, sample_col, selected_dataset_name, use_log2, chosen_vmax, cmap_choice, grid_cols=stat_grid_cols, grid_rows=stat_grid_rows, col_color_tag=color_tag_str, legend_pos=stat_legend_pos, on_data_labels=stat_on_data)
+                fig_grid = generate_static_grid(adata, resolved_var_name, resolved_display_name, selected_col, sample_col, selected_dataset_name, use_log2, chosen_vmax, cmap_choice, grid_cols=stat_grid_cols, grid_rows=stat_grid_rows, col_color_tag=color_tag_str, legend_pos=stat_legend_pos)
                 st.pyplot(fig_grid)
                 
                 svg_grid_buf = io.BytesIO()
@@ -1092,7 +1090,7 @@ if app_mode == "Single Cell Analysis Viewer":
                                 ax_s.legend(title="Sample", bbox_to_anchor=(0.5, -0.16), loc="upper center", markerscale=5, fontsize=8, ncol=n_samp_cols, frameon=False)
                             elif stat_legend_pos.startswith("Right"):
                                 ax_s.legend(title="Sample", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=5, fontsize=8, frameon=False)
-                            if stat_on_data or stat_legend_pos.startswith("On-Data"):
+                            if stat_legend_pos.startswith("On-Data"):
                                 for s in ordered_samples:
                                     if s in adata.obs[sample_col].values:
                                         s_mask = adata.obs[sample_col] == s
@@ -1137,7 +1135,7 @@ if app_mode == "Single Cell Analysis Viewer":
                             elif stat_legend_pos.startswith("Right"):
                                 ncol_val = 2 if len(categories) > 8 else 1
                                 ax_ref.legend(title="Cell State", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=5, fontsize=7.5, ncol=ncol_val, frameon=False)
-                            if stat_on_data or stat_legend_pos.startswith("On-Data"):
+                            if stat_legend_pos.startswith("On-Data"):
                                 for cat in categories:
                                     c_mask = adata.obs[selected_col] == cat
                                     if np.sum(c_mask) > 0:
