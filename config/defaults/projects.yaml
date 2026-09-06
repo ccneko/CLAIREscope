@@ -1,32 +1,37 @@
 DEMO_SKIN_ATLAS:
   id: DEMO
-  name: Human Epidermal Single-Cell Demo Atlas
+  name: Human Epidermal Single-Cell Demo Atlas (Wang 2020)
   species: Human
-  description: Public demonstration single-cell RNA-seq reference of human epidermal
-    differentiation and homeostasis.
+  description: Public demonstration human epidermal single-cell reference across basal
+    stem cells, cell cycle phases, and differentiation (Wang et al., 2020 Nat Commun,
+    GSE147482, CC BY 4.0).
   paths:
     windows: data\demo_skin_atlas
     wsl: data/demo_skin_atlas
     linux: data/demo_skin_atlas
   scan_subdirs:
+  - ''
   - data
   - demo
-  default_dataset: demo_epidermis_h5ad
+  default_preload: demo_wang2020_epidermis.h5ad
+  default_dataset: demo_wang2020_epidermis.h5ad
   canonical_samples:
-  - Control_1
-  - Control_2
-  - Treated_1
-  - Treated_2
+  - Donor_1
+  - Donor_2
+  - Donor_3
+  - Donor_4
+  - Donor_5
   sample_colors:
-    Control_1: '#2563EB'
-    Control_2: '#38BDF8'
-    Treated_1: '#DC2626'
-    Treated_2: '#F97316'
+    Donor_1: '#3B82F6'
+    Donor_2: '#10B981'
+    Donor_3: '#F59E0B'
+    Donor_4: '#8B5CF6'
+    Donor_5: '#EC4899'
   default_pairs:
-  - - Treated_1
-    - Control_1
-  - - Treated_2
-    - Control_2
+  - - Donor_1
+    - Donor_2
+  - - Donor_3
+    - Donor_4
   default_signatures:
     Basal Anchoring & Adhesion:
     - COL17A1
@@ -50,6 +55,13 @@ DEMO_SKIN_ATLAS:
     - LOR
     - IVL
     - TGM1
+    Cell Cycle & Proliferation:
+    - MKI67
+    - TOP2A
+    - PCNA
+    - CDK1
+    - CCNB1
+    - AURKA
     Stress & Wound Activation:
     - KRT6A
     - KRT16

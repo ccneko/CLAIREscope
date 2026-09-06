@@ -14,7 +14,7 @@ build/
 env/
 venv/
 
-# Data Files & Single-Cell Objects (NEVER COMMIT DATA)
+# Data Files & Single-Cell Objects (NEVER COMMIT PRIVATE LAB DATA)
 *.h5ad
 *.h5
 *.loom
@@ -32,6 +32,11 @@ data/
 datasets/
 raw_data/
 processed_data/
+
+# Allow public open-access demo dataset for Streamlit Cloud deployment
+!data/
+!data/demo_skin_atlas/
+!data/demo_skin_atlas/**
 
 # IDE / OS Files
 .vscode/
