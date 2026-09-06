@@ -7,10 +7,11 @@ import numpy as np
 SEMANTIC_RULES = [
     (r'\bife basal\b|\bbasal 1\b|\bbasal stem\b', '#1f77b4'),         # Blue
     (r'\bbasal 2\b|\bsecretory basal\b', '#ff7f0e'),                 # Orange
+    (r'\bbasal-spinous\b|\btransition\b', '#f59e0b'),                # Amber / Gold
     (r'\bbasal\b', '#1f77b4'),                                       # Blue
-    (r'\bspinous\b|\bsuprabasal\b', '#f1c40f'),                      # Gold
-    (r'\bgranular\b|\bterminally differentiated\b', '#2ca02c'),       # Green
-    (r'\bcycling\b|\bmitotic\b', '#d62728'),                         # Red
+    (r'\bspinous\b|\bsuprabasal\b', '#10b981'),                      # Emerald Green
+    (r'\bgranular\b|\bterminally differentiated\b', '#2ca02c'),       # Forest Green
+    (r'\bcycling\b|\bmitotic\b|\bcell cycle\b', '#ec4899'),          # Pink / Magenta
     (r'\bisthmus\b|\bjunctional zone\b', '#00bcd4'),                 # Cyan
     (r'\binfundibulum\b|\bsg-opening\b', '#17becf'),                 # Teal
     (r'\bhfsc\b|\bbulge\b', '#8c564b'),                              # Brown
@@ -126,9 +127,13 @@ def get_cluster_color_map(adata_obj, col_name: str) -> Tuple[Dict[str, str], Lis
             result[cat] = color
             used_colors.add(color)
 
-    colors_list = [result[c] for c in categories]
+    if hasattr(adata_obj.obs[col_name], 'cat'):
+        raw_cats = list(adata_obj.obs[col_name].cat.categories)
+        colors_for_uns = [result.get(c, '#7f8c8d') for c in raw_cats]
+    else:
+        colors_for_uns = [result.get(c, '#7f8c8d') for c in categories]
     try:
-        adata_obj.uns[color_key] = colors_list
+        adata_obj.uns[color_key] = colors_for_uns
     except Exception:
         pass
 
