@@ -33,6 +33,7 @@ plugins:
 nav:
   - Home: index.md
   - Quickstart: quickstart.md
+  - Remote Deployment: remote_access.md
   - User Guide:
       - Overview: user_guide/00_overview.md
       - Single-Cell Landscapes & Violins: user_guide/01_landscapes_and_violins.md
