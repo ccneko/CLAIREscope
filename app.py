@@ -1047,6 +1047,13 @@ if app_mode == "Single Cell Analysis Viewer":
                     col_ref1, col_ref2 = st.columns(2)
                     umap_coords = adata.obsm['X_umap']
                     
+                    # Subsetting / Highlighting masks
+                    mask_s = adata.obs[sample_col].isin(stat_selected_samples) if (sample_col and sample_col in adata.obs.columns and stat_selected_samples) else np.ones(len(adata), dtype=bool)
+                    mask_c = adata.obs[selected_col].isin(stat_selected_cats) if (selected_col and selected_col in adata.obs.columns and stat_selected_cats) else np.ones(len(adata), dtype=bool)
+                    sel_mask = np.array(mask_s & mask_c)
+                    is_highlight = (stat_view_mode == "Highlight selected (dim unselected in grey)")
+                    is_filter = (stat_view_mode == "Filter view (show selected only)")
+                    
                     # 1. Sample Reference
                     with col_ref1:
                         f_w, f_h = (4.8, 5.0) if stat_legend_pos.startswith("Bottom") else (4.8, 4.2)
@@ -1054,26 +1061,36 @@ if app_mode == "Single Cell Analysis Viewer":
                         ax_s.set_aspect('equal', 'box')
                         ax_s.set_box_aspect(1)
                         if sample_col and sample_col in adata.obs.columns:
-                            for s in ordered_samples:
-                                if s in adata.obs[sample_col].values:
-                                    mask = adata.obs[sample_col] == s
+                            if is_highlight and np.sum(~sel_mask) > 0:
+                                ax_s.scatter(umap_coords[~sel_mask, 0], umap_coords[~sel_mask, 1], color='#E2E8F0', s=max(stat_pt_size - 0.5, 0.6), alpha=0.4, label='_nolegend_')
+                                
+                            active_samp_order = [s for s in (stat_selected_samples if stat_selected_samples else ordered_samples) if s in adata.obs[sample_col].values]
+                            for s in active_samp_order:
+                                if is_filter:
+                                    mask = (adata.obs[sample_col] == s) & sel_mask
+                                elif is_highlight:
+                                    mask = (adata.obs[sample_col] == s) & sel_mask
+                                else:
+                                    mask = (adata.obs[sample_col] == s)
+                                if np.sum(mask) > 0:
                                     coords = umap_coords[mask]
-                                    ax_s.scatter(coords[:, 0], coords[:, 1], label=s, color=sample_color_map.get(s, "#7f8c8d"), s=1.8, alpha=0.85)
-                            ax_s.set_title(f"Samples / Conditions ({sample_col})", fontsize=11, fontweight='bold')
+                                    ax_s.scatter(coords[:, 0], coords[:, 1], label=s, color=sample_color_map.get(s, "#7f8c8d"), s=stat_pt_size, alpha=0.85)
+                                    
+                            samp_sub_tag = f" (Filtered: {np.sum(sel_mask):,} cells)" if is_filter else (f" (Highlighted: {np.sum(sel_mask):,} cells)" if is_highlight else "")
+                            ax_s.set_title(f"Samples / Conditions ({sample_col}){samp_sub_tag}", fontsize=11, fontweight='bold')
                             ax_s.set_xlabel("UMAP 1", fontsize=8)
                             ax_s.set_ylabel("UMAP 2", fontsize=8)
                             if stat_legend_pos.startswith("Bottom"):
-                                n_samp_cols = min(len(ordered_samples), 4) if ordered_samples else 2
+                                n_samp_cols = min(len(active_samp_order), 4) if active_samp_order else 2
                                 ax_s.legend(title="Sample", bbox_to_anchor=(0.5, -0.16), loc="upper center", markerscale=5, fontsize=8, ncol=n_samp_cols, frameon=False)
                             elif stat_legend_pos.startswith("Right"):
                                 ax_s.legend(title="Sample", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=5, fontsize=8, frameon=False)
                             if stat_legend_pos.startswith("On-Data"):
-                                for s in ordered_samples:
-                                    if s in adata.obs[sample_col].values:
-                                        s_mask = adata.obs[sample_col] == s
-                                        if np.sum(s_mask) > 0:
-                                            sx, sy = np.median(umap_coords[s_mask, 0]), np.median(umap_coords[s_mask, 1])
-                                            ax_s.text(sx, sy, str(s), fontsize=8, fontweight='bold', ha='center', va='center', bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8, edgecolor='none'), path_effects=[pe.withStroke(linewidth=2.5, foreground='white')])
+                                for s in active_samp_order:
+                                    s_mask = (adata.obs[sample_col] == s) & (sel_mask if (is_filter or is_highlight) else np.ones(len(adata), dtype=bool))
+                                    if np.sum(s_mask) > 0:
+                                        sx, sy = np.median(umap_coords[s_mask, 0]), np.median(umap_coords[s_mask, 1])
+                                        ax_s.text(sx, sy, str(s), fontsize=8, fontweight='bold', ha='center', va='center', bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8, edgecolor='none'), path_effects=[pe.withStroke(linewidth=2.5, foreground='white')])
                         plt.tight_layout()
                         st.pyplot(fig_s)
                         svg_s_buf = io.BytesIO()
@@ -1087,37 +1104,42 @@ if app_mode == "Single Cell Analysis Viewer":
                             fig_ref, ax_ref = plt.subplots(figsize=(f_w, f_h))
                             ax_ref.set_aspect('equal', 'box')
                             ax_ref.set_box_aspect(1)
-                            categories = adata.obs[selected_col].cat.categories.tolist() if hasattr(adata.obs[selected_col], "cat") else sorted(adata.obs[selected_col].dropna().unique().tolist())
-                            color_key = f"{selected_col}_colors"
-                            if color_key in adata.uns:
-                                colors = list(adata.uns[color_key])
-                            else:
-                                cmap = plt.get_cmap('tab20')
-                                colors = [matplotlib.colors.to_hex(cmap(i % 20)) for i in range(len(categories))]
-                            color_map = dict(zip(categories, colors))
+                            color_map, categories = get_cluster_color_map(adata, selected_col)
                             
-                            for cat in categories:
-                                mask = adata.obs[selected_col] == cat
-                                coords = umap_coords[mask]
-                                ax_ref.scatter(coords[:, 0], coords[:, 1], label=cat, color=color_map.get(cat, "#7f8c8d"), s=1.8, alpha=0.8)
+                            if is_highlight and np.sum(~sel_mask) > 0:
+                                ax_ref.scatter(umap_coords[~sel_mask, 0], umap_coords[~sel_mask, 1], color='#E2E8F0', s=max(stat_pt_size - 0.5, 0.6), alpha=0.4, label='_nolegend_')
                                 
-                            ax_ref.set_title(f"Cell States ({selected_col})", fontsize=11, fontweight='bold')
+                            active_cats_order = [c for c in (stat_selected_cats if stat_selected_cats else categories) if c in adata.obs[selected_col].values]
+                            for cat in active_cats_order:
+                                if is_filter:
+                                    mask = (adata.obs[selected_col] == cat) & sel_mask
+                                elif is_highlight:
+                                    mask = (adata.obs[selected_col] == cat) & sel_mask
+                                else:
+                                    mask = (adata.obs[selected_col] == cat)
+                                if np.sum(mask) > 0:
+                                    coords = umap_coords[mask]
+                                    ax_ref.scatter(coords[:, 0], coords[:, 1], label=cat, color=color_map.get(cat, "#7f8c8d"), s=stat_pt_size, alpha=0.85)
+                                    
+                            state_sub_tag = f" (Filtered: {np.sum(sel_mask):,} cells)" if is_filter else (f" (Highlighted: {np.sum(sel_mask):,} cells)" if is_highlight else "")
+                            ax_ref.set_title(f"Cell States ({selected_col}){state_sub_tag}", fontsize=11, fontweight='bold')
                             ax_ref.set_xlabel("UMAP 1", fontsize=8)
                             ax_ref.set_ylabel("UMAP 2", fontsize=8)
                             if stat_legend_pos.startswith("Bottom"):
-                                max_len = max([len(str(c)) for c in categories]) if categories else 0
+                                max_len = max([len(str(c)) for c in active_cats_order]) if active_cats_order else 0
                                 ncol_val = 3 if max_len < 16 else (2 if max_len < 32 else 1)
-                                if len(categories) <= 4: ncol_val = len(categories)
+                                if len(active_cats_order) <= 4: ncol_val = len(active_cats_order)
                                 ax_ref.legend(title="Cell State", bbox_to_anchor=(0.5, -0.16), loc="upper center", markerscale=5, fontsize=7.5, ncol=ncol_val, frameon=False)
                             elif stat_legend_pos.startswith("Right"):
-                                ncol_val = 2 if len(categories) > 8 else 1
+                                ncol_val = 2 if len(active_cats_order) > 8 else 1
                                 ax_ref.legend(title="Cell State", bbox_to_anchor=(1.02, 1), loc="upper left", markerscale=5, fontsize=7.5, ncol=ncol_val, frameon=False)
                             if stat_legend_pos.startswith("On-Data"):
-                                for cat in categories:
-                                    c_mask = adata.obs[selected_col] == cat
+                                for cat in active_cats_order:
+                                    c_mask = (adata.obs[selected_col] == cat) & (sel_mask if (is_filter or is_highlight) else np.ones(len(adata), dtype=bool))
                                     if np.sum(c_mask) > 0:
                                         cx, cy = np.median(umap_coords[c_mask, 0]), np.median(umap_coords[c_mask, 1])
-                                        ax_ref.text(cx, cy, str(cat), fontsize=7.5, fontweight='bold', ha='center', va='center', bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8, edgecolor='none'), path_effects=[pe.withStroke(linewidth=2.5, foreground='white')])
+                                        disp_cat = (cat[:20] + '..') if len(str(cat)) > 22 else str(cat)
+                                        ax_ref.text(cx, cy, disp_cat, fontsize=7.5, fontweight='bold', ha='center', va='center', bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8, edgecolor='none'), path_effects=[pe.withStroke(linewidth=2.5, foreground='white')])
                             plt.tight_layout()
                             st.pyplot(fig_ref)
                             svg_c_buf = io.BytesIO()
