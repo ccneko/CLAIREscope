@@ -5,35 +5,34 @@ import pandas as pd
 import numpy as np
 
 SEMANTIC_RULES = [
-    (r'ife basal|basal 1|basal stem', '#2B4C7E'),         # Matte Slate Navy
-    (r'basal 2|secretory basal', '#8A6D3B'),                 # Matte Ochre / Warm Umber
-    (r'basal-spinous|transition', '#D97736'),                # Matte Terracotta / Clay
-    (r'basal', '#2B4C7E'),                                       # Matte Slate Navy
-    (r'spinous|suprabasal', '#5A8F76'),                      # Matte Sage Green
-    (r'granular|terminally differentiated', '#437A75'),       # Matte Sea Pine
-    (r'cycling|mitotic|cell cycle', '#935D8C'),          # Matte Dusty Plum / Mauve
-    (r'isthmus|junctional zone', '#4A7C8C'),                 # Matte Nordic Blue
-    (r'infundibulum|sg-opening', '#5E8B95'),                 # Matte Slate Teal
-    (r'hfsc|bulge', '#8D6E63'),                              # Matte Warm Taupe
-    (r'wound-activated.*migrating', '#B85D3B'),                  # Matte Burnt Sienna
-    (r'wound-activated|hyperproliferative', '#C75D4D'),        # Matte Brick / Rust
-    (r'channel', '#73628A'),                                     # Matte Slate Violet
-    (r'follicular', '#A67B80'),                                  # Matte Dusty Rose
-    (r'schwann', '#6E5D53'),                                     # Matte Bark Brown
-    (r't cell|immune', '#7B904B'),                           # Matte Moss Green
-    (r'lymphatic|endothelial', '#486581'),                   # Matte Steel Blue
-    (r'pericyte|smc', '#5C4A72'),                            # Matte Deep Indigo
-    (r'mel1|melanocyte', '#627D98'),                         # Matte Slate
-    (r'mel2', '#486581'),                                        # Matte Dark Slate
-    (r'wnt1', '#C08552'),                                        # Matte Caramel
-    (r'low quality|mitochondrial', '#9E9E9E'),               # Matte Silver
+    (r'ife basal|basal 1|basal stem', '#4477AA'),         # Tol Blue
+    (r'basal 2|secretory basal', '#66CCEE'),                 # Tol Cyan
+    (r'basal-spinous|transition', '#CCBB44'),                # Tol Yellow / Saffron
+    (r'basal', '#4477AA'),                                       # Tol Blue
+    (r'spinous|suprabasal', '#228833'),                      # Tol Green
+    (r'granular|terminally differentiated', '#117733'),       # Tol Dark Green
+    (r'cycling|mitotic|cell cycle', '#EE6677'),          # Tol Rose / Red
+    (r'isthmus|junctional zone', '#6699CC'),                 # Tol Slate Blue
+    (r'infundibulum|sg-opening', '#44AA99'),                 # Tol Teal
+    (r'hfsc|bulge', '#882255'),                              # Tol Wine / Purple
+    (r'wound-activated.*migrating', '#E69F00'),                  # Tol Ochre
+    (r'wound-activated|hyperproliferative', '#CC6677'),        # Tol Rosewood
+    (r'channel', '#AA3377'),                                     # Tol Purple
+    (r'follicular', '#999933'),                                  # Tol Olive
+    (r'schwann', '#888888'),                                     # Tol Grey
+    (r't cell|immune', '#332288'),                           # Tol Indigo
+    (r'lymphatic|endothelial', '#44AA99'),                   # Tol Teal
+    (r'pericyte|smc', '#AA4499'),                            # Tol Violet
+    (r'mel1|melanocyte', '#555555'),                         # Dark Grey
+    (r'mel2', '#777777'),                                        # Mid Grey
+    (r'wnt1', '#DDAA33'),                                        # Warm Gold
+    (r'low quality|mitochondrial', '#BBBBBB'),               # Light Grey
 ]
 
 PALETTE_POOL = [
-    '#2B4C7E', '#D97736', '#5A8F76', '#935D8C', '#437A75', '#C75D4D', '#8D6E63', '#4A7C8C',
-    '#8A6D3B', '#73628A', '#A67B80', '#7B904B', '#486581', '#5C4A72', '#627D98', '#C08552',
-    '#5E8B95', '#6E5D53', '#A2678A', '#5B8266', '#B85D3B', '#607D8B', '#795548', '#856084',
-    '#6B8E23', '#4682B4', '#D2691E', '#9370DB', '#3CB371', '#BC8F8F', '#708090', '#CD853F'
+    '#4477AA', '#CCBB44', '#228833', '#EE6677', '#66CCEE', '#AA3377', '#E69F00', '#44AA99',
+    '#882255', '#332288', '#AA4499', '#999933', '#CC6677', '#117733', '#88CCEE', '#6699CC',
+    '#DDCC77', '#114477', '#447777', '#771111', '#777711', '#117777', '#771177', '#777777'
 ]
 
 def rank_cell_state(cat_str: str) -> Tuple[int, str]:
