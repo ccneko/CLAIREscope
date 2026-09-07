@@ -601,7 +601,7 @@ if app_mode == "Single Cell Analysis Viewer":
 
     # Caching static multi-panel grid generator with Sample UMAP as 1st plot, custom vmax, and highlight/filter modes
     @st.cache_data
-    def generate_static_grid(_adata, var_key, disp_title, col, s_col, dataset_name, log2_mode, v_max, cmap_name, grid_cols=3, grid_rows="Auto", col_color_tag="", legend_pos="Bottom (Full Width)", view_mode="Color all cells", selected_samples=None, selected_cats=None, pt_size=1.5):
+    def generate_static_grid(_adata, var_key, disp_title, col, s_col, dataset_name, log2_mode, v_max, cmap_name, grid_cols=3, grid_rows="Auto", col_color_tag="", legend_pos="On-Data Labels (Centroids)", view_mode="Color all cells", selected_samples=None, selected_cats=None, pt_size=1.5):
         if scipy.sparse.issparse(_adata.X):
             expr_raw = _adata[:, var_key].X.toarray().flatten()
         else:
@@ -913,7 +913,7 @@ if app_mode == "Single Cell Analysis Viewer":
             with c_sg2:
                 stat_grid_rows = st.selectbox("Grid Rows:", ["Auto", 1, 2, 3, 4, 5, 6], index=0, key="stat_grid_rows")
             with c_sg3:
-                stat_legend_pos = st.selectbox("Legend Position:", ["Bottom (Full Width)", "Right (Side)", "On-Data Labels (Centroids)", "Hidden"], index=0, key="stat_legend_pos")
+                stat_legend_pos = st.selectbox("Legend Position:", ["Bottom (Full Width)", "Right (Side)", "On-Data Labels (Centroids)", "Hidden"], index=2, key="stat_legend_pos")
 
         if resolved_var_name:
             with st.spinner("Generating static UMAP grid..."):
@@ -1213,8 +1213,8 @@ if app_mode == "Single Cell Analysis Viewer":
                         xanchor="center",
                         x=0.5,
                         itemsizing='constant',
-                        font=dict(size=11, family="Segoe UI, sans-serif"),
-                        title=dict(font=dict(size=12, family="Segoe UI, sans-serif")),
+                        font=dict(size=14, family="Segoe UI, sans-serif"),
+                        title=dict(font=dict(size=15, family="Segoe UI, sans-serif")),
                         bgcolor="rgba(255,255,255,0.9)",
                         bordercolor="#CBD5E1",
                         borderwidth=1
@@ -1225,8 +1225,8 @@ if app_mode == "Single Cell Analysis Viewer":
                 elif plotly_legend_pos == "Right Side (Compact)":
                     legend_layout = dict(
                         itemsizing='constant',
-                        font=dict(size=9.5, family="Segoe UI, sans-serif"),
-                        title=dict(font=dict(size=10.5, family="Segoe UI, sans-serif")),
+                        font=dict(size=13, family="Segoe UI, sans-serif"),
+                        title=dict(font=dict(size=14, family="Segoe UI, sans-serif")),
                         bgcolor="rgba(255,255,255,0.9)",
                         bordercolor="#CBD5E1",
                         borderwidth=1
