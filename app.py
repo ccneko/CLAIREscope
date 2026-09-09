@@ -1,4 +1,5 @@
 import os
+import re
 import io
 import streamlit as st
 import scanpy as sc
@@ -3056,6 +3057,21 @@ if app_mode == "Single Cell Analysis Viewer":
             with c_vol3:
                 top_label_n = st.slider("Number of Top Genes to Label:", min_value=5, max_value=30, value=15, step=5, key="volc_label_n")
                 
+            c_sch1, c_sch2 = st.columns([1.5, 2.5])
+            with c_sch1:
+                de_search_query = st.text_input(
+                    "🔍 Filter / Search Gene (Union matching, e.g. ITGB, LAM, COL):",
+                    placeholder="e.g. ITGB, LAM, COL or COL17A1, KRT14...",
+                    key="de_gene_search_input",
+                    help="Search genes by symbol or ID. Supports multiple terms separated by commas, dots, or spaces (e.g. 'ITGB, LAM, COL') to show a union of matches."
+                ).strip()
+            with c_sch2:
+                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+                if de_search_query:
+                    raw_tokens = [t.strip().upper() for t in re.split(r'[,.;|\s]+', de_search_query) if t.strip()]
+                    tokens_str = ", ".join([f"'{t}'" for t in raw_tokens])
+                    st.caption(f"Highlighting & filtering union of matches for: {tokens_str}")
+
             @st.cache_data
             def compute_cached_de(_adata, groupby_col, target_grp, ref_grp):
                 adata_copy = _adata.copy()
@@ -3086,6 +3102,13 @@ if app_mode == "Single Cell Analysis Viewer":
                     x="logfoldchanges",
                     y="log10_padj",
                     color="Significance",
+                    category_orders={
+                        "Significance": [
+                            "Not Significant",
+                            f"Downregulated in {de_target} (N={np.sum(m_down)})",
+                            f"Upregulated in {de_target} (N={np.sum(m_up)})"
+                        ]
+                    },
                     color_discrete_map={
                         f"Upregulated in {de_target} (N={np.sum(m_up)})": "#EF4444",
                         f"Downregulated in {de_target} (N={np.sum(m_down)})": "#3B82F6",
@@ -3095,42 +3118,158 @@ if app_mode == "Single Cell Analysis Viewer":
                     title=f"🌋 Volcano Plot: {de_target} vs {de_reference} ({de_group_col})",
                     labels={"logfoldchanges": "Log2 Fold Change", "log10_padj": "-Log10 Adjusted p-value"},
                     template="plotly_white",
+                    render_mode="svg",
                     height=550
                 )
                 
-                fig_volc.add_vline(x=lfc_cutoff, line_dash="dash", line_color="#F87171", line_width=1.5)
-                fig_volc.add_vline(x=-lfc_cutoff, line_dash="dash", line_color="#60A5FA", line_width=1.5)
-                fig_volc.add_hline(y=-np.log10(padj_cutoff), line_dash="dash", line_color="#94A3B8", line_width=1.5)
+                fig_volc.add_vline(x=lfc_cutoff, line_dash="dash", line_color="#F87171", line_width=1.5, layer="below")
+                fig_volc.add_vline(x=-lfc_cutoff, line_dash="dash", line_color="#60A5FA", line_width=1.5, layer="below")
+                fig_volc.add_hline(y=-np.log10(padj_cutoff), line_dash="dash", line_color="#94A3B8", line_width=1.5, layer="below")
                 
-                top_sig = df_de_res[df_de_res["Significance"] != "Not Significant"].sort_values("scores", key=abs, ascending=False).head(top_label_n)
-                for _, r in top_sig.iterrows():
-                    fig_volc.add_annotation(
-                        x=r["logfoldchanges"], y=r["log10_padj"],
-                        text=r["Gene_Symbol"], showarrow=True, arrowhead=1,
-                        font=dict(size=12, color="#0F172A", family="Segoe UI, sans-serif"),
-                        arrowcolor="#64748B", arrowsize=0.8
-                    )
+                # Calculate Y-axis Headroom to prevent clipping at top ceiling (e.g. y=300) and bottom (y=0)
+                max_padj_val = float(df_de_res["log10_padj"].max()) if not df_de_res.empty else 10.0
+                y_headroom = max_padj_val * 1.15 + 25.0
+                y_bottom = -max_padj_val * 0.05 - 8.0
+                fig_volc.update_yaxes(range=[y_bottom, y_headroom], title_text="-Log10 Adjusted p-value")
+                
+                # Multi-term Union Query Parser (supports 'ITGB, LAM, COL', 'ITGB.LAM.COL', etc.)
+                search_tokens = [t.strip().upper() for t in re.split(r'[,.;|\s]+', de_search_query) if t.strip()] if de_search_query else []
+                
+                def match_union_tokens(df_subset, tokens):
+                    if not tokens:
+                        return pd.Series(True, index=df_subset.index)
+                    sym_col = df_subset["Gene_Symbol"].astype(str).str.upper()
+                    id_col = df_subset["names" if "names" in df_subset.columns else "Gene_ID"].astype(str).str.upper()
+                    union_mask = pd.Series(False, index=df_subset.index)
+                    for tok in tokens:
+                        union_mask |= (sym_col.str.contains(tok, na=False) | id_col.str.contains(tok, na=False))
+                    return union_mask
+
+                # Circle Highlight Search Filtered Genes on Top of Scatter Points & Threshold Lines
+                if search_tokens:
+                    m_match = match_union_tokens(df_de_res, search_tokens)
+                    df_highlighted = df_de_res[m_match]
+                    
+                    if not df_highlighted.empty:
+                        # Crisp Purple Open Circle Ring (Plotted cleanly on top layer around original dots)
+                        fig_volc.add_trace(go.Scatter(
+                            x=df_highlighted["logfoldchanges"],
+                            y=df_highlighted["log10_padj"],
+                            mode='markers',
+                            marker=dict(
+                                symbol='circle-open',
+                                size=20,
+                                color='#8B5CF6',
+                                line=dict(width=3.0, color='#8B5CF6')
+                            ),
+                            hoverinfo='skip',
+                            name=f"Matches ({len(df_highlighted)})"
+                        ))
+                        
+                        # 4. Callout Labels for Filtered Genes with Smart Anti-Collision Staggering
+                        genes_to_label = df_highlighted.sort_values("scores", key=abs, ascending=False).head(35)
+                        for idx, (_, r) in enumerate(genes_to_label.iterrows()):
+                            x_val = float(r["logfoldchanges"])
+                            y_val = float(r["log10_padj"])
+                            step = idx % 4
+                            
+                            if y_val > max_padj_val * 0.85:
+                                # High ceiling points (e.g. y=300): stagger laterally and vertically
+                                ax_off = (-45 if step in [0, 2] else 45) + (step * 10 - 15)
+                                ay_off = -25 - (step * 18)
+                            elif y_val < 25:
+                                # Low baseline points (near y=0): point upwards
+                                ax_off = (step - 1.5) * 25
+                                ay_off = -38 - (step % 2) * 15
+                            else:
+                                # Mid-range points: angle away from density
+                                ax_off = 40 if x_val >= 0 else -40
+                                ay_off = -25 - (step % 2) * 15
+
+                            fig_volc.add_annotation(
+                                x=x_val, y=y_val,
+                                text=f"<b>{r['Gene_Symbol']}</b>",
+                                showarrow=True,
+                                arrowhead=2,
+                                arrowsize=0.9,
+                                arrowwidth=1.5,
+                                arrowcolor="#8B5CF6",
+                                ax=ax_off,
+                                ay=ay_off,
+                                font=dict(size=11.5, color="#5B21B6", family="Segoe UI, sans-serif"),
+                                bgcolor="rgba(245, 243, 255, 0.95)",
+                                bordercolor="#8B5CF6",
+                                borderwidth=1,
+                                borderpad=2.5
+                            )
+                else:
+                    # Standard Top Significant Gene Annotations with Anti-Collision Staggering
+                    top_sig = df_de_res[df_de_res["Significance"] != "Not Significant"].sort_values("scores", key=abs, ascending=False).head(top_label_n)
+                    for idx, (_, r) in enumerate(top_sig.iterrows()):
+                        x_val = float(r["logfoldchanges"])
+                        y_val = float(r["log10_padj"])
+                        step = idx % 3
+                        ax_off = (-35 if x_val < 0 else 35) + (step * 10 - 10)
+                        ay_off = -25 - (step * 16)
+                        
+                        fig_volc.add_annotation(
+                            x=x_val, y=y_val,
+                            text=r["Gene_Symbol"],
+                            showarrow=True,
+                            arrowhead=1,
+                            arrowsize=0.8,
+                            arrowcolor="#64748B",
+                            ax=ax_off,
+                            ay=ay_off,
+                            font=dict(size=11, color="#0F172A", family="Segoe UI, sans-serif")
+                        )
+                
                 st.plotly_chart(fig_volc, width="stretch")
                 
                 # Top DE Tables
                 st.markdown("#### 📋 Top Differentially Expressed Genes")
+                
+                df_up_all = df_de_res[m_up].sort_values("logfoldchanges", ascending=False)[["Gene_Symbol", "names", "logfoldchanges", "pvals_adj", "scores"]].rename(columns={"names": "Gene_ID", "logfoldchanges": "Log2FC", "pvals_adj": "FDR (p-adj)", "scores": "Z-score"})
+                df_down_all = df_de_res[m_down].sort_values("logfoldchanges", ascending=True)[["Gene_Symbol", "names", "logfoldchanges", "pvals_adj", "scores"]].rename(columns={"names": "Gene_ID", "logfoldchanges": "Log2FC", "pvals_adj": "FDR (p-adj)", "scores": "Z-score"})
+                
+                if search_tokens:
+                    m_sch_up = match_union_tokens(df_up_all, search_tokens)
+                    df_up_filtered = df_up_all[m_sch_up]
+                    
+                    m_sch_down = match_union_tokens(df_down_all, search_tokens)
+                    df_down_filtered = df_down_all[m_sch_down]
+                else:
+                    df_up_filtered = df_up_all
+                    df_down_filtered = df_down_all
+
                 c_tbl1, c_tbl2 = st.columns(2)
                 with c_tbl1:
-                    st.markdown(f"**Top Upregulated Genes in `{de_target}`**")
-                    df_up = df_de_res[m_up].sort_values("logfoldchanges", ascending=False)[["Gene_Symbol", "names", "logfoldchanges", "pvals_adj", "scores"]].rename(columns={"names": "Gene_ID", "logfoldchanges": "Log2FC", "pvals_adj": "FDR (p-adj)", "scores": "Z-score"})
-                    df_up_disp = df_up.head(50).copy()
-                    df_up_disp["Log2FC"] = df_up_disp["Log2FC"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
-                    df_up_disp["FDR (p-adj)"] = df_up_disp["FDR (p-adj)"].apply(format_sig_value)
-                    df_up_disp["Z-score"] = df_up_disp["Z-score"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
-                    st.dataframe(df_up_disp, height=300, width="stretch")
-                with c_tbl2:
-                    st.markdown(f"**Top Downregulated Genes in `{de_target}`**")
-                    df_down = df_de_res[m_down].sort_values("logfoldchanges", ascending=True)[["Gene_Symbol", "names", "logfoldchanges", "pvals_adj", "scores"]].rename(columns={"names": "Gene_ID", "logfoldchanges": "Log2FC", "pvals_adj": "FDR (p-adj)", "scores": "Z-score"})
-                    df_down_disp = df_down.head(50).copy()
+                    lbl_down = f"**Top Downregulated Genes in `{de_target}`**"
+                    if de_search_query:
+                        lbl_down += f" ({len(df_down_filtered):,} matching)"
+                    else:
+                        lbl_down += f" (Showing top {min(len(df_down_filtered), 50)} of {len(df_down_all):,})"
+                    st.markdown(lbl_down)
+                    
+                    df_down_disp = df_down_filtered.head(100 if de_search_query else 50).copy()
                     df_down_disp["Log2FC"] = df_down_disp["Log2FC"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
                     df_down_disp["FDR (p-adj)"] = df_down_disp["FDR (p-adj)"].apply(format_sig_value)
                     df_down_disp["Z-score"] = df_down_disp["Z-score"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
-                    st.dataframe(df_down_disp, height=300, width="stretch")
+                    st.dataframe(df_down_disp, height=320, width="stretch")
+
+                with c_tbl2:
+                    lbl_up = f"**Top Upregulated Genes in `{de_target}`**"
+                    if de_search_query:
+                        lbl_up += f" ({len(df_up_filtered):,} matching)"
+                    else:
+                        lbl_up += f" (Showing top {min(len(df_up_filtered), 50)} of {len(df_up_all):,})"
+                    st.markdown(lbl_up)
+                    
+                    df_up_disp = df_up_filtered.head(100 if de_search_query else 50).copy()
+                    df_up_disp["Log2FC"] = df_up_disp["Log2FC"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
+                    df_up_disp["FDR (p-adj)"] = df_up_disp["FDR (p-adj)"].apply(format_sig_value)
+                    df_up_disp["Z-score"] = df_up_disp["Z-score"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
+                    st.dataframe(df_up_disp, height=320, width="stretch")
                     
                 st.download_button(
                     label=f"📥 Download Full DE Results Table ({de_target}_vs_{de_reference}.csv)",

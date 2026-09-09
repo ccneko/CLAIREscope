@@ -5,9 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.3] - 2026-09-08
+## [1.0.3] - 2026-09-10
 
 ### Added
+- **Multi-Term Union Gene Search & Filtering**: Real-time filtering in Differential Expression Studio supporting comma, dot, semicolon, or space delimiters (e.g. `ITGB, LAM, COL` or `ITGB.LAM.COL`) across gene symbols and Ensembl IDs.
+- **Top-Layer SVG Highlight Rings**: Enforced Plotly pure SVG rendering mode (`render_mode="svg"`) to eliminate WebGL canvas z-index conflicts, rendering crisp `#8B5CF6` hollow rings strictly above data points while preserving original dot significance colors.
+- **Spatially Aligned DEG Tables**: Reorganized Top Differentially Expressed Genes tables to match the volcano plot orientation: Top Downregulated Genes on the Left, Top Upregulated Genes on the Right.
+- **Dynamic Anti-Collision Staggering & Headroom Padding**: Smart angled callout offsets and top/bottom Y-axis headroom padding to prevent clipping at extreme significance thresholds (e.g. $y=300$).
+- **Tri-Branch Deployment & Unlimited Uploads**: Structured repository into `main` (clean release distribution), `dev` (continuous development), and `streamlit-demo` (web showcase with 250 MB limit); enabled unlimited file uploads on `dev` and `main` with configurable >500 MB hardware recommendation warnings.
+- **Decoupled Sidebar Navigation & Settings UI**: Fixed page switching when on "➕ New Project..." view and added computation resource settings in Dataset Management.
 - **Interactive First Experience**: Swapped tab hierarchy to place **✨ Interactive UMAP** as Tab 1 for immediate exploration, followed by **🗺️ Static UMAP** as Tab 2.
 - **On-Data Centroid Labels Default**: Configured publication-grade on-data cluster centroid annotations as the default mode for Static UMAP.
 - **Paul Tol Color System**: Integrated the Paul Tol Qualitative Palette into semantic schema rules for accessible, high-contrast, and colorblind-safe categorical palettes.

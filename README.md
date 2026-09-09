@@ -102,9 +102,12 @@ CLAIREscope provides an integrated suite of 11 high-performance analytical studi
    * **Continuous Diffusion Pseudotime (DPT) Splines**: Third-order polynomial and B-spline regression curves along continuous developmental trajectories.
    * **State Transition Tracking**: Quantifies dynamic changes in user-defined cell states, populations, and gene/signature activity along continuous trajectories.
 
-8. **🌋 Differential Expression & Volcano Studio (Tab 8)**:
+8. **🌋 Differential Expression & Volcano Studio (Tab 9)**:
    * **Bidirectional Wilcoxon DEG**: Fast computation of Log2(Fold Change) and Benjamini-Hochberg FDR-adjusted p-values between any two cohorts.
-   * **Interactive Volcano Plot**: Dynamic significance thresholds (FDR < 0.05, |Log2(FC)| > 1.0) with live top-gene labeling and scientific notation formatting.
+   * **Multi-Token Union Gene Search**: Real-time filtering by gene symbol or Ensembl ID supporting flexible delimiters (commas, dots, spaces, e.g. `ITGB, LAM, COL` or `ITGB.LAM.COL`) to display the union of matching genes.
+   * **Top-Layer SVG Highlight Rings**: Pure SVG z-ordering with crisp hollow purple rings (`#8B5CF6`, 3px stroke) strictly overlaying data points while preserving original significance colors.
+   * **Anti-Collision Badges & Headroom Padding**: Smart angled callout offsets and top/bottom Y-axis headroom padding to prevent clipping at extreme p-value thresholds ($y=300$).
+   * **Spatially Aligned DEG Tables**: Dual mirrored tables aligned with the volcano plot (Downregulated on Left, Upregulated on Right) with live search sync and full CSV export.
 
 9. **🔥 Clustered Heatmap Studio (Tab 9)**:
    * **SciPy >= 1.18.1 Hierarchical Clustering**: Pairwise Euclidean distance matrices (`pdist`) and average linkage dendrograms.
