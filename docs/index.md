@@ -16,7 +16,7 @@
 1. **🚀 Dynamic Multi-Project Switching**: Instantly switch between heterogeneous single-cell cohorts (e.g. multi-condition scRNA-seq, spatial transcriptomics) with on-demand memory management.
 2. **🗺️ Publication-Grade Isometric Visualizations**: 1:1 aspect ratio UMAPs with Loupe-like dynamic range contrast anchors, customizable colormaps, and one-click 300 DPI SVG/PNG/PDF downloads.
 3. **🌿 Continuous Trajectory Expression Drawing Studio**: Multi-gene overlay kinetics along Diffusion Pseudotime (DPT), within-sample scaling, and landmark alignment.
-4. **🌋 Differential Expression & Volcano Studio**: Bidirectional Wilcoxon statistical testing with tunable FDR / Log2(FC) thresholds and live gene labeling.
+4. **🌋 Differential Expression & Volcano Studio**: Bidirectional Wilcoxon statistical testing, multi-token union gene search (`ITGB, LAM, COL`), top-layer SVG highlight rings, and spatially aligned DEG tables.
 5. **🔥 Hierarchical Heatmap Studio**: Group-averaged or single-cell clustered heatmaps with draggable sortable X-axis ordering and Z-score standardization.
 6. **🧬 Pathway Over-Representation Analysis (ORA)**: Tunable top N up/down gene enrichment across Hallmark and custom signature databases.
 7. **📦 Bulk Export & Config Import Studio**: Generate comprehensive multi-figure packages and structured 1-row-per-feature CSV matrices with drag-and-drop Excel/CSV configuration importing.
