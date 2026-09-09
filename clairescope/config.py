@@ -152,6 +152,14 @@ def scan_project_datasets(proj_base: str, scan_subdirs: List[str] = None, max_de
 
     return active_datasets, all_datasets
 
+def save_settings_config(settings_dict: Dict[str, Any]) -> str:
+    """Save user modified application settings into config/user/settings.yaml."""
+    os.makedirs(USER_DIR, exist_ok=True)
+    target_file = os.path.join(USER_DIR, "settings.yaml")
+    with open(target_file, "w", encoding="utf-8") as f:
+        yaml.safe_dump(settings_dict, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+    return target_file
+
 def load_settings_config() -> Dict[str, Any]:
     """Load application global UI and plotting settings."""
     cfg_file = get_config_file_path("settings.yaml")
