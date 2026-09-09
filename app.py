@@ -3102,6 +3102,13 @@ if app_mode == "Single Cell Analysis Viewer":
                     x="logfoldchanges",
                     y="log10_padj",
                     color="Significance",
+                    category_orders={
+                        "Significance": [
+                            "Not Significant",
+                            f"Downregulated in {de_target} (N={np.sum(m_down)})",
+                            f"Upregulated in {de_target} (N={np.sum(m_up)})"
+                        ]
+                    },
                     color_discrete_map={
                         f"Upregulated in {de_target} (N={np.sum(m_up)})": "#EF4444",
                         f"Downregulated in {de_target} (N={np.sum(m_down)})": "#3B82F6",
@@ -3111,6 +3118,7 @@ if app_mode == "Single Cell Analysis Viewer":
                     title=f"🌋 Volcano Plot: {de_target} vs {de_reference} ({de_group_col})",
                     labels={"logfoldchanges": "Log2 Fold Change", "log10_padj": "-Log10 Adjusted p-value"},
                     template="plotly_white",
+                    render_mode="svg",
                     height=550
                 )
                 
@@ -3165,6 +3173,7 @@ if app_mode == "Single Cell Analysis Viewer":
                             marker=dict(
                                 symbol='circle-open',
                                 size=22,
+                                color='#8B5CF6',
                                 line=dict(width=3.5, color='#8B5CF6')
                             ),
                             hoverinfo='skip',
