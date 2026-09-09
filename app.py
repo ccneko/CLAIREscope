@@ -3111,21 +3111,14 @@ if app_mode == "Single Cell Analysis Viewer":
                     height=550
                 )
                 
-                fig_volc.add_vline(x=lfc_cutoff, line_dash="dash", line_color="#F87171", line_width=1.5)
-                fig_volc.add_vline(x=-lfc_cutoff, line_dash="dash", line_color="#60A5FA", line_width=1.5)
-                fig_volc.add_hline(y=-np.log10(padj_cutoff), line_dash="dash", line_color="#94A3B8", line_width=1.5)
+                fig_volc.add_vline(x=lfc_cutoff, line_dash="dash", line_color="#F87171", line_width=1.5, layer="below")
+                fig_volc.add_vline(x=-lfc_cutoff, line_dash="dash", line_color="#60A5FA", line_width=1.5, layer="below")
+                fig_volc.add_hline(y=-np.log10(padj_cutoff), line_dash="dash", line_color="#94A3B8", line_width=1.5, layer="below")
                 
-                # Standard Top Significant Gene Annotations
+                # Top Significant Gene Selection
                 top_sig = df_de_res[df_de_res["Significance"] != "Not Significant"].sort_values("scores", key=abs, ascending=False).head(top_label_n)
-                for _, r in top_sig.iterrows():
-                    fig_volc.add_annotation(
-                        x=r["logfoldchanges"], y=r["log10_padj"],
-                        text=r["Gene_Symbol"], showarrow=True, arrowhead=1,
-                        font=dict(size=12, color="#0F172A", family="Segoe UI, sans-serif"),
-                        arrowcolor="#64748B", arrowsize=0.8
-                    )
                 
-                # Circle Highlight Search Filtered Genes on Volcano Plot
+                # Circle Highlight Search Filtered Genes on Top of Scatter Points & Threshold Lines
                 if de_search_query:
                     q_up = de_search_query.upper()
                     m_match = (
@@ -3135,21 +3128,35 @@ if app_mode == "Single Cell Analysis Viewer":
                     df_highlighted = df_de_res[m_match]
                     
                     if not df_highlighted.empty:
-                        # Add Open Circle Rings
+                        # 1. Subtle Translucent Golden Halo Glow
+                        fig_volc.add_trace(go.Scatter(
+                            x=df_highlighted["logfoldchanges"],
+                            y=df_highlighted["log10_padj"],
+                            mode='markers',
+                            marker=dict(
+                                symbol='circle',
+                                size=16,
+                                color='rgba(245, 158, 11, 0.35)',
+                                line=dict(width=0)
+                            ),
+                            hoverinfo='skip',
+                            showlegend=False
+                        ))
+                        # 2. Prominent High-Contrast Outer Circle Ring (Above Data Points)
                         fig_volc.add_trace(go.Scatter(
                             x=df_highlighted["logfoldchanges"],
                             y=df_highlighted["log10_padj"],
                             mode='markers',
                             marker=dict(
                                 symbol='circle-open',
-                                size=17,
-                                line=dict(width=2.8, color='#D97706')
+                                size=20,
+                                line=dict(width=3.2, color='#D97706')
                             ),
                             hoverinfo='skip',
                             name=f"Search: '{de_search_query}' ({len(df_highlighted)})"
                         ))
                         
-                        # Add Callout Labels for Filtered Genes
+                        # 3. Callout Labels for Filtered Genes (Top Layer)
                         top_labeled_symbols = set(top_sig["Gene_Symbol"]) if not top_sig.empty else set()
                         for _, r in df_highlighted.head(30).iterrows():
                             if r["Gene_Symbol"] not in top_labeled_symbols:
@@ -3167,6 +3174,15 @@ if app_mode == "Single Cell Analysis Viewer":
                                     borderwidth=1,
                                     borderpad=2
                                 )
+                
+                # Standard Top Significant Gene Annotations (Top Layer)
+                for _, r in top_sig.iterrows():
+                    fig_volc.add_annotation(
+                        x=r["logfoldchanges"], y=r["log10_padj"],
+                        text=r["Gene_Symbol"], showarrow=True, arrowhead=1,
+                        font=dict(size=12, color="#0F172A", family="Segoe UI, sans-serif"),
+                        arrowcolor="#64748B", arrowsize=0.8
+                    )
                 
                 st.plotly_chart(fig_volc, width="stretch")
                 
