@@ -3114,23 +3114,68 @@ if app_mode == "Single Cell Analysis Viewer":
                 
                 # Top DE Tables
                 st.markdown("#### 📋 Top Differentially Expressed Genes")
+                
+                c_sch1, c_sch2 = st.columns([1.5, 2.5])
+                with c_sch1:
+                    de_search_query = st.text_input(
+                        "🔍 Filter / Search Gene (Symbol or ID):",
+                        placeholder="e.g. COL17A1, KRT14, ITGA6...",
+                        key="de_gene_search_input",
+                        help="Filter both upregulated and downregulated gene tables in real-time by gene symbol or identifier."
+                    ).strip()
+                with c_sch2:
+                    st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+                    if de_search_query:
+                        st.caption(f"Filtering DE gene tables for matches containing: '{de_search_query}'")
+                
+                df_up_all = df_de_res[m_up].sort_values("logfoldchanges", ascending=False)[["Gene_Symbol", "names", "logfoldchanges", "pvals_adj", "scores"]].rename(columns={"names": "Gene_ID", "logfoldchanges": "Log2FC", "pvals_adj": "FDR (p-adj)", "scores": "Z-score"})
+                df_down_all = df_de_res[m_down].sort_values("logfoldchanges", ascending=True)[["Gene_Symbol", "names", "logfoldchanges", "pvals_adj", "scores"]].rename(columns={"names": "Gene_ID", "logfoldchanges": "Log2FC", "pvals_adj": "FDR (p-adj)", "scores": "Z-score"})
+                
+                if de_search_query:
+                    q_up = de_search_query.upper()
+                    m_sch_up = (
+                        df_up_all["Gene_Symbol"].astype(str).str.upper().str.contains(q_up, na=False) |
+                        df_up_all["Gene_ID"].astype(str).str.upper().str.contains(q_up, na=False)
+                    )
+                    df_up_filtered = df_up_all[m_sch_up]
+                    
+                    m_sch_down = (
+                        df_down_all["Gene_Symbol"].astype(str).str.upper().str.contains(q_up, na=False) |
+                        df_down_all["Gene_ID"].astype(str).str.upper().str.contains(q_up, na=False)
+                    )
+                    df_down_filtered = df_down_all[m_sch_down]
+                else:
+                    df_up_filtered = df_up_all
+                    df_down_filtered = df_down_all
+
                 c_tbl1, c_tbl2 = st.columns(2)
                 with c_tbl1:
-                    st.markdown(f"**Top Upregulated Genes in `{de_target}`**")
-                    df_up = df_de_res[m_up].sort_values("logfoldchanges", ascending=False)[["Gene_Symbol", "names", "logfoldchanges", "pvals_adj", "scores"]].rename(columns={"names": "Gene_ID", "logfoldchanges": "Log2FC", "pvals_adj": "FDR (p-adj)", "scores": "Z-score"})
-                    df_up_disp = df_up.head(50).copy()
+                    lbl_up = f"**Top Upregulated Genes in `{de_target}`**"
+                    if de_search_query:
+                        lbl_up += f" ({len(df_up_filtered):,} matching)"
+                    else:
+                        lbl_up += f" (Showing top {min(len(df_up_filtered), 50)} of {len(df_up_all):,})"
+                    st.markdown(lbl_up)
+                    
+                    df_up_disp = df_up_filtered.head(100 if de_search_query else 50).copy()
                     df_up_disp["Log2FC"] = df_up_disp["Log2FC"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
                     df_up_disp["FDR (p-adj)"] = df_up_disp["FDR (p-adj)"].apply(format_sig_value)
                     df_up_disp["Z-score"] = df_up_disp["Z-score"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
-                    st.dataframe(df_up_disp, height=300, width="stretch")
+                    st.dataframe(df_up_disp, height=320, width="stretch")
+                    
                 with c_tbl2:
-                    st.markdown(f"**Top Downregulated Genes in `{de_target}`**")
-                    df_down = df_de_res[m_down].sort_values("logfoldchanges", ascending=True)[["Gene_Symbol", "names", "logfoldchanges", "pvals_adj", "scores"]].rename(columns={"names": "Gene_ID", "logfoldchanges": "Log2FC", "pvals_adj": "FDR (p-adj)", "scores": "Z-score"})
-                    df_down_disp = df_down.head(50).copy()
+                    lbl_down = f"**Top Downregulated Genes in `{de_target}`**"
+                    if de_search_query:
+                        lbl_down += f" ({len(df_down_filtered):,} matching)"
+                    else:
+                        lbl_down += f" (Showing top {min(len(df_down_filtered), 50)} of {len(df_down_all):,})"
+                    st.markdown(lbl_down)
+                    
+                    df_down_disp = df_down_filtered.head(100 if de_search_query else 50).copy()
                     df_down_disp["Log2FC"] = df_down_disp["Log2FC"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
                     df_down_disp["FDR (p-adj)"] = df_down_disp["FDR (p-adj)"].apply(format_sig_value)
                     df_down_disp["Z-score"] = df_down_disp["Z-score"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
-                    st.dataframe(df_down_disp, height=300, width="stretch")
+                    st.dataframe(df_down_disp, height=320, width="stretch")
                     
                 st.download_button(
                     label=f"📥 Download Full DE Results Table ({de_target}_vs_{de_reference}.csv)",
