@@ -3115,8 +3115,10 @@ if app_mode == "Single Cell Analysis Viewer":
                 fig_volc.add_vline(x=-lfc_cutoff, line_dash="dash", line_color="#60A5FA", line_width=1.5, layer="below")
                 fig_volc.add_hline(y=-np.log10(padj_cutoff), line_dash="dash", line_color="#94A3B8", line_width=1.5, layer="below")
                 
-                # Top Significant Gene Selection
-                top_sig = df_de_res[df_de_res["Significance"] != "Not Significant"].sort_values("scores", key=abs, ascending=False).head(top_label_n)
+                # Calculate Y-axis Headroom to prevent clipping at top ceiling (e.g. y=300) and bottom (y=0)
+                max_padj_val = float(df_de_res["log10_padj"].max()) if not df_de_res.empty else 10.0
+                y_headroom = max_padj_val * 1.15 + 20.0
+                fig_volc.update_yaxes(range=[-max_padj_val * 0.03, y_headroom], title_text="-Log10 Adjusted p-value")
                 
                 # Circle Highlight Search Filtered Genes on Top of Scatter Points & Threshold Lines
                 if de_search_query:
@@ -3156,33 +3158,63 @@ if app_mode == "Single Cell Analysis Viewer":
                             name=f"Search: '{de_search_query}' ({len(df_highlighted)})"
                         ))
                         
-                        # 3. Callout Labels for Filtered Genes (Top Layer)
-                        top_labeled_symbols = set(top_sig["Gene_Symbol"]) if not top_sig.empty else set()
-                        for _, r in df_highlighted.head(30).iterrows():
-                            if r["Gene_Symbol"] not in top_labeled_symbols:
-                                fig_volc.add_annotation(
-                                    x=r["logfoldchanges"], y=r["log10_padj"],
-                                    text=f"<b>{r['Gene_Symbol']}</b>",
-                                    showarrow=True,
-                                    arrowhead=2,
-                                    arrowsize=0.9,
-                                    arrowwidth=1.5,
-                                    arrowcolor="#D97706",
-                                    font=dict(size=12, color="#92400E", family="Segoe UI, sans-serif"),
-                                    bgcolor="rgba(254, 243, 199, 0.95)",
-                                    bordercolor="#F59E0B",
-                                    borderwidth=1,
-                                    borderpad=2
-                                )
-                
-                # Standard Top Significant Gene Annotations (Top Layer)
-                for _, r in top_sig.iterrows():
-                    fig_volc.add_annotation(
-                        x=r["logfoldchanges"], y=r["log10_padj"],
-                        text=r["Gene_Symbol"], showarrow=True, arrowhead=1,
-                        font=dict(size=12, color="#0F172A", family="Segoe UI, sans-serif"),
-                        arrowcolor="#64748B", arrowsize=0.8
-                    )
+                        # 3. Callout Labels for Filtered Genes with Smart Anti-Collision Staggering
+                        genes_to_label = df_highlighted.sort_values("scores", key=abs, ascending=False).head(30)
+                        for idx, (_, r) in enumerate(genes_to_label.iterrows()):
+                            x_val = float(r["logfoldchanges"])
+                            y_val = float(r["log10_padj"])
+                            step = idx % 4
+                            
+                            if y_val > max_padj_val * 0.85:
+                                # High ceiling points (e.g. y=300): stagger laterally and vertically
+                                ax_off = (-45 if step in [0, 2] else 45) + (step * 10 - 15)
+                                ay_off = -25 - (step * 18)
+                            elif y_val < 25:
+                                # Low baseline points (near y=0): point upwards
+                                ax_off = (step - 1.5) * 25
+                                ay_off = -35 - (step % 2) * 15
+                            else:
+                                # Mid-range points: angle away from density
+                                ax_off = 40 if x_val >= 0 else -40
+                                ay_off = -25 - (step % 2) * 15
+
+                            fig_volc.add_annotation(
+                                x=x_val, y=y_val,
+                                text=f"<b>{r['Gene_Symbol']}</b>",
+                                showarrow=True,
+                                arrowhead=2,
+                                arrowsize=0.9,
+                                arrowwidth=1.5,
+                                arrowcolor="#D97706",
+                                ax=ax_off,
+                                ay=ay_off,
+                                font=dict(size=11.5, color="#92400E", family="Segoe UI, sans-serif"),
+                                bgcolor="rgba(254, 243, 199, 0.95)",
+                                bordercolor="#F59E0B",
+                                borderwidth=1,
+                                borderpad=2.5
+                            )
+                else:
+                    # Standard Top Significant Gene Annotations with Anti-Collision Staggering
+                    top_sig = df_de_res[df_de_res["Significance"] != "Not Significant"].sort_values("scores", key=abs, ascending=False).head(top_label_n)
+                    for idx, (_, r) in enumerate(top_sig.iterrows()):
+                        x_val = float(r["logfoldchanges"])
+                        y_val = float(r["log10_padj"])
+                        step = idx % 3
+                        ax_off = (-35 if x_val < 0 else 35) + (step * 10 - 10)
+                        ay_off = -25 - (step * 16)
+                        
+                        fig_volc.add_annotation(
+                            x=x_val, y=y_val,
+                            text=r["Gene_Symbol"],
+                            showarrow=True,
+                            arrowhead=1,
+                            arrowsize=0.8,
+                            arrowcolor="#64748B",
+                            ax=ax_off,
+                            ay=ay_off,
+                            font=dict(size=11, color="#0F172A", family="Segoe UI, sans-serif")
+                        )
                 
                 st.plotly_chart(fig_volc, width="stretch")
                 
