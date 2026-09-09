@@ -3059,15 +3059,17 @@ if app_mode == "Single Cell Analysis Viewer":
             c_sch1, c_sch2 = st.columns([1.5, 2.5])
             with c_sch1:
                 de_search_query = st.text_input(
-                    "🔍 Filter / Search Gene (Highlight on Volcano & Tables):",
-                    placeholder="e.g. COL17A1, KRT14, ITGA6...",
+                    "🔍 Filter / Search Gene (Union matching, e.g. ITGB, LAM, COL):",
+                    placeholder="e.g. ITGB, LAM, COL or COL17A1, KRT14...",
                     key="de_gene_search_input",
-                    help="Filter DE genes by symbol or ID. Matching genes will be highlighted with circular rings on the volcano plot and filtered in the tables below."
+                    help="Search genes by symbol or ID. Supports multiple terms separated by commas, dots, or spaces (e.g. 'ITGB, LAM, COL') to show a union of matches."
                 ).strip()
             with c_sch2:
                 st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
                 if de_search_query:
-                    st.caption(f"Highlighting & filtering genes matching: '{de_search_query}'")
+                    raw_tokens = [t.strip().upper() for t in re.split(r'[,.;|\s]+', de_search_query) if t.strip()]
+                    tokens_str = ", ".join([f"'{t}'" for t in raw_tokens])
+                    st.caption(f"Highlighting & filtering union of matches for: {tokens_str}")
 
             @st.cache_data
             def compute_cached_de(_adata, groupby_col, target_grp, ref_grp):
@@ -3117,35 +3119,72 @@ if app_mode == "Single Cell Analysis Viewer":
                 
                 # Calculate Y-axis Headroom to prevent clipping at top ceiling (e.g. y=300) and bottom (y=0)
                 max_padj_val = float(df_de_res["log10_padj"].max()) if not df_de_res.empty else 10.0
-                y_headroom = max_padj_val * 1.15 + 20.0
-                fig_volc.update_yaxes(range=[-max_padj_val * 0.03, y_headroom], title_text="-Log10 Adjusted p-value")
+                y_headroom = max_padj_val * 1.15 + 25.0
+                y_bottom = -max_padj_val * 0.05 - 8.0
+                fig_volc.update_yaxes(range=[y_bottom, y_headroom], title_text="-Log10 Adjusted p-value")
                 
+                # Multi-term Union Query Parser (supports 'ITGB, LAM, COL', 'ITGB.LAM.COL', etc.)
+                search_tokens = [t.strip().upper() for t in re.split(r'[,.;|\s]+', de_search_query) if t.strip()] if de_search_query else []
+                
+                def match_union_tokens(df_subset, tokens):
+                    if not tokens:
+                        return pd.Series(True, index=df_subset.index)
+                    sym_col = df_subset["Gene_Symbol"].astype(str).str.upper()
+                    id_col = df_subset["names" if "names" in df_subset.columns else "Gene_ID"].astype(str).str.upper()
+                    union_mask = pd.Series(False, index=df_subset.index)
+                    for tok in tokens:
+                        union_mask |= (sym_col.str.contains(tok, na=False) | id_col.str.contains(tok, na=False))
+                    return union_mask
+
                 # Circle Highlight Search Filtered Genes on Top of Scatter Points & Threshold Lines
-                if de_search_query:
-                    q_up = de_search_query.upper()
-                    m_match = (
-                        df_de_res["Gene_Symbol"].astype(str).str.upper().str.contains(q_up, na=False) |
-                        df_de_res["names"].astype(str).str.upper().str.contains(q_up, na=False)
-                    )
+                if search_tokens:
+                    m_match = match_union_tokens(df_de_res, search_tokens)
                     df_highlighted = df_de_res[m_match]
                     
                     if not df_highlighted.empty:
-                        # Crisp Purple Open Circle Rings (Plotted as top-most layer above all data points)
+                        # 1. Solid White/Lavender Masking Disc (Punches through dense background scatter dots)
+                        fig_volc.add_trace(go.Scatter(
+                            x=df_highlighted["logfoldchanges"],
+                            y=df_highlighted["log10_padj"],
+                            mode='markers',
+                            marker=dict(
+                                symbol='circle',
+                                size=22,
+                                color='rgba(255, 255, 255, 0.95)',
+                                line=dict(width=0)
+                            ),
+                            hoverinfo='skip',
+                            showlegend=False
+                        ))
+                        # 2. Crisp Purple Open Circle Ring (Plotted cleanly on top layer)
                         fig_volc.add_trace(go.Scatter(
                             x=df_highlighted["logfoldchanges"],
                             y=df_highlighted["log10_padj"],
                             mode='markers',
                             marker=dict(
                                 symbol='circle-open',
-                                size=19,
-                                line=dict(width=3.0, color='#8B5CF6')
+                                size=22,
+                                line=dict(width=3.5, color='#8B5CF6')
                             ),
                             hoverinfo='skip',
-                            name=f"Search: '{de_search_query}' ({len(df_highlighted)})"
+                            showlegend=False
+                        ))
+                        # 3. Purple Center Marker Dot
+                        fig_volc.add_trace(go.Scatter(
+                            x=df_highlighted["logfoldchanges"],
+                            y=df_highlighted["log10_padj"],
+                            mode='markers',
+                            marker=dict(
+                                symbol='circle',
+                                size=8,
+                                color='#7C3AED'
+                            ),
+                            hoverinfo='skip',
+                            name=f"Matches ({len(df_highlighted)})"
                         ))
                         
-                        # Callout Labels for Filtered Genes with Smart Anti-Collision Staggering
-                        genes_to_label = df_highlighted.sort_values("scores", key=abs, ascending=False).head(30)
+                        # 4. Callout Labels for Filtered Genes with Smart Anti-Collision Staggering
+                        genes_to_label = df_highlighted.sort_values("scores", key=abs, ascending=False).head(35)
                         for idx, (_, r) in enumerate(genes_to_label.iterrows()):
                             x_val = float(r["logfoldchanges"])
                             y_val = float(r["log10_padj"])
@@ -3158,7 +3197,7 @@ if app_mode == "Single Cell Analysis Viewer":
                             elif y_val < 25:
                                 # Low baseline points (near y=0): point upwards
                                 ax_off = (step - 1.5) * 25
-                                ay_off = -35 - (step % 2) * 15
+                                ay_off = -38 - (step % 2) * 15
                             else:
                                 # Mid-range points: angle away from density
                                 ax_off = 40 if x_val >= 0 else -40
@@ -3210,18 +3249,11 @@ if app_mode == "Single Cell Analysis Viewer":
                 df_up_all = df_de_res[m_up].sort_values("logfoldchanges", ascending=False)[["Gene_Symbol", "names", "logfoldchanges", "pvals_adj", "scores"]].rename(columns={"names": "Gene_ID", "logfoldchanges": "Log2FC", "pvals_adj": "FDR (p-adj)", "scores": "Z-score"})
                 df_down_all = df_de_res[m_down].sort_values("logfoldchanges", ascending=True)[["Gene_Symbol", "names", "logfoldchanges", "pvals_adj", "scores"]].rename(columns={"names": "Gene_ID", "logfoldchanges": "Log2FC", "pvals_adj": "FDR (p-adj)", "scores": "Z-score"})
                 
-                if de_search_query:
-                    q_up = de_search_query.upper()
-                    m_sch_up = (
-                        df_up_all["Gene_Symbol"].astype(str).str.upper().str.contains(q_up, na=False) |
-                        df_up_all["Gene_ID"].astype(str).str.upper().str.contains(q_up, na=False)
-                    )
+                if search_tokens:
+                    m_sch_up = match_union_tokens(df_up_all, search_tokens)
                     df_up_filtered = df_up_all[m_sch_up]
                     
-                    m_sch_down = (
-                        df_down_all["Gene_Symbol"].astype(str).str.upper().str.contains(q_up, na=False) |
-                        df_down_all["Gene_ID"].astype(str).str.upper().str.contains(q_up, na=False)
-                    )
+                    m_sch_down = match_union_tokens(df_down_all, search_tokens)
                     df_down_filtered = df_down_all[m_sch_down]
                 else:
                     df_up_filtered = df_up_all
