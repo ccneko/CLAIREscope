@@ -3244,20 +3244,6 @@ if app_mode == "Single Cell Analysis Viewer":
 
                 c_tbl1, c_tbl2 = st.columns(2)
                 with c_tbl1:
-                    lbl_up = f"**Top Upregulated Genes in `{de_target}`**"
-                    if de_search_query:
-                        lbl_up += f" ({len(df_up_filtered):,} matching)"
-                    else:
-                        lbl_up += f" (Showing top {min(len(df_up_filtered), 50)} of {len(df_up_all):,})"
-                    st.markdown(lbl_up)
-                    
-                    df_up_disp = df_up_filtered.head(100 if de_search_query else 50).copy()
-                    df_up_disp["Log2FC"] = df_up_disp["Log2FC"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
-                    df_up_disp["FDR (p-adj)"] = df_up_disp["FDR (p-adj)"].apply(format_sig_value)
-                    df_up_disp["Z-score"] = df_up_disp["Z-score"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
-                    st.dataframe(df_up_disp, height=320, width="stretch")
-                    
-                with c_tbl2:
                     lbl_down = f"**Top Downregulated Genes in `{de_target}`**"
                     if de_search_query:
                         lbl_down += f" ({len(df_down_filtered):,} matching)"
@@ -3270,6 +3256,20 @@ if app_mode == "Single Cell Analysis Viewer":
                     df_down_disp["FDR (p-adj)"] = df_down_disp["FDR (p-adj)"].apply(format_sig_value)
                     df_down_disp["Z-score"] = df_down_disp["Z-score"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
                     st.dataframe(df_down_disp, height=320, width="stretch")
+
+                with c_tbl2:
+                    lbl_up = f"**Top Upregulated Genes in `{de_target}`**"
+                    if de_search_query:
+                        lbl_up += f" ({len(df_up_filtered):,} matching)"
+                    else:
+                        lbl_up += f" (Showing top {min(len(df_up_filtered), 50)} of {len(df_up_all):,})"
+                    st.markdown(lbl_up)
+                    
+                    df_up_disp = df_up_filtered.head(100 if de_search_query else 50).copy()
+                    df_up_disp["Log2FC"] = df_up_disp["Log2FC"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
+                    df_up_disp["FDR (p-adj)"] = df_up_disp["FDR (p-adj)"].apply(format_sig_value)
+                    df_up_disp["Z-score"] = df_up_disp["Z-score"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
+                    st.dataframe(df_up_disp, height=320, width="stretch")
                     
                 st.download_button(
                     label=f"📥 Download Full DE Results Table ({de_target}_vs_{de_reference}.csv)",
