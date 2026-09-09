@@ -52,6 +52,7 @@ from clairescope.config import (
     get_next_new_project_name,
     scan_project_datasets,
     load_settings_config,
+    save_settings_config,
     load_signatures_config,
     load_pathways_config,
     load_markers_config,
@@ -89,8 +90,8 @@ def check_large_upload_warning(up_file):
         st.warning(
             f"⚠️ **Large Dataset Notice ({f_size_mb:.1f} MB)**: Single-cell datasets exceeding {warn_threshold} MB "
             f"may require substantial memory (RAM) and computation time during interactive exploration and DEG calculations. "
-            f"For optimal performance recommendations, see our [Hardware & Computation Resource Guide](https://clairescope.readthedocs.io/en/latest/quickstart.html#hardware-system-requirements). "
-            f"*(This notification can be disabled in `config/defaults/settings.yaml`)*",
+            f"For optimal performance recommendations, see our [Hardware & Computation Resource Guide](https://clairescope.readthedocs.io/en/latest/quickstart/). "
+            f"*(This notification can be configured or disabled in **Dataset Management & Launch Settings**)*",
             icon="⚠️"
         )
 
@@ -298,226 +299,226 @@ with st.sidebar:
                 st.session_state.pop(k, None)
         st.rerun()
 
-# ----------------- NEW PROJECT CREATION VIEW -----------------
-if selected_project_key == "__NEW_PROJECT__":
-    st.title("📂 Create New Project & Ingest Dataset")
-    st.markdown("Upload a single-cell dataset (`.h5ad`, `.h5`, `.rds`, `.loom`) or specify an existing file on disk to initialize a new project workspace.")
-    
-    default_proj_name, default_proj_key = get_next_new_project_name(PROJECT_REGISTRY)
-    
-    col_left, col_right = st.columns([1.1, 1], gap="large")
-    
-    with col_left:
-        st.markdown("#### 1. Ingest Data File")
-        uploaded_file = st.file_uploader(
-            "Upload or drag & drop single-cell dataset:",
-            type=["h5ad", "h5", "rds", "loom"],
-            help="Drag & drop or browse for an AnnData (.h5ad) or single-cell matrix file."
-        )
-        if uploaded_file is not None:
-            check_large_upload_warning(uploaded_file)
-        
-        local_file_path = st.text_input(
-            "Or specify local file path on disk (optional):",
-            placeholder=r"e.g. data/Data\MyProjectdata.h5ad",
-            help="Full absolute path to an existing .h5ad dataset on your local drive or Google Drive.",
-            key="new_proj_local_file_input"
-        )
-        
-        # Determine auto root folder suggestion
-        suggested_root = ""
-        if local_file_path and os.path.exists(local_file_path):
-            suggested_root = os.path.dirname(os.path.abspath(local_file_path))
-        elif uploaded_file is not None:
-            if os.name == 'nt' and os.path.exists(r"data/Data"):
-                suggested_root = os.path.join(r"data/Data", default_proj_name.replace(" ", "_"))
-            elif os.path.exists("data/Data"):
-                suggested_root = os.path.join("data/Data", default_proj_name.replace(" ", "_"))
-            else:
-                suggested_root = os.path.expanduser(f"~/CLAIREscope_data/{default_proj_name.replace(' ', '_')}")
-        else:
-            if os.name == 'nt' and os.path.exists(r"data/Data"):
-                suggested_root = os.path.join(r"data/Data", default_proj_name.replace(" ", "_"))
-            elif os.path.exists("data/Data"):
-                suggested_root = os.path.join("data/Data", default_proj_name.replace(" ", "_"))
-            else:
-                suggested_root = os.path.expanduser(f"~/CLAIREscope_data/{default_proj_name.replace(' ', '_')}")
+# ----------------- PROJECT & DATASET CONTEXT INITIALIZATION -----------------
+adata = None
+selected_dataset_name = None
+selected_col = None
+sample_col = None
+curr_proj = None
+all_detected_datasets = {}
+active_datasets = {}
+ordered_samples = []
+sample_color_map = {}
+display_options, display_to_var, sym_to_display, var_to_display = [], {}, {}, {}
 
-    with col_right:
-        st.markdown("#### 2. Project Metadata & Root Folder")
-        proj_name = st.text_input("Project Name:", value=default_proj_name, help="Display title for the new project in navigation menu.")
-        proj_id = st.text_input("Project ID / Code:", value=default_proj_key, help="Unique alphanumeric identifier key for the project.")
-        proj_desc = st.text_area("Description (Optional):", value="Single-cell transcriptomics dataset analysis workspace.", help="Brief project overview or biological context.")
-        root_folder = st.text_input("Root Folder Path:", value=suggested_root, help="Parent directory where project datasets and outputs reside.")
-        species = st.selectbox("Species:", ["Human", "Mouse", "Other"], index=0)
-
-    st.markdown("---")
-    c_btn, _ = st.columns([1, 2])
-    with c_btn:
-        start_btn = st.button("🚀 Start Analysis & Save Project", type="primary", use_container_width=True)
-
-    if start_btn:
-        if not proj_name.strip():
-            st.error("Please enter a valid Project Name.")
-            st.stop()
-            
-        if not root_folder.strip():
-            st.error("Please specify a valid Root Folder path.")
-            st.stop()
-            
-        os.makedirs(root_folder, exist_ok=True)
-        final_file_path = None
-        
-        if uploaded_file is not None:
-            final_file_path = os.path.join(root_folder, uploaded_file.name)
-            with st.spinner(f"Saving uploaded file to `{final_file_path}`..."):
-                with open(final_file_path, "wb") as f:
-                    f.write(uploaded_file.getbuffer())
-        elif local_file_path and os.path.exists(local_file_path):
-            final_file_path = local_file_path
-        else:
-            st.warning("Please upload a data file or specify an existing file path to start analysis.")
-            st.stop()
-
-        # Build project definition
-        new_proj_entry = {
-            "id": proj_id.strip() if proj_id.strip() else default_proj_key,
-            "name": proj_name.strip(),
-            "desc": proj_desc.strip(),
-            "species": species,
-            "win_base": root_folder,
-            "wsl_base": root_folder,
-            "scan_subdirs": [".", "out", "data"],
-            "default_preload": os.path.basename(final_file_path),
-            "canonical_samples": [],
-            "sample_colors": {},
-            "default_signatures": GLOBAL_SIGNATURES.get(species.lower(), {})
-        }
-        
-        save_user_project_config(proj_id.strip(), new_proj_entry)
-        PROJECT_REGISTRY[proj_id.strip()] = new_proj_entry
-        st.session_state["selected_project_key"] = proj_id.strip()
-        st.success(f"🎉 Project '{proj_name}' created and saved! Launching analysis...")
-        st.rerun()
-        
-    st.stop()
-
-# Dynamic setup for active project
-curr_proj = PROJECT_REGISTRY[selected_project_key]
-if "paths" in curr_proj:
-    win_p = curr_proj["paths"].get("windows", "")
-    wsl_p = curr_proj["paths"].get("wsl", curr_proj["paths"].get("linux", ""))
-else:
-    win_p = curr_proj.get("win_base", "")
-    wsl_p = curr_proj.get("wsl_base", "")
-
-PROJ_BASE = get_platform_path(win_p, wsl_p)
-scan_subdirs = curr_proj.get("scan_subdirs", ["."])
-
-canonical_samples = curr_proj.get("canonical_samples", [])
-sample_color_map = dict(curr_proj.get("sample_colors", {}))
-default_pairs = curr_proj.get("default_pairs", [])
-DEFAULT_SIGNATURES = curr_proj.get("default_signatures", {})
-
-YAML_PATH = os.path.join(APP_DIR, f"{curr_proj['id'].lower()}_cell_type_markers.yaml")
-if not os.path.exists(YAML_PATH):
-    YAML_PATH = os.path.join(APP_DIR, "cell_type_markers.yaml")
-
-
-# Dynamic Dataset Picker from Project Root & Subdirectories
-active_datasets, all_detected_datasets = scan_project_datasets(PROJ_BASE, scan_subdirs)
-if "custom_pipeline_adata" in st.session_state and st.session_state["custom_pipeline_adata"] is not None:
-    active_datasets = {"✨ Processed Pipeline Dataset (In-Memory)": None, **active_datasets}
-if not active_datasets:
-    if all_detected_datasets:
-        st.sidebar.warning("All datasets are currently marked hidden in Dataset Settings.")
-        active_datasets = all_detected_datasets
+if selected_project_key != "__NEW_PROJECT__":
+    curr_proj = PROJECT_REGISTRY[selected_project_key]
+    if "paths" in curr_proj:
+        win_p = curr_proj["paths"].get("windows", "")
+        wsl_p = curr_proj["paths"].get("wsl", curr_proj["paths"].get("linux", ""))
     else:
-        st.error(f"No `.h5ad` files found in project root path `{PROJ_BASE}` or its subdirectories.")
-        st.stop()
+        win_p = curr_proj.get("win_base", "")
+        wsl_p = curr_proj.get("wsl_base", "")
 
-cfg = load_dataset_config()
-default_ds_name = cfg.get("default_dataset", None)
-default_preload = curr_proj.get("default_preload", None)
-active_keys = list(active_datasets.keys())
+    PROJ_BASE = get_platform_path(win_p, wsl_p)
+    scan_subdirs = curr_proj.get("scan_subdirs", ["."])
 
-default_ds_idx = 0
-if default_ds_name in active_keys:
-    default_ds_idx = active_keys.index(default_ds_name)
-elif default_preload:
-    for idx, k in enumerate(active_keys):
-        p = active_datasets[k]
-        if p and (os.path.basename(p) == default_preload or default_preload in k):
-            default_ds_idx = idx
-            break
+    canonical_samples = curr_proj.get("canonical_samples", [])
+    sample_color_map = dict(curr_proj.get("sample_colors", {}))
+    default_pairs = curr_proj.get("default_pairs", [])
+    DEFAULT_SIGNATURES = curr_proj.get("default_signatures", {})
 
-selected_dataset_name = st.sidebar.selectbox("Select Dataset:", active_keys, index=default_ds_idx)
-h5ad_path = active_datasets[selected_dataset_name]
+    YAML_PATH = os.path.join(APP_DIR, f"{curr_proj['id'].lower()}_cell_type_markers.yaml")
+    if not os.path.exists(YAML_PATH):
+        YAML_PATH = os.path.join(APP_DIR, "cell_type_markers.yaml")
 
-# Load selected dataset
-if "custom_pipeline_adata" in st.session_state and selected_dataset_name.startswith("✨ Processed Pipeline Dataset"):
-    adata = st.session_state["custom_pipeline_adata"]
-else:
-    adata = load_adata(h5ad_path)
-if adata is None:
-    st.error(f"Failed to load dataset at `{h5ad_path}`.")
-    st.stop()
+    # Dynamic Dataset Picker from Project Root & Subdirectories
+    active_datasets, all_detected_datasets = scan_project_datasets(PROJ_BASE, scan_subdirs)
+    if "custom_pipeline_adata" in st.session_state and st.session_state["custom_pipeline_adata"] is not None:
+        active_datasets = {"✨ Processed Pipeline Dataset (In-Memory)": None, **active_datasets}
+    
+    if active_datasets:
+        cfg = load_dataset_config()
+        default_ds_name = cfg.get("default_dataset", None)
+        default_preload = curr_proj.get("default_preload", None)
+        active_keys = list(active_datasets.keys())
 
-# Gene records with "gene_name (gene_id)" formatting
-display_options, display_to_var, sym_to_display, var_to_display = get_gene_display_mappings(adata.var, adata.var_names)
+        default_ds_idx = 0
+        if default_ds_name in active_keys:
+            default_ds_idx = active_keys.index(default_ds_name)
+        elif default_preload:
+            for idx, k in enumerate(active_keys):
+                p = active_datasets[k]
+                if p and (os.path.basename(p) == default_preload or default_preload in k):
+                    default_ds_idx = idx
+                    break
 
-# Dynamic Annotation & Sample Column Picker
-anno_cols = get_annotation_columns(adata)
-if not anno_cols:
-    st.sidebar.warning("No categorical or annotation columns found in the dataset's `.obs`.")
-    selected_col = None
-else:
-    selected_col = st.sidebar.selectbox("Annotation Column:", anno_cols)
+        selected_dataset_name = st.sidebar.selectbox("Select Dataset:", active_keys, index=default_ds_idx)
+        h5ad_path = active_datasets[selected_dataset_name]
 
-# Reset transient dataset/column-specific filter keys when switching dataset or annotation column
-current_dataset_signature = f"{selected_project_key}::{selected_dataset_name}::{selected_col}"
-if st.session_state.get("_last_dataset_signature") != current_dataset_signature:
-    st.session_state["_last_dataset_signature"] = current_dataset_signature
-    transient_filter_keys = [
-        "comp_samples_filter", "comp_cats_filter", "v_gene_states", "v_gene_pairs",
-        "sv_states", "sv_pairs", "scat_filter_s", "scat_filter_st",
-        "plotly_filter_samples", "plotly_filter_categories",
-        "stat_filter_samples", "stat_filter_categories",
-        "hm_ordered_groups", "hm_selected_genes",
-        "bulk_selected_genes", "bulk_selected_pathways",
-    ]
-    for k in transient_filter_keys:
-        if k in st.session_state:
-            del st.session_state[k]
+        # Load selected dataset
+        if "custom_pipeline_adata" in st.session_state and selected_dataset_name.startswith("✨ Processed Pipeline Dataset"):
+            adata = st.session_state["custom_pipeline_adata"]
+        else:
+            adata = load_adata(h5ad_path)
 
-sample_col = get_sample_column(adata)
+        if adata is not None:
+            # Gene records with "gene_name (gene_id)" formatting
+            display_options, display_to_var, sym_to_display, var_to_display = get_gene_display_mappings(adata.var, adata.var_names)
 
-# Determine dataset category
-yaml_key = "Fibroblasts" if "fibroblast" in selected_dataset_name.lower() or "fb" in selected_dataset_name.lower() else "Keratinocytes"
+            # Dynamic Annotation & Sample Column Picker
+            anno_cols = get_annotation_columns(adata)
+            if not anno_cols:
+                st.sidebar.warning("No categorical or annotation columns found in the dataset's `.obs`.")
+                selected_col = None
+            else:
+                selected_col = st.sidebar.selectbox("Annotation Column:", anno_cols)
 
-# Canonical sample ordering from project config
-canonical_samples = curr_proj.get("canonical_samples", [])
-if sample_col and sample_col in adata.obs.columns:
-    unique_in_data = adata.obs[sample_col].dropna().unique().tolist()
-    ordered_samples = [s for s in canonical_samples if s in unique_in_data] + [s for s in unique_in_data if s not in canonical_samples]
-else:
-    ordered_samples = []
+            # Reset transient dataset/column-specific filter keys when switching dataset or annotation column
+            current_dataset_signature = f"{selected_project_key}::{selected_dataset_name}::{selected_col}"
+            if st.session_state.get("_last_dataset_signature") != current_dataset_signature:
+                st.session_state["_last_dataset_signature"] = current_dataset_signature
+                transient_filter_keys = [
+                    "comp_samples_filter", "comp_cats_filter", "v_gene_states", "v_gene_pairs",
+                    "sv_states", "sv_pairs", "scat_filter_s", "scat_filter_st",
+                    "plotly_filter_samples", "plotly_filter_categories",
+                    "stat_filter_samples", "stat_filter_categories",
+                    "hm_ordered_groups", "hm_selected_genes",
+                    "bulk_selected_genes", "bulk_selected_pathways",
+                ]
+                for k in transient_filter_keys:
+                    if k in st.session_state:
+                        del st.session_state[k]
 
-sample_color_map = dict(curr_proj.get("sample_colors", {}))
-for idx, s in enumerate(ordered_samples):
-    if s not in sample_color_map:
-        cmap = plt.get_cmap('tab10')
-        sample_color_map[s] = matplotlib.colors.to_hex(cmap(idx % 10))
+            sample_col = get_sample_column(adata)
+
+            # Canonical sample ordering from project config
+            if sample_col and sample_col in adata.obs.columns:
+                unique_in_data = adata.obs[sample_col].dropna().unique().tolist()
+                ordered_samples = [s for s in canonical_samples if s in unique_in_data] + [s for s in unique_in_data if s not in canonical_samples]
+            else:
+                ordered_samples = []
+
+            for idx, s in enumerate(ordered_samples):
+                if s not in sample_color_map:
+                    cmap = plt.get_cmap('tab10')
+                    sample_color_map[s] = matplotlib.colors.to_hex(cmap(idx % 10))
 
 # ----------------- PAGE 1: EXPRESSION VIEWER & ANALYSIS TABS -----------------
 if app_mode == "Single Cell Analysis Viewer":
-    st.title("🔬 CLAIREscope Single Cell Analysis Viewer")
-    with st.expander(f"ℹ️ Active Project & Dataset Information: {curr_proj['name']}", expanded=False):
-        st.markdown(f"""
+    if selected_project_key == "__NEW_PROJECT__":
+        st.title("📂 Create New Project & Ingest Dataset")
+        st.markdown("Upload a single-cell dataset (`.h5ad`, `.h5`, `.rds`, `.loom`) or specify an existing file on disk to initialize a new project workspace.")
+        
+        default_proj_name, default_proj_key = get_next_new_project_name(PROJECT_REGISTRY)
+        
+        col_left, col_right = st.columns([1.1, 1], gap="large")
+        
+        with col_left:
+            st.markdown("#### 1. Ingest Data File")
+            uploaded_file = st.file_uploader(
+                "Upload or drag & drop single-cell dataset:",
+                type=["h5ad", "h5", "rds", "loom"],
+                help="Drag & drop or browse for an AnnData (.h5ad) or single-cell matrix file."
+            )
+            if uploaded_file is not None:
+                check_large_upload_warning(uploaded_file)
+            
+            local_file_path = st.text_input(
+                "Or specify local file path on disk (optional):",
+                placeholder=r"e.g. data/Data\\MyProject data.h5ad",
+                help="Full absolute path to an existing .h5ad dataset on your local drive or Google Drive.",
+                key="new_proj_local_file_input"
+            )
+            
+            # Determine auto root folder suggestion
+            suggested_root = ""
+            if local_file_path and os.path.exists(local_file_path):
+                suggested_root = os.path.dirname(os.path.abspath(local_file_path))
+            elif uploaded_file is not None:
+                if os.name == 'nt' and os.path.exists(r"data/Data"):
+                    suggested_root = os.path.join(r"data/Data", default_proj_name.replace(" ", "_"))
+                elif os.path.exists("data/Data"):
+                    suggested_root = os.path.join("data/Data", default_proj_name.replace(" ", "_"))
+                else:
+                    suggested_root = os.path.expanduser(f"~/CLAIREscope_data/{default_proj_name.replace(' ', '_')}")
+            else:
+                if os.name == 'nt' and os.path.exists(r"data/Data"):
+                    suggested_root = os.path.join(r"data/Data", default_proj_name.replace(" ", "_"))
+                elif os.path.exists("data/Data"):
+                    suggested_root = os.path.join("data/Data", default_proj_name.replace(" ", "_"))
+                else:
+                    suggested_root = os.path.expanduser(f"~/CLAIREscope_data/{default_proj_name.replace(' ', '_')}")
+
+        with col_right:
+            st.markdown("#### 2. Project Metadata & Root Folder")
+            proj_name = st.text_input("Project Name:", value=default_proj_name, help="Display title for the new project in navigation menu.")
+            proj_id = st.text_input("Project ID / Code:", value=default_proj_key, help="Unique alphanumeric identifier key for the project.")
+            proj_desc = st.text_area("Description (Optional):", value="Single-cell transcriptomics dataset analysis workspace.", help="Brief project overview or biological context.")
+            root_folder = st.text_input("Root Folder Path:", value=suggested_root, help="Parent directory where project datasets and outputs reside.")
+            species = st.selectbox("Species:", ["Human", "Mouse", "Other"], index=0)
+
+        st.markdown("---")
+        c_btn, _ = st.columns([1, 2])
+        with c_btn:
+            start_btn = st.button("🚀 Start Analysis & Save Project", type="primary", use_container_width=True)
+
+        if start_btn:
+            if not proj_name.strip():
+                st.error("Please enter a valid Project Name.")
+                st.stop()
+                
+            if not root_folder.strip():
+                st.error("Please specify a valid Root Folder path.")
+                st.stop()
+                
+            os.makedirs(root_folder, exist_ok=True)
+            final_file_path = None
+            
+            if uploaded_file is not None:
+                final_file_path = os.path.join(root_folder, uploaded_file.name)
+                with st.spinner(f"Saving uploaded file to `{final_file_path}`..."):
+                    with open(final_file_path, "wb") as f:
+                        f.write(uploaded_file.getbuffer())
+            elif local_file_path and os.path.exists(local_file_path):
+                final_file_path = local_file_path
+            else:
+                st.warning("Please upload a data file or specify an existing file path to start analysis.")
+                st.stop()
+
+            # Build project definition
+            new_proj_entry = {
+                "id": proj_id.strip() if proj_id.strip() else default_proj_key,
+                "name": proj_name.strip(),
+                "desc": proj_desc.strip(),
+                "species": species,
+                "win_base": root_folder,
+                "wsl_base": root_folder,
+                "scan_subdirs": [".", "out", "data"],
+                "default_preload": os.path.basename(final_file_path),
+                "canonical_samples": [],
+                "sample_colors": {},
+                "default_signatures": GLOBAL_SIGNATURES.get(species.lower(), {})
+            }
+            
+            save_user_project_config(proj_id.strip(), new_proj_entry)
+            PROJECT_REGISTRY[proj_id.strip()] = new_proj_entry
+            st.session_state["selected_project_key"] = proj_id.strip()
+            st.success(f"🎉 Project '{proj_name}' created and saved! Launching analysis...")
+            st.rerun()
+    elif adata is None:
+        if not active_datasets and all_detected_datasets:
+            st.warning("All datasets in this project are currently marked hidden in Dataset Settings.")
+        else:
+            st.error(f"No `.h5ad` single-cell datasets found in project root path `{PROJ_BASE}`. Please place `.h5ad` files in the folder or select a different project.")
+    else:
+        st.title("🔬 CLAIREscope Single Cell Analysis Viewer")
+        with st.expander(f"ℹ️ Active Project & Dataset Information: {curr_proj['name']}", expanded=False):
+            st.markdown(f"""
 **Active Project:** {curr_proj['name']}  
 {curr_proj.get('desc', curr_proj.get('description', ''))}  
 **Active Dataset:** `{selected_dataset_name}` | **Total Cells:** `{adata.n_obs:,}` | **Total Genes:** `{adata.n_vars:,}` | **Sample Column:** `{sample_col if sample_col else 'None'}`
-        """)
+            """)
     
     # Initialize session state for selected gene display string
     if "selected_gene_display" not in st.session_state:
@@ -4634,35 +4635,86 @@ elif app_mode == "Bulk Download & Export Studio":
 
 elif app_mode == "Dataset Management & Launch Settings":
     st.title("📁 Dataset Management & Launch Preferences")
-    st.write("Configure which single-cell datasets are active in dropdowns, choose the default dataset to load automatically upon app launch, or hide unneeded `.h5ad` files.")
+    st.write("Configure default startup datasets, dataset dropdown visibility, and computation resource notifications.")
     
+    # If no detected datasets for current project, scan across all projects
+    if not all_detected_datasets:
+        for p_k, p_val in PROJECT_REGISTRY.items():
+            w_p = p_val.get("win_base", p_val.get("paths", {}).get("windows", ""))
+            l_p = p_val.get("wsl_base", p_val.get("paths", {}).get("wsl", ""))
+            p_base = get_platform_path(w_p, l_p)
+            s_subs = p_val.get("scan_subdirs", ["."])
+            _, p_all = scan_project_datasets(p_base, s_subs)
+            all_detected_datasets.update(p_all)
+            
     cfg = load_dataset_config()
     hidden_list = cfg.get("hidden_datasets", [])
     current_default = cfg.get("default_dataset", None)
     all_avail_keys = list(all_detected_datasets.keys())
     
     st.markdown("### 1. Default Dataset at Launch")
-    default_idx = all_avail_keys.index(current_default) if current_default in all_avail_keys else 0
-    chosen_default = st.selectbox("Select which dataset to load automatically at startup:", all_avail_keys, index=default_idx)
+    if all_avail_keys:
+        default_idx = all_avail_keys.index(current_default) if current_default in all_avail_keys else 0
+        chosen_default = st.selectbox("Select which dataset to load automatically at startup:", all_avail_keys, index=default_idx)
+    else:
+        chosen_default = None
+        st.info("No `.h5ad` datasets detected yet. Upload or place datasets in project folders.")
     
     st.markdown("### 2. Dataset Visibility in Dropdown")
     st.caption("ℹ️ Unchecking a dataset hides it from the main selector to keep the dropdown clean and accelerate startup.")
     
     new_hidden = []
-    for ds_name in all_avail_keys:
-        is_shown = ds_name not in hidden_list
-        c_chk, c_info = st.columns([1.5, 3])
-        with c_chk:
-            show_box = st.checkbox(f"Show `{ds_name}`", value=is_shown, key=f"ds_vis_{ds_name}")
-            if not show_box:
-                new_hidden.append(ds_name)
-        with c_info:
-            st.caption(f"📁 Path: `{all_detected_datasets[ds_name]}`")
+    if all_avail_keys:
+        for ds_name in all_avail_keys:
+            is_shown = ds_name not in hidden_list
+            c_chk, c_info = st.columns([1.5, 3])
+            with c_chk:
+                show_box = st.checkbox(f"Show `{ds_name}`", value=is_shown, key=f"ds_vis_{ds_name}")
+                if not show_box:
+                    new_hidden.append(ds_name)
+            with c_info:
+                st.caption(f"📁 Path: `{all_detected_datasets[ds_name]}`")
+    else:
+        st.caption("No datasets available to configure.")
+
+    st.markdown("---")
+    st.markdown("### 3. Computation & Upload Resource Settings")
+    st.write("Configure large dataset upload guidance and memory threshold notifications.")
+    
+    perf_cfg = APP_SETTINGS.get("performance", {})
+    current_warn_enabled = perf_cfg.get("warn_large_upload", True)
+    current_warn_threshold = perf_cfg.get("large_upload_threshold_mb", 500)
+    
+    col_w1, col_w2 = st.columns([1.5, 2.0])
+    with col_w1:
+        new_warn_enabled = st.checkbox(
+            "Enable Large Dataset Resource Warnings",
+            value=current_warn_enabled,
+            help="Displays an informative guidance banner when uploading large datasets exceeding the size threshold."
+        )
+    with col_w2:
+        new_warn_threshold = st.number_input(
+            "Resource Warning Threshold (MB):",
+            min_value=50,
+            max_value=50000,
+            value=int(current_warn_threshold),
+            step=50,
+            disabled=not new_warn_enabled,
+            help="Single-cell datasets exceeding this file size will display the hardware and computation resource guidance link."
+        )
             
     st.write("")
-    if st.button("💾 Save Dataset Preferences & Reload"):
-        cfg["default_dataset"] = chosen_default
+    if st.button("💾 Save Settings & Preferences"):
+        if chosen_default:
+            cfg["default_dataset"] = chosen_default
         cfg["hidden_datasets"] = new_hidden
         save_dataset_config(cfg)
-        st.success("Dataset preferences saved successfully! Reloading...")
+        
+        # Save performance settings
+        APP_SETTINGS.setdefault("performance", {})
+        APP_SETTINGS["performance"]["warn_large_upload"] = new_warn_enabled
+        APP_SETTINGS["performance"]["large_upload_threshold_mb"] = new_warn_threshold
+        save_settings_config(APP_SETTINGS)
+        
+        st.success("Preferences and resource settings saved successfully! Reloading...")
         st.rerun()
