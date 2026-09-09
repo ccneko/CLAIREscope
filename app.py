@@ -3151,43 +3151,16 @@ if app_mode == "Single Cell Analysis Viewer":
                     df_highlighted = df_de_res[m_match]
                     
                     if not df_highlighted.empty:
-                        # 1. Solid White/Lavender Masking Disc (Punches through dense background scatter dots)
-                        fig_volc.add_trace(go.Scatter(
-                            x=df_highlighted["logfoldchanges"],
-                            y=df_highlighted["log10_padj"],
-                            mode='markers',
-                            marker=dict(
-                                symbol='circle',
-                                size=22,
-                                color='rgba(255, 255, 255, 0.95)',
-                                line=dict(width=0)
-                            ),
-                            hoverinfo='skip',
-                            showlegend=False
-                        ))
-                        # 2. Crisp Purple Open Circle Ring (Plotted cleanly on top layer)
+                        # Crisp Purple Open Circle Ring (Plotted cleanly on top layer around original dots)
                         fig_volc.add_trace(go.Scatter(
                             x=df_highlighted["logfoldchanges"],
                             y=df_highlighted["log10_padj"],
                             mode='markers',
                             marker=dict(
                                 symbol='circle-open',
-                                size=22,
+                                size=20,
                                 color='#8B5CF6',
-                                line=dict(width=3.5, color='#8B5CF6')
-                            ),
-                            hoverinfo='skip',
-                            showlegend=False
-                        ))
-                        # 3. Purple Center Marker Dot
-                        fig_volc.add_trace(go.Scatter(
-                            x=df_highlighted["logfoldchanges"],
-                            y=df_highlighted["log10_padj"],
-                            mode='markers',
-                            marker=dict(
-                                symbol='circle',
-                                size=8,
-                                color='#7C3AED'
+                                line=dict(width=3.0, color='#8B5CF6')
                             ),
                             hoverinfo='skip',
                             name=f"Matches ({len(df_highlighted)})"
