@@ -32,3 +32,7 @@ plotly:
   axis_title_size: 16
   axis_tick_size: 14
   default_template: "plotly_white"
+
+performance:
+  warn_large_upload: true
+  large_upload_threshold_mb: 500

@@ -75,6 +75,25 @@ from clairescope.core.schema import (
 # Load External Configurations (Zero Hardcoded Inlines)
 PROJECT_REGISTRY = load_projects_config()
 APP_SETTINGS = load_settings_config()
+
+def check_large_upload_warning(up_file):
+    """Displays a guidance notice when an uploaded dataset exceeds the recommended size threshold."""
+    if up_file is None:
+        return
+    f_size_mb = getattr(up_file, "size", len(up_file.getvalue())) / (1024 * 1024)
+    perf_cfg = APP_SETTINGS.get("performance", {})
+    warn_enabled = perf_cfg.get("warn_large_upload", True)
+    warn_threshold = perf_cfg.get("large_upload_threshold_mb", 500)
+    
+    if warn_enabled and f_size_mb > warn_threshold:
+        st.warning(
+            f"⚠️ **Large Dataset Notice ({f_size_mb:.1f} MB)**: Single-cell datasets exceeding {warn_threshold} MB "
+            f"may require substantial memory (RAM) and computation time during interactive exploration and DEG calculations. "
+            f"For optimal performance recommendations, see our [Hardware & Computation Resource Guide](https://clairescope.readthedocs.io/en/latest/quickstart.html#hardware-system-requirements). "
+            f"*(This notification can be disabled in `config/defaults/settings.yaml`)*",
+            icon="⚠️"
+        )
+
 GLOBAL_SIGNATURES = load_signatures_config()
 CURATED_PATHWAY_DB = load_pathways_config()
 DEFAULT_MARKERS = load_markers_config()
@@ -295,6 +314,8 @@ if selected_project_key == "__NEW_PROJECT__":
             type=["h5ad", "h5", "rds", "loom"],
             help="Drag & drop or browse for an AnnData (.h5ad) or single-cell matrix file."
         )
+        if uploaded_file is not None:
+            check_large_upload_warning(uploaded_file)
         
         local_file_path = st.text_input(
             "Or specify local file path on disk (optional):",
@@ -3814,8 +3835,9 @@ elif app_mode == "Single-Cell Preprocessing & Scanpy Pipeline":
                     st.success(f"Successfully loaded {sel_server_lbl} ({loaded_raw_adata.n_obs:,} cells x {loaded_raw_adata.n_vars:,} genes).")
                     
     elif input_source.startswith("📤 Upload Custom"):
-        uploaded_h5ad = st.file_uploader("Upload .h5ad File (Max 1 GB):", type=["h5ad"], key="pipeline_h5ad_uploader")
+        uploaded_h5ad = st.file_uploader("Upload .h5ad File:", type=["h5ad"], key="pipeline_h5ad_uploader")
         if uploaded_h5ad is not None:
+            check_large_upload_warning(uploaded_h5ad)
             if st.button("🔄 Parse Uploaded .h5ad", key="btn_parse_uploaded_h5ad"):
                 with st.spinner("Parsing uploaded file..."):
                     import tempfile
