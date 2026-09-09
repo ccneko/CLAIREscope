@@ -3056,6 +3056,19 @@ if app_mode == "Single Cell Analysis Viewer":
             with c_vol3:
                 top_label_n = st.slider("Number of Top Genes to Label:", min_value=5, max_value=30, value=15, step=5, key="volc_label_n")
                 
+            c_sch1, c_sch2 = st.columns([1.5, 2.5])
+            with c_sch1:
+                de_search_query = st.text_input(
+                    "🔍 Filter / Search Gene (Highlight on Volcano & Tables):",
+                    placeholder="e.g. COL17A1, KRT14, ITGA6...",
+                    key="de_gene_search_input",
+                    help="Filter DE genes by symbol or ID. Matching genes will be highlighted with circular rings on the volcano plot and filtered in the tables below."
+                ).strip()
+            with c_sch2:
+                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+                if de_search_query:
+                    st.caption(f"Highlighting & filtering genes matching: '{de_search_query}'")
+
             @st.cache_data
             def compute_cached_de(_adata, groupby_col, target_grp, ref_grp):
                 adata_copy = _adata.copy()
@@ -3102,6 +3115,7 @@ if app_mode == "Single Cell Analysis Viewer":
                 fig_volc.add_vline(x=-lfc_cutoff, line_dash="dash", line_color="#60A5FA", line_width=1.5)
                 fig_volc.add_hline(y=-np.log10(padj_cutoff), line_dash="dash", line_color="#94A3B8", line_width=1.5)
                 
+                # Standard Top Significant Gene Annotations
                 top_sig = df_de_res[df_de_res["Significance"] != "Not Significant"].sort_values("scores", key=abs, ascending=False).head(top_label_n)
                 for _, r in top_sig.iterrows():
                     fig_volc.add_annotation(
@@ -3110,23 +3124,54 @@ if app_mode == "Single Cell Analysis Viewer":
                         font=dict(size=12, color="#0F172A", family="Segoe UI, sans-serif"),
                         arrowcolor="#64748B", arrowsize=0.8
                     )
+                
+                # Circle Highlight Search Filtered Genes on Volcano Plot
+                if de_search_query:
+                    q_up = de_search_query.upper()
+                    m_match = (
+                        df_de_res["Gene_Symbol"].astype(str).str.upper().str.contains(q_up, na=False) |
+                        df_de_res["names"].astype(str).str.upper().str.contains(q_up, na=False)
+                    )
+                    df_highlighted = df_de_res[m_match]
+                    
+                    if not df_highlighted.empty:
+                        # Add Open Circle Rings
+                        fig_volc.add_trace(go.Scatter(
+                            x=df_highlighted["logfoldchanges"],
+                            y=df_highlighted["log10_padj"],
+                            mode='markers',
+                            marker=dict(
+                                symbol='circle-open',
+                                size=17,
+                                line=dict(width=2.8, color='#D97706')
+                            ),
+                            hoverinfo='skip',
+                            name=f"Search: '{de_search_query}' ({len(df_highlighted)})"
+                        ))
+                        
+                        # Add Callout Labels for Filtered Genes
+                        top_labeled_symbols = set(top_sig["Gene_Symbol"]) if not top_sig.empty else set()
+                        for _, r in df_highlighted.head(30).iterrows():
+                            if r["Gene_Symbol"] not in top_labeled_symbols:
+                                fig_volc.add_annotation(
+                                    x=r["logfoldchanges"], y=r["log10_padj"],
+                                    text=f"<b>{r['Gene_Symbol']}</b>",
+                                    showarrow=True,
+                                    arrowhead=2,
+                                    arrowsize=0.9,
+                                    arrowwidth=1.5,
+                                    arrowcolor="#D97706",
+                                    font=dict(size=12, color="#92400E", family="Segoe UI, sans-serif"),
+                                    bgcolor="rgba(254, 243, 199, 0.95)",
+                                    bordercolor="#F59E0B",
+                                    borderwidth=1,
+                                    borderpad=2
+                                )
+                
                 st.plotly_chart(fig_volc, width="stretch")
                 
                 # Top DE Tables
                 st.markdown("#### 📋 Top Differentially Expressed Genes")
-                
-                c_sch1, c_sch2 = st.columns([1.5, 2.5])
-                with c_sch1:
-                    de_search_query = st.text_input(
-                        "🔍 Filter / Search Gene (Symbol or ID):",
-                        placeholder="e.g. COL17A1, KRT14, ITGA6...",
-                        key="de_gene_search_input",
-                        help="Filter both upregulated and downregulated gene tables in real-time by gene symbol or identifier."
-                    ).strip()
-                with c_sch2:
-                    st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-                    if de_search_query:
-                        st.caption(f"Filtering DE gene tables for matches containing: '{de_search_query}'")
                 
                 df_up_all = df_de_res[m_up].sort_values("logfoldchanges", ascending=False)[["Gene_Symbol", "names", "logfoldchanges", "pvals_adj", "scores"]].rename(columns={"names": "Gene_ID", "logfoldchanges": "Log2FC", "pvals_adj": "FDR (p-adj)", "scores": "Z-score"})
                 df_down_all = df_de_res[m_down].sort_values("logfoldchanges", ascending=True)[["Gene_Symbol", "names", "logfoldchanges", "pvals_adj", "scores"]].rename(columns={"names": "Gene_ID", "logfoldchanges": "Log2FC", "pvals_adj": "FDR (p-adj)", "scores": "Z-score"})
