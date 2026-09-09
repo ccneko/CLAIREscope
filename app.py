@@ -3130,35 +3130,21 @@ if app_mode == "Single Cell Analysis Viewer":
                     df_highlighted = df_de_res[m_match]
                     
                     if not df_highlighted.empty:
-                        # 1. Subtle Translucent Golden Halo Glow
-                        fig_volc.add_trace(go.Scatter(
-                            x=df_highlighted["logfoldchanges"],
-                            y=df_highlighted["log10_padj"],
-                            mode='markers',
-                            marker=dict(
-                                symbol='circle',
-                                size=16,
-                                color='rgba(245, 158, 11, 0.35)',
-                                line=dict(width=0)
-                            ),
-                            hoverinfo='skip',
-                            showlegend=False
-                        ))
-                        # 2. Prominent High-Contrast Outer Circle Ring (Above Data Points)
+                        # Crisp Purple Open Circle Rings (Plotted as top-most layer above all data points)
                         fig_volc.add_trace(go.Scatter(
                             x=df_highlighted["logfoldchanges"],
                             y=df_highlighted["log10_padj"],
                             mode='markers',
                             marker=dict(
                                 symbol='circle-open',
-                                size=20,
-                                line=dict(width=3.2, color='#D97706')
+                                size=19,
+                                line=dict(width=3.0, color='#8B5CF6')
                             ),
                             hoverinfo='skip',
                             name=f"Search: '{de_search_query}' ({len(df_highlighted)})"
                         ))
                         
-                        # 3. Callout Labels for Filtered Genes with Smart Anti-Collision Staggering
+                        # Callout Labels for Filtered Genes with Smart Anti-Collision Staggering
                         genes_to_label = df_highlighted.sort_values("scores", key=abs, ascending=False).head(30)
                         for idx, (_, r) in enumerate(genes_to_label.iterrows()):
                             x_val = float(r["logfoldchanges"])
@@ -3185,12 +3171,12 @@ if app_mode == "Single Cell Analysis Viewer":
                                 arrowhead=2,
                                 arrowsize=0.9,
                                 arrowwidth=1.5,
-                                arrowcolor="#D97706",
+                                arrowcolor="#8B5CF6",
                                 ax=ax_off,
                                 ay=ay_off,
-                                font=dict(size=11.5, color="#92400E", family="Segoe UI, sans-serif"),
-                                bgcolor="rgba(254, 243, 199, 0.95)",
-                                bordercolor="#F59E0B",
+                                font=dict(size=11.5, color="#5B21B6", family="Segoe UI, sans-serif"),
+                                bgcolor="rgba(245, 243, 255, 0.95)",
+                                bordercolor="#8B5CF6",
                                 borderwidth=1,
                                 borderpad=2.5
                             )
