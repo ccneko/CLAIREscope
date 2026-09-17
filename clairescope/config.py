@@ -2,7 +2,7 @@
 import os
 import re
 import yaml
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 
 PACKAGE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_DIR = os.path.join(PACKAGE_DIR, "config")
@@ -160,6 +160,19 @@ def save_settings_config(settings_dict: Dict[str, Any]) -> str:
         yaml.safe_dump(settings_dict, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
     return target_file
 
+def load_dataset_config() -> Dict[str, Any]:
+    """Load dataset preferences (default dataset, hidden datasets, custom datasets)."""
+    cfg_file = get_config_file_path("dataset_config.yaml")
+    return load_yaml_config(cfg_file, default={})
+
+def save_dataset_config(dataset_cfg: Dict[str, Any]) -> str:
+    """Save dataset preferences into config/user/dataset_config.yaml."""
+    os.makedirs(USER_DIR, exist_ok=True)
+    target_file = os.path.join(USER_DIR, "dataset_config.yaml")
+    with open(target_file, "w", encoding="utf-8") as f:
+        yaml.safe_dump(dataset_cfg, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+    return target_file
+
 def load_settings_config() -> Dict[str, Any]:
     """Load application global UI and plotting settings."""
     cfg_file = get_config_file_path("settings.yaml")
@@ -187,3 +200,198 @@ def load_css_styles() -> str:
         with open(css_file, "r", encoding="utf-8") as f:
             return f.read()
     return ""
+
+def load_annotation_colors(col_name: Optional[str] = None) -> Dict[str, Any]:
+    """Load user or dataset custom annotation category colors."""
+    ds_cfg = load_dataset_config()
+    colors = ds_cfg.get("annotation_colors", {})
+    if not colors:
+        app_settings = load_settings_config()
+        colors = app_settings.get("annotation_colors", {})
+    if col_name:
+        return colors.get(col_name, {})
+    return colors
+
+def save_annotation_colors(col_name: str, color_map: Dict[str, str]) -> str:
+    """Persist custom annotation category colors to user dataset_config.yaml."""
+    ds_cfg = load_dataset_config()
+    all_colors = ds_cfg.setdefault("annotation_colors", {})
+    all_colors[col_name] = color_map
+    return save_dataset_config(ds_cfg)
+
+def import_dataset_from_yaml(yaml_source: Any, persist: bool = True) -> Tuple[bool, str, Dict[str, Any]]:
+    """
+    Import a dataset definition and optionally its parent project from a YAML file or string.
+    Supports:
+      1. Single dataset object under 'dataset' key.
+      2. List of dataset objects under 'datasets' key.
+      3. Associated project metadata under 'project' key.
+      4. Default preferences under 'settings' key.
+      5. Custom annotation colors under 'annotation_colors'.
+    """
+    data = None
+    if isinstance(yaml_source, dict):
+        data = yaml_source
+    elif isinstance(yaml_source, str):
+        clean_src = yaml_source.strip()
+        if ("\n" not in clean_src) and os.path.isfile(clean_src):
+            try:
+                with open(clean_src, "r", encoding="utf-8") as f:
+                    data = yaml.safe_load(f)
+            except Exception as e:
+                return False, f"Failed to read YAML file at {clean_src}: {e}", {}
+        else:
+            try:
+                data = yaml.safe_load(yaml_source)
+            except Exception as e:
+                return False, f"Failed to parse YAML text: {e}", {}
+    
+    if not isinstance(data, dict):
+        return False, "Invalid YAML format: root configuration must be a dictionary.", {}
+
+    projects = load_projects_config()
+    ds_cfg = load_dataset_config()
+    app_settings = load_settings_config()
+
+    imported_datasets = []
+    target_project_key = None
+
+    # Process settings block
+    if "settings" in data and isinstance(data["settings"], dict):
+        s_block = data["settings"]
+        if "default_project" in s_block and s_block["default_project"]:
+            target_project_key = s_block["default_project"]
+            app_settings["default_project"] = s_block["default_project"]
+            ds_cfg["default_project"] = s_block["default_project"]
+        if "default_dataset" in s_block and s_block["default_dataset"]:
+            ds_cfg["default_dataset"] = s_block["default_dataset"]
+        if "default_annotation_col" in s_block and s_block["default_annotation_col"]:
+            app_settings["default_annotation_col"] = s_block["default_annotation_col"]
+
+    # Process project block
+    if "project" in data and isinstance(data["project"], dict):
+        p_block = data["project"]
+        p_key = p_block.get("key") or p_block.get("id") or target_project_key
+        if p_key:
+            target_project_key = p_key
+            if p_key not in projects:
+                projects[p_key] = {}
+            for k, v in p_block.items():
+                if k != "key":
+                    projects[p_key][k] = v
+
+    # Extract dataset entries
+    ds_entries = []
+    if "dataset" in data and isinstance(data["dataset"], dict):
+        ds_entries.append(data["dataset"])
+    if "datasets" in data and isinstance(data["datasets"], list):
+        for d in data["datasets"]:
+            if isinstance(d, dict):
+                ds_entries.append(d)
+
+    # Process dataset entries
+    for ds in ds_entries:
+        ds_name = ds.get("name")
+        ds_path = ds.get("path") or ds.get("wsl_path") or ds.get("win_path")
+        p_key = ds.get("project_key") or ds.get("project_id") or target_project_key
+        
+        target_proj = None
+        if p_key and p_key in projects:
+            target_proj = projects[p_key]
+            target_project_key = p_key
+        else:
+            for pk, pval in projects.items():
+                if isinstance(pval, dict) and pval.get("id") == p_key:
+                    target_proj = pval
+                    target_project_key = pk
+                    break
+        
+        if not target_proj and projects:
+            target_project_key = list(projects.keys())[0]
+            target_proj = projects[target_project_key]
+
+        win_p = ds.get("win_path", ds_path)
+        wsl_p = ds.get("wsl_path", ds_path)
+        resolved_ds_path = get_platform_path(win_p, wsl_p)
+
+        proj_base = ""
+        if target_proj:
+            w_base = target_proj.get("win_base", target_proj.get("paths", {}).get("windows", ""))
+            l_base = target_proj.get("wsl_base", target_proj.get("paths", {}).get("wsl", ""))
+            proj_base = get_platform_path(w_base, l_base)
+
+        if resolved_ds_path and not os.path.isabs(resolved_ds_path) and proj_base:
+            resolved_ds_path = os.path.abspath(os.path.join(proj_base, resolved_ds_path))
+
+        if resolved_ds_path and os.path.isfile(resolved_ds_path):
+            file_basename = os.path.basename(resolved_ds_path)
+            sub_tag = "custom"
+            if proj_base and os.path.exists(proj_base):
+                rel_dir = os.path.relpath(os.path.dirname(resolved_ds_path), proj_base)
+                sub_tag = "root" if rel_dir == "." else rel_dir.replace("\\", "/")
+                if rel_dir != "." and target_proj:
+                    s_subs = target_proj.setdefault("scan_subdirs", [])
+                    norm_sub = rel_dir.replace("\\", "/")
+                    if norm_sub not in s_subs:
+                        s_subs.insert(0, norm_sub)
+
+            if not ds_name:
+                ds_name = f"{file_basename[:-5]} ({sub_tag})"
+
+            if ds.get("is_default", False):
+                ds_cfg["default_dataset"] = ds_name
+                if target_proj:
+                    target_proj["default_preload"] = file_basename
+                if target_project_key:
+                    app_settings["default_project"] = target_project_key
+                    ds_cfg["default_project"] = target_project_key
+
+            if "hidden_datasets" in ds_cfg and ds_name in ds_cfg["hidden_datasets"]:
+                ds_cfg["hidden_datasets"].remove(ds_name)
+
+            custom_list = ds_cfg.setdefault("custom_datasets", [])
+            existing = [c for c in custom_list if isinstance(c, dict) and (c.get("name") == ds_name or c.get("path") == resolved_ds_path)]
+            if not existing:
+                custom_list.append({
+                    "name": ds_name,
+                    "path": resolved_ds_path,
+                    "win_path": win_p if win_p else resolved_ds_path,
+                    "wsl_path": wsl_p if wsl_p else resolved_ds_path,
+                    "project_key": target_project_key,
+                })
+
+            imported_datasets.append({
+                "name": ds_name,
+                "path": resolved_ds_path,
+                "project": target_project_key,
+                "is_default": ds.get("is_default", False)
+            })
+
+    # Process annotation_colors if present
+    anno_colors = data.get("annotation_colors")
+    if not anno_colors and "dataset" in data and isinstance(data["dataset"], dict):
+        anno_colors = data["dataset"].get("annotation_colors")
+    if anno_colors and isinstance(anno_colors, dict):
+        cfg_annos = ds_cfg.setdefault("annotation_colors", {})
+        for col_k, col_v in anno_colors.items():
+            if isinstance(col_v, dict):
+                cfg_annos.setdefault(col_k, {}).update(col_v)
+        app_settings.setdefault("annotation_colors", {}).update(cfg_annos)
+
+    if persist:
+        os.makedirs(USER_DIR, exist_ok=True)
+        user_projects_file = os.path.join(USER_DIR, "projects.yaml")
+        with open(user_projects_file, "w", encoding="utf-8") as f:
+            yaml.safe_dump(projects, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+        save_dataset_config(ds_cfg)
+        save_settings_config(app_settings)
+
+    msg = f"Successfully imported {len(imported_datasets)} dataset(s) into project '{target_project_key}'."
+    if ds_cfg.get("default_dataset"):
+        msg += f" Default dataset set to '{ds_cfg['default_dataset']}'."
+
+    return True, msg, {
+        "imported_datasets": imported_datasets,
+        "default_project": app_settings.get("default_project"),
+        "default_dataset": ds_cfg.get("default_dataset"),
+    }

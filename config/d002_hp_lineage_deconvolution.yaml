@@ -1,0 +1,38 @@
+dataset:
+  name: kc_subset_hp_deconvoluted (out/2026-09-16_integrated_cell_typing)
+  win_path: G:\マイドライブ\Academic\Derma Lab\Data\D002_Watanabe_WoundHealing_scMultiome\out\2026-09-16_integrated_cell_typing\kc_subset_hp_deconvoluted.h5ad
+  wsl_path: /mnt/g/マイドライブ/Academic/Derma Lab/Data/D002_Watanabe_WoundHealing_scMultiome/out/2026-09-16_integrated_cell_typing/kc_subset_hp_deconvoluted.h5ad
+  project_key: D002_Watanabe_WoundHealing_scMultiome
+  is_default: true
+  description: D002 Watanabe Mouse Wound Healing scMultiome with deconvoluted hyperproliferative
+    keratinocyte lineages (Ly6a/e Basal, Transitional, Spinous vs. Krt15 Follicular
+    repair).
+  annotation_colors:
+    hp_lineage_relaxed: &id001
+      HP Ly6+ Basal (Krt5+/Krt14+): '#2465A8'
+      HP Ly6+ Transitional: '#8E44AD'
+      HP Ly6+ Spinous (Krt1+/Krt10+): '#E84393'
+      HP Ly6+ Undifferentiated: '#E5A800'
+      HP Ly6- Follicular (Krt15+): '#795548'
+      HP Ly6- Other: '#7F8C8D'
+      Non-HP KC: '#A0AEC0'
+project:
+  key: D002_Watanabe_WoundHealing_scMultiome
+  id: D002
+  name: 'D002: Wound Healing scMultiome (Watanabe Lab)'
+  species: Mouse
+  win_base: G:\マイドライブ\Academic\Derma Lab\Data\D002_Watanabe_WoundHealing_scMultiome
+  wsl_base: /mnt/g/マイドライブ/Academic/Derma Lab/Data/D002_Watanabe_WoundHealing_scMultiome
+  scan_subdirs:
+  - out/2026-09-16_integrated_cell_typing
+  - out/2026-08-19_subclustering
+  - out/2026-08-10_KC_subcluster
+  - out/2026-08-10_fibroblast_subcluster
+  - data
+  default_preload: kc_subset_hp_deconvoluted.h5ad
+settings:
+  default_project: D002_Watanabe_WoundHealing_scMultiome
+  default_dataset: kc_subset_hp_deconvoluted (out/2026-09-16_integrated_cell_typing)
+  default_annotation_col: hp_lineage_relaxed
+annotation_colors:
+  hp_lineage_relaxed: *id001

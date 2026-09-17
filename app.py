@@ -45,6 +45,7 @@ APP_DIR = os.path.dirname(os.path.abspath(__file__))
 # -------------------------------------------------------------
 # MULTI-PROJECT REGISTRY & ENVIRONMENT RESOLUTION
 # -------------------------------------------------------------
+import sys
 from clairescope.config import (
     get_platform_path,
     get_config_file_path,
@@ -54,6 +55,11 @@ from clairescope.config import (
     scan_project_datasets,
     load_settings_config,
     save_settings_config,
+    load_dataset_config,
+    save_dataset_config,
+    import_dataset_from_yaml,
+    load_annotation_colors,
+    save_annotation_colors,
     load_signatures_config,
     load_pathways_config,
     load_markers_config,
@@ -77,6 +83,18 @@ from clairescope.core.schema import (
 # Load External Configurations (Zero Hardcoded Inlines)
 PROJECT_REGISTRY = load_projects_config()
 APP_SETTINGS = load_settings_config()
+
+# Check for CLI or environment variable YAML configuration to import at launch
+cli_yaml_path = os.environ.get("CLAIRESCOPE_CONFIG_YAML") or os.environ.get("CLAIRESCOPE_DATASET_YAML")
+if not cli_yaml_path:
+    for idx, arg in enumerate(sys.argv):
+        if arg in ["--config", "--dataset-yaml", "--settings"] and idx + 1 < len(sys.argv):
+            cli_yaml_path = sys.argv[idx + 1]
+            break
+if cli_yaml_path and os.path.isfile(cli_yaml_path):
+    if "_cli_yaml_applied" not in st.session_state:
+        st.session_state["_cli_yaml_applied"] = True
+        import_dataset_from_yaml(cli_yaml_path)
 
 def check_large_upload_warning(up_file):
     """Displays a guidance notice when an uploaded dataset exceeds the recommended size threshold."""
@@ -299,6 +317,28 @@ with st.sidebar:
             if k not in ["selected_project_key", "page_navigation_mode", "project_picker_select"]:
                 st.session_state.pop(k, None)
         st.rerun()
+
+    # Fast YAML Dataset Import in Sidebar
+    with st.sidebar.expander("📥 Import Dataset YAML...", expanded=False):
+        uploaded_yaml = st.file_uploader("Upload YAML settings file:", type=["yaml", "yml"], key="sidebar_yaml_upload")
+        input_yaml_path = st.text_input("Or enter YAML file path:", placeholder="e.g. /path/to/dataset_settings.yaml", key="sidebar_yaml_path")
+        if st.button("Apply YAML", key="btn_apply_yaml_sidebar", use_container_width=True):
+            yaml_source = None
+            if uploaded_yaml is not None:
+                yaml_source = uploaded_yaml.getvalue().decode("utf-8")
+            elif input_yaml_path and input_yaml_path.strip():
+                yaml_source = input_yaml_path.strip()
+            if yaml_source:
+                ok, msg, details = import_dataset_from_yaml(yaml_source)
+                if ok:
+                    st.success(msg)
+                    if details.get("default_project"):
+                        st.session_state["selected_project_key"] = details["default_project"]
+                    st.rerun()
+                else:
+                    st.error(msg)
+            else:
+                st.warning("Please upload a YAML file or specify a valid file path.")
 
 # ----------------- PROJECT & DATASET CONTEXT INITIALIZATION -----------------
 adata = None
@@ -4791,6 +4831,31 @@ elif app_mode == "Dataset Management & Launch Settings":
     current_default = cfg.get("default_dataset", None)
     all_avail_keys = list(all_detected_datasets.keys())
     
+
+    st.markdown("---")
+    st.markdown("### 📥 Import Dataset from YAML Settings File")
+    st.caption("Load custom `.yaml` dataset configurations (including project directories, paths, default annotations, and custom sublineage palettes).")
+    c_yaml_up, c_yaml_path = st.columns([1, 1])
+    with c_yaml_up:
+        uploaded_cfg_file = st.file_uploader("Upload YAML File:", type=["yaml", "yml"], key="page_dataset_yaml_uploader")
+    with c_yaml_path:
+        manual_cfg_path = st.text_input("Or Enter YAML Path:", placeholder="G:\...\clairescope_dataset_settings.yaml", key="page_dataset_yaml_path")
+    if st.button("📥 Import & Register Dataset", key="page_btn_import_dataset_yaml"):
+        src = None
+        if uploaded_cfg_file is not None:
+            src = uploaded_cfg_file.getvalue().decode("utf-8")
+        elif manual_cfg_path and manual_cfg_path.strip():
+            src = manual_cfg_path.strip()
+        if src:
+            ok, msg, details = import_dataset_from_yaml(src)
+            if ok:
+                st.success(msg)
+                st.rerun()
+            else:
+                st.error(msg)
+        else:
+            st.warning("Please select or enter a YAML configuration source.")
+
     st.markdown("### 1. Default Dataset at Launch")
     if all_avail_keys:
         default_idx = all_avail_keys.index(current_default) if current_default in all_avail_keys else 0

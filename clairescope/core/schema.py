@@ -89,9 +89,44 @@ def get_cluster_color_map(adata_obj, col_name: str) -> Tuple[Dict[str, str], Lis
             pass
         return pred_map, categories
 
-    # Build semantic and distinct palette
+    # 1. Check user/dataset-configured colors from CLAIREscope config
+    cfg_colors = {}
+    try:
+        from ..config import load_annotation_colors
+        cfg_colors = load_annotation_colors(col_name) or {}
+    except Exception:
+        pass
+
+    # 2. Check pre-existing colors in adata.uns[color_key]
+    uns_colors = {}
+    if color_key in adata_obj.uns:
+        existing = adata_obj.uns[color_key]
+        if isinstance(existing, dict):
+            uns_colors = existing
+        elif isinstance(existing, (list, np.ndarray)):
+            if hasattr(adata_obj.obs[col_name], 'cat'):
+                raw_cats = list(adata_obj.obs[col_name].cat.categories)
+            else:
+                raw_cats = categories
+            if len(existing) == len(raw_cats):
+                uns_colors = {cat: str(col) for cat, col in zip(raw_cats, existing)}
+
     result = {}
     used_colors = set()
+
+    # Pass 1: Configured colors (CLAIREscope YAML config)
+    for cat in categories:
+        if cat in cfg_colors:
+            c = cfg_colors[cat]
+            result[cat] = c
+            used_colors.add(c)
+
+    # Pass 2: Pre-existing AnnData uns colors
+    for cat in categories:
+        if cat not in result and cat in uns_colors:
+            c = uns_colors[cat]
+            result[cat] = c
+            used_colors.add(c)
     
     # 1. Semantic rules matching
     for cat in categories:
