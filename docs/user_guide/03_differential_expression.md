@@ -7,9 +7,26 @@ The **Differential Expression & Volcano Studio** (Tab 9) provides an interactive
 ## 🎯 Key Capabilities
 
 - **Bidirectional Wilcoxon Rank-Sum Testing**: Rapid computation of Log2(Fold Change) and Benjamini-Hochberg FDR-adjusted $p$-values across thousands of genes.
+- **Column-Based Cell Subset & Lineage Filtering**: Restrict differential expression comparisons to specific biological subpopulations (e.g. comparing `sample` cohorts specifically within a chosen `lineage` or `cell_type`, with live cell counts).
 - **Multi-Term Union (OR) Gene Search**: Real-time filtering and visualization of gene families or target marker lists (e.g. `ITGB, LAM, COL` or `ITGB.LAM.COL`).
 - **Interactive SVG Volcano Studio**: High-precision interactive volcano plot with dynamic significance thresholds, pure SVG z-ordering, and smart anti-collision gene callouts.
 - **Spatially Aligned DEG Tables**: Synchronized tables reflecting the volcano plot layout (Downregulated on the Left, Upregulated on the Right) with instant CSV export.
+
+---
+
+## 🎯 Subset Filtering (Within-Lineage / Within-Condition Comparisons)
+
+A frequent analytical need in single-cell genomics is comparing conditions (e.g. **Mutant vs Control**) within a specific cell lineage or cell type, or conversely comparing cell states within a single experimental sample.
+
+### Setting Up a Filtered Comparison
+1. **Comparison Column (Group By)**: Select the primary grouping variable to compare (e.g. `sample`, `wound_type`, or `condition`).
+2. **Filter / Subset By Column**: Select a second column to restrict cells by (e.g. `lineage`, `hp_lineage_relaxed`, or `cell_type`). Select `None (All Cells)` to compare globally across the entire dataset.
+3. **Select Value(s) to Include**: Multi-select one or more values from the filter column (e.g. `Ly6a/e Basal`).
+4. **Live Cohort Metrics**:
+   - The UI immediately reports active subset metrics: `Analyzing N cells (out of Total, X%) where column ∈ [values]`.
+   - The **Target Group** and **Reference Group** dropdowns display real-time sample sizes (`Mutant (N=820 cells)` vs `Control (N=600 cells)`).
+   - "Rest of Cells" background evaluates strictly within the filtered subset.
+5. **Export Metadata**: Volcano plot titles and exported CSV files dynamically incorporate the active filter parameters (e.g. `DE_Mutant_vs_Control_sample_lineage_Ly6a_e_Basal.csv`).
 
 ---
 

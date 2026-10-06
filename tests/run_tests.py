@@ -207,5 +207,7 @@ class TestGUI(unittest.TestCase):
         from clairescope.gui import ServerControllerGUI, is_port_in_use
         self.assertTrue(callable(is_port_in_use))
 
+from tests.test_de import TestDifferentialExpression
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

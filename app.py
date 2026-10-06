@@ -69,6 +69,11 @@ from clairescope.config import (
 from clairescope.stats.hypothesis import get_sig_label, format_sig_value, run_mann_whitney
 from clairescope.stats.correlation import compute_bivariate_correlation
 from clairescope.stats.enrichment import run_hypergeometric_enrichment
+from clairescope.stats.de import (
+    get_de_candidate_columns,
+    filter_anndata_for_de,
+    run_differential_expression,
+)
 from clairescope.ui.styles import apply_global_styles
 from clairescope.ui.widgets import draggable_multiselect
 from clairescope.core.schema import (
@@ -426,6 +431,8 @@ if selected_project_key != "__NEW_PROJECT__":
                     "stat_filter_samples", "stat_filter_categories",
                     "hm_ordered_groups", "hm_selected_genes",
                     "bulk_selected_genes", "bulk_selected_pathways",
+                    "de_filter_col", "de_filter_values", "de_target_group", "de_ref_group",
+                    "en_filter_col", "en_filter_values", "en_target_grp", "en_ref_grp",
                 ]
                 for k in transient_filter_keys:
                     if k in st.session_state:
@@ -3075,55 +3082,167 @@ if app_mode == "Single Cell Analysis Viewer":
             st.markdown("### 🌋 Differential Expression Analysis & Volcano Studio")
             st.caption("Calculate Wilcoxon rank-sum differential expression between cohorts or cell state clusters, visualize interactive Volcano plots, and export ranked gene lists.")
             
-            c_de1, c_de2, c_de3 = st.columns([1.2, 1.2, 1.2])
-            with c_de1:
-                de_group_col = st.selectbox("Group By Column:", [c for c in [sample_col, selected_col, 'state_group', 'predicted_labels', 'leiden_r02', 'kmeans_k4'] if c and c in adata.obs.columns], key="de_groupby_col")
+            candidate_de_cols = get_de_candidate_columns(adata, sample_col=sample_col, selected_col=selected_col, anno_cols=anno_cols)
             
-            unique_de_groups = adata.obs[de_group_col].dropna().unique().tolist()
-            if de_group_col == sample_col and ordered_samples:
-                unique_de_groups = [s for s in ordered_samples if s in unique_de_groups] + [s for s in unique_de_groups if s not in ordered_samples]
-                
-            with c_de2:
-                de_target = st.selectbox("Target Group (Foreground):", unique_de_groups, index=0 if len(unique_de_groups) > 0 else 0, key="de_target_group")
-            with c_de3:
-                de_ref_opts = ["Rest of Cells"] + [g for g in unique_de_groups if g != de_target]
-                de_reference = st.selectbox("Reference Group (Background):", de_ref_opts, index=0, key="de_ref_group")
-                
-            c_vol1, c_vol2, c_vol3 = st.columns(3)
-            with c_vol1:
-                lfc_cutoff = st.slider("Log2 Fold-Change Cutoff:", min_value=0.25, max_value=3.0, value=1.0, step=0.25, key="volc_lfc_cut")
-            with c_vol2:
-                padj_cutoff = st.selectbox("Adjusted p-value (FDR) Cutoff:", [0.05, 0.01, 0.001, 0.0001], index=1, key="volc_padj_cut")
-            with c_vol3:
-                top_label_n = st.slider("Number of Top Genes to Label:", min_value=5, max_value=30, value=15, step=5, key="volc_label_n")
-                
-            c_sch1, c_sch2 = st.columns([1.5, 2.5])
-            with c_sch1:
-                de_search_query = st.text_input(
-                    "🔍 Filter / Search Gene (Union matching, e.g. ITGB, LAM, COL):",
-                    placeholder="e.g. ITGB, LAM, COL or COL17A1, KRT14...",
-                    key="de_gene_search_input",
-                    help="Search genes by symbol or ID. Supports multiple terms separated by commas, dots, or spaces (e.g. 'ITGB, LAM, COL') to show a union of matches."
-                ).strip()
-            with c_sch2:
-                st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-                if de_search_query:
-                    raw_tokens = [t.strip().upper() for t in re.split(r'[,.;|\s]+', de_search_query) if t.strip()]
-                    tokens_str = ", ".join([f"'{t}'" for t in raw_tokens])
-                    st.caption(f"Highlighting & filtering union of matches for: {tokens_str}")
+            c_de1, c_de_filt_c, c_de_filt_v = st.columns([1.1, 1.1, 1.8])
+            with c_de1:
+                de_group_col = st.selectbox(
+                    "Comparison Column (Group By):",
+                    candidate_de_cols,
+                    index=0,
+                    key="de_groupby_col",
+                    help="The primary column defining groups to compare (e.g. sample conditions, cell types, or clusters)."
+                )
 
-            @st.cache_data
-            def compute_cached_de(_adata, groupby_col, target_grp, ref_grp):
-                adata_copy = _adata.copy()
-                if ref_grp == "Rest of Cells":
-                    sc.tl.rank_genes_groups(adata_copy, groupby=groupby_col, groups=[target_grp], reference='rest', method='wilcoxon', n_genes=None)
+            filter_col_candidates = ["None (All Cells)"] + [c for c in candidate_de_cols if c != de_group_col]
+            with c_de_filt_c:
+                de_filter_col = st.selectbox(
+                    "Filter / Subset By Column:",
+                    filter_col_candidates,
+                    index=0,
+                    key="de_filter_col",
+                    help="Optionally restrict the differential expression analysis to a specific subset of cells (e.g. filter by lineage when comparing samples)."
+                )
+
+            # Reset filter values in session state if filter column changed
+            if st.session_state.get("_prev_de_filter_col") != de_filter_col:
+                st.session_state["_prev_de_filter_col"] = de_filter_col
+                if "de_filter_values" in st.session_state:
+                    del st.session_state["de_filter_values"]
+
+            de_filter_vals = []
+            if de_filter_col != "None (All Cells)":
+                if de_filter_col == sample_col and ordered_samples:
+                    raw_vals = [s for s in ordered_samples if s in adata.obs[de_filter_col].dropna().unique()] + [s for s in adata.obs[de_filter_col].dropna().unique() if s not in ordered_samples]
+                elif de_filter_col == selected_col and all_categories:
+                    raw_vals = [s for s in all_categories if s in adata.obs[de_filter_col].dropna().unique()] + [s for s in adata.obs[de_filter_col].dropna().unique() if s not in all_categories]
                 else:
-                    sc.tl.rank_genes_groups(adata_copy, groupby=groupby_col, groups=[target_grp], reference=ref_grp, method='wilcoxon', n_genes=None)
-                df_res = sc.get.rank_genes_groups_df(adata_copy, group=target_grp)
-                return df_res
+                    raw_vals = sorted(adata.obs[de_filter_col].dropna().unique().tolist(), key=lambda x: str(x))
+
+                # Sanitize any existing session state
+                if "de_filter_values" in st.session_state:
+                    st.session_state["de_filter_values"] = [v for v in st.session_state["de_filter_values"] if v in raw_vals]
+
+                with c_de_filt_v:
+                    de_filter_vals = st.multiselect(
+                        f"Select Value(s) of '{de_filter_col}' to Include:",
+                        options=raw_vals,
+                        default=[raw_vals[0]] if raw_vals else [],
+                        key="de_filter_values",
+                        help=f"Filter cells to only those matching these values in column '{de_filter_col}'."
+                    )
+            else:
+                with c_de_filt_v:
+                    st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+                    st.caption("ℹ️ No cell subset filter active — comparing all cells across the dataset.")
+
+            if de_filter_col != "None (All Cells)":
+                if not de_filter_vals:
+                    st.warning(f"⚠️ Please select at least one value for '{de_filter_col}' to perform differential expression.")
+                    adata_de_active, n_filtered, n_total = None, 0, len(adata)
+                else:
+                    adata_de_active, n_filtered, n_total = filter_anndata_for_de(
+                        adata, groupby_col=de_group_col, filter_col=de_filter_col, filter_values=de_filter_vals
+                    )
+                    vals_disp = ", ".join(f"'{v}'" for v in de_filter_vals)
+                    st.info(f"🔍 **Subset Filter Active**: Analyzing **{n_filtered:,}** cells (out of {n_total:,}, {n_filtered/max(n_total, 1)*100:.1f}%) where `{de_filter_col}` ∈ [{vals_disp}].")
+            else:
+                adata_de_active, n_filtered, n_total = filter_anndata_for_de(
+                    adata, groupby_col=de_group_col
+                )
+
+            if adata_de_active is not None:
+                unique_de_groups = adata_de_active.obs[de_group_col].dropna().unique().tolist()
+                if de_group_col == sample_col and ordered_samples:
+                    unique_de_groups = [s for s in ordered_samples if s in unique_de_groups] + [s for s in unique_de_groups if s not in ordered_samples]
+                elif de_group_col == selected_col and all_categories:
+                    unique_de_groups = [s for s in all_categories if s in unique_de_groups] + [s for s in unique_de_groups if s not in all_categories]
+            else:
+                unique_de_groups = []
+
+            if len(unique_de_groups) == 0:
+                if de_filter_col == "None (All Cells)" or de_filter_vals:
+                    st.warning(f"⚠️ No groups found in '{de_group_col}' to compare.")
+            elif len(unique_de_groups) == 1:
+                st.warning(f"⚠️ Only one group ('{unique_de_groups[0]}', {len(adata_de_active):,} cells) is present in the filtered subset for '{de_group_col}'. Differential expression requires at least two groups to compare.")
+            else:
+                grp_counts = adata_de_active.obs[de_group_col].value_counts().to_dict()
+                c_tgt, c_ref = st.columns(2)
                 
-            with st.spinner(f"Computing Wilcoxon differential expression for {de_target} vs {de_reference}..."):
-                df_de_res = compute_cached_de(adata, de_group_col, de_target, de_reference)
+                if "de_target_group" in st.session_state and st.session_state["de_target_group"] not in unique_de_groups:
+                    del st.session_state["de_target_group"]
+
+                with c_tgt:
+                    de_target = st.selectbox(
+                        "Target Group (Foreground):",
+                        unique_de_groups,
+                        index=0,
+                        format_func=lambda g: f"{g} (N={grp_counts.get(g, 0):,} cells)",
+                        key="de_target_group"
+                    )
+
+                de_ref_opts = ["Rest of Cells"] + [g for g in unique_de_groups if g != de_target]
+                if "de_ref_group" in st.session_state and st.session_state["de_ref_group"] not in de_ref_opts:
+                    del st.session_state["de_ref_group"]
+
+                with c_ref:
+                    rest_n = sum(grp_counts.get(g, 0) for g in unique_de_groups if g != de_target)
+                    de_reference = st.selectbox(
+                        "Reference Group (Background):",
+                        de_ref_opts,
+                        index=0,
+                        format_func=lambda g: f"Rest of Cells (N={rest_n:,} cells)" if g == "Rest of Cells" else f"{g} (N={grp_counts.get(g, 0):,} cells)",
+                        key="de_ref_group"
+                    )
+                
+                c_vol1, c_vol2, c_vol3 = st.columns(3)
+                with c_vol1:
+                    lfc_cutoff = st.slider("Log2 Fold-Change Cutoff:", min_value=0.25, max_value=3.0, value=1.0, step=0.25, key="volc_lfc_cut")
+                with c_vol2:
+                    padj_cutoff = st.selectbox("Adjusted p-value (FDR) Cutoff:", [0.05, 0.01, 0.001, 0.0001], index=1, key="volc_padj_cut")
+                with c_vol3:
+                    top_label_n = st.slider("Number of Top Genes to Label:", min_value=5, max_value=30, value=15, step=5, key="volc_label_n")
+                    
+                c_sch1, c_sch2 = st.columns([1.5, 2.5])
+                with c_sch1:
+                    de_search_query = st.text_input(
+                        "🔍 Filter / Search Gene (Union matching, e.g. ITGB, LAM, COL):",
+                        placeholder="e.g. ITGB, LAM, COL or COL17A1, KRT14...",
+                        key="de_gene_search_input",
+                        help="Search genes by symbol or ID. Supports multiple terms separated by commas, dots, or spaces (e.g. 'ITGB, LAM, COL') to show a union of matches."
+                    ).strip()
+                with c_sch2:
+                    st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+                    if de_search_query:
+                        raw_tokens = [t.strip().upper() for t in re.split(r'[,.;|\s]+', de_search_query) if t.strip()]
+                        tokens_str = ", ".join([f"'{t}'" for t in raw_tokens])
+                        st.caption(f"Highlighting & filtering union of matches for: {tokens_str}")
+
+                @st.cache_data
+                def compute_cached_de(_adata, groupby_col, target_grp, ref_grp, filter_col=None, filter_vals_tuple=None, dataset_name=None):
+                    df_res = run_differential_expression(
+                        _adata,
+                        groupby_col=groupby_col,
+                        target_group=target_grp,
+                        reference_group=ref_grp,
+                        filter_col=filter_col,
+                        filter_values=filter_vals_tuple,
+                        method='wilcoxon'
+                    )
+                    return df_res
+
+                f_tuple = tuple(sorted(str(v) for v in de_filter_vals)) if (de_filter_col != "None (All Cells)" and de_filter_vals) else None
+                spinner_suffix = f" in {de_filter_col} = [{', '.join(str(v) for v in de_filter_vals)}]" if (de_filter_col != "None (All Cells)" and de_filter_vals) else ""
+                with st.spinner(f"Computing Wilcoxon differential expression for {de_target} vs {de_reference}{spinner_suffix}..."):
+                    df_de_res = compute_cached_de(
+                        adata,
+                        groupby_col=de_group_col,
+                        target_grp=de_target,
+                        ref_grp=de_reference,
+                        filter_col=de_filter_col if de_filter_col != "None (All Cells)" else None,
+                        filter_vals_tuple=f_tuple,
+                        dataset_name=selected_dataset_name
+                    )
                 
             if not df_de_res.empty:
                 # Add Gene Symbol resolution and -log10(p_adj)
@@ -3155,7 +3274,7 @@ if app_mode == "Single Cell Analysis Viewer":
                         "Not Significant": "#CBD5E1"
                     },
                     hover_data=["Gene_Symbol", "names", "logfoldchanges", "pvals_adj", "scores"],
-                    title=f"🌋 Volcano Plot: {de_target} vs {de_reference} ({de_group_col})",
+                    title=f"🌋 Volcano Plot: {de_target} vs {de_reference} ({de_group_col}" + (f" | {de_filter_col}: {', '.join(str(v) for v in de_filter_vals)})" if (de_filter_col != "None (All Cells)" and de_filter_vals) else ")"),
                     labels={"logfoldchanges": "Log2 Fold Change", "log10_padj": "-Log10 Adjusted p-value"},
                     template="plotly_white",
                     render_mode="svg",
@@ -3311,10 +3430,21 @@ if app_mode == "Single Cell Analysis Viewer":
                     df_up_disp["Z-score"] = df_up_disp["Z-score"].apply(lambda v: f"{v:.3f}" if pd.notna(v) else "N/A")
                     st.dataframe(df_up_disp, height=320, width="stretch")
                     
+                safe_filter_suffix = ""
+                if de_filter_col != "None (All Cells)" and de_filter_vals:
+                    clean_vals = re.sub(r'[^a-zA-Z0-9_\-]+', '_', '-'.join(str(v) for v in de_filter_vals))[:30]
+                    clean_col = re.sub(r'[^a-zA-Z0-9_\-]+', '_', de_filter_col)
+                    safe_filter_suffix = f"_{clean_col}_{clean_vals}"
+                
+                safe_target = re.sub(r'[^a-zA-Z0-9_\-]+', '_', str(de_target))
+                safe_ref = re.sub(r'[^a-zA-Z0-9_\-]+', '_', str(de_reference))
+                safe_grp = re.sub(r'[^a-zA-Z0-9_\-]+', '_', str(de_group_col))
+                de_export_filename = f"DE_{safe_target}_vs_{safe_ref}_{safe_grp}{safe_filter_suffix}.csv"
+
                 st.download_button(
-                    label=f"📥 Download Full DE Results Table ({de_target}_vs_{de_reference}.csv)",
+                    label=f"📥 Download Full DE Results Table ({de_export_filename})",
                     data=df_de_res.to_csv(index=False).encode('utf-8'),
-                    file_name=f"DE_{de_target}_vs_{de_reference}_{de_group_col}.csv",
+                    file_name=de_export_filename,
                     mime="text/csv",
                     key="btn_download_de_csv"
                 )
@@ -3473,33 +3603,107 @@ if app_mode == "Single Cell Analysis Viewer":
             st.markdown("### 🧬 Functional Genomics & Pathway Enrichment Studio")
             st.caption("Perform Over-Representation Analysis (ORA) across Hallmark Pathways, Epidermal Differentiation, Desmosomes & Adherens Junction signatures for Up- and Down-regulated gene cohorts.")
             
-            c_en1, c_en2, c_en3 = st.columns([1.2, 1.2, 1.0])
-            with c_en1:
-                en_group_col = st.selectbox("Enrichment Comparison Column:", [c for c in [sample_col, selected_col, 'state_group', 'predicted_labels'] if c and c in adata.obs.columns], key="en_grp_col")
+            en_candidates = get_de_candidate_columns(adata, sample_col=sample_col, selected_col=selected_col, anno_cols=anno_cols)
+            c_en_grp, c_en_fc, c_en_fv = st.columns([1.1, 1.1, 1.8])
+            with c_en_grp:
+                en_group_col = st.selectbox("Enrichment Comparison Column:", en_candidates, index=0, key="en_grp_col")
             
-            en_avail = adata.obs[en_group_col].dropna().unique().tolist()
-            if en_group_col == sample_col and ordered_samples:
-                en_avail = [s for s in ordered_samples if s in en_avail] + [s for s in en_avail if s not in ordered_samples]
-                
-            with c_en2:
-                en_target = st.selectbox("Target Cohort / Cluster:", en_avail, index=0, key="en_target_grp")
-            with c_en3:
-                en_ref_opts = ["Rest of Cells"] + [g for g in en_avail if g != en_target]
-                en_ref = st.selectbox("Reference Cohort:", en_ref_opts, index=0, key="en_ref_grp")
-                
-            c_tun1, c_tun2 = st.columns(2)
-            with c_tun1:
-                top_x_genes = st.slider("Top Differentially Expressed Genes to Query:", min_value=10, max_value=300, value=100, step=10, key="en_top_x_slider")
-            with c_tun2:
-                en_fdr_cut = st.selectbox("Enrichment FDR Threshold (p-adj):", [0.05, 0.01, 0.001, 0.10, "No Filter (All Overlaps)"], index=0, key="en_fdr_select")
-                
-            with st.spinner(f"Computing enrichment for top {top_x_genes} up/down genes in {en_target}..."):
-                adata_de_sub = adata.copy()
-                if en_ref == "Rest of Cells":
-                    sc.tl.rank_genes_groups(adata_de_sub, groupby=en_group_col, groups=[en_target], reference='rest', method='wilcoxon', n_genes=top_x_genes * 2)
+            en_filter_candidates = ["None (All Cells)"] + [c for c in en_candidates if c != en_group_col]
+            with c_en_fc:
+                en_filter_col = st.selectbox("Subset / Filter By Column:", en_filter_candidates, index=0, key="en_filter_col")
+
+            if st.session_state.get("_prev_en_filter_col") != en_filter_col:
+                st.session_state["_prev_en_filter_col"] = en_filter_col
+                if "en_filter_values" in st.session_state:
+                    del st.session_state["en_filter_values"]
+
+            en_filter_vals = []
+            if en_filter_col != "None (All Cells)":
+                if en_filter_col == sample_col and ordered_samples:
+                    en_raw_vals = [s for s in ordered_samples if s in adata.obs[en_filter_col].dropna().unique()] + [s for s in ordered_samples if s not in ordered_samples]
+                elif en_filter_col == selected_col and all_categories:
+                    en_raw_vals = [s for s in all_categories if s in adata.obs[en_filter_col].dropna().unique()] + [s for s in adata.obs[en_filter_col].dropna().unique() if s not in all_categories]
                 else:
-                    sc.tl.rank_genes_groups(adata_de_sub, groupby=en_group_col, groups=[en_target], reference=en_ref, method='wilcoxon', n_genes=top_x_genes * 2)
-                df_rank = sc.get.rank_genes_groups_df(adata_de_sub, group=en_target)
+                    en_raw_vals = sorted(adata.obs[en_filter_col].dropna().unique().tolist(), key=lambda x: str(x))
+
+                if "en_filter_values" in st.session_state:
+                    st.session_state["en_filter_values"] = [v for v in st.session_state["en_filter_values"] if v in en_raw_vals]
+
+                with c_en_fv:
+                    en_filter_vals = st.multiselect(
+                        f"Select Value(s) of '{en_filter_col}' to Include:",
+                        options=en_raw_vals,
+                        default=[en_raw_vals[0]] if en_raw_vals else [],
+                        key="en_filter_values"
+                    )
+            else:
+                with c_en_fv:
+                    st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+                    st.caption("ℹ️ No subset filter active — querying across all cells in the dataset.")
+
+            if en_filter_col != "None (All Cells)" and not en_filter_vals:
+                st.warning(f"⚠️ Please select at least one value for '{en_filter_col}' to run pathway enrichment.")
+                adata_de_sub = None
+                en_avail = []
+            else:
+                adata_de_sub, n_en_filt, n_en_tot = filter_anndata_for_de(
+                    adata,
+                    groupby_col=en_group_col,
+                    filter_col=en_filter_col if en_filter_col != "None (All Cells)" else None,
+                    filter_values=en_filter_vals if en_filter_col != "None (All Cells)" else None
+                )
+                if en_filter_col != "None (All Cells)":
+                    st.info(f"🔍 **Subset Filter Active**: Querying **{n_en_filt:,}** cells (out of {n_en_tot:,}) where `{en_filter_col}` ∈ [{', '.join(str(v) for v in en_filter_vals)}].")
+                en_avail = adata_de_sub.obs[en_group_col].dropna().unique().tolist()
+                if en_group_col == sample_col and ordered_samples:
+                    en_avail = [s for s in ordered_samples if s in en_avail] + [s for s in en_avail if s not in ordered_samples]
+                elif en_group_col == selected_col and all_categories:
+                    en_avail = [s for s in all_categories if s in en_avail] + [s for s in all_categories if s not in all_categories]
+                
+            if not en_avail or len(en_avail) < 2:
+                st.warning(f"⚠️ At least two groups in '{en_group_col}' are required to perform differential expression for pathway enrichment.")
+            else:
+                en_grp_counts = adata_de_sub.obs[en_group_col].value_counts().to_dict()
+                c_en2, c_en3 = st.columns(2)
+                
+                if "en_target_grp" in st.session_state and st.session_state["en_target_grp"] not in en_avail:
+                    del st.session_state["en_target_grp"]
+
+                with c_en2:
+                    en_target = st.selectbox(
+                        "Target Cohort / Cluster:",
+                        en_avail,
+                        index=0,
+                        format_func=lambda g: f"{g} (N={en_grp_counts.get(g, 0):,} cells)",
+                        key="en_target_grp"
+                    )
+
+                en_ref_opts = ["Rest of Cells"] + [g for g in en_avail if g != en_target]
+                if "en_ref_grp" in st.session_state and st.session_state["en_ref_grp"] not in en_ref_opts:
+                    del st.session_state["en_ref_grp"]
+
+                with c_en3:
+                    rest_n_en = sum(en_grp_counts.get(g, 0) for g in en_avail if g != en_target)
+                    en_ref = st.selectbox(
+                        "Reference Cohort:",
+                        en_ref_opts,
+                        index=0,
+                        format_func=lambda g: f"Rest of Cells (N={rest_n_en:,} cells)" if g == "Rest of Cells" else f"{g} (N={en_grp_counts.get(g, 0):,} cells)",
+                        key="en_ref_grp"
+                    )
+                    
+                c_tun1, c_tun2 = st.columns(2)
+                with c_tun1:
+                    top_x_genes = st.slider("Top Differentially Expressed Genes to Query:", min_value=10, max_value=300, value=100, step=10, key="en_top_x_slider")
+                with c_tun2:
+                    en_fdr_cut = st.selectbox("Enrichment FDR Threshold (p-adj):", [0.05, 0.01, 0.001, 0.10, "No Filter (All Overlaps)"], index=0, key="en_fdr_select")
+                    
+                with st.spinner(f"Computing enrichment for top {top_x_genes} up/down genes in {en_target}..."):
+                    if en_ref == "Rest of Cells":
+                        sc.tl.rank_genes_groups(adata_de_sub, groupby=en_group_col, groups=[en_target], reference='rest', method='wilcoxon', n_genes=top_x_genes * 2)
+                    else:
+                        sc.tl.rank_genes_groups(adata_de_sub, groupby=en_group_col, groups=[en_target], reference=en_ref, method='wilcoxon', n_genes=top_x_genes * 2)
+                    df_rank = sc.get.rank_genes_groups_df(adata_de_sub, group=en_target)
                 
                 # Resolve symbols for enrichment query
                 df_rank["Gene_Symbol"] = [var_to_display.get(g, g).split(" (")[0] for g in df_rank["names"]]
@@ -4839,7 +5043,7 @@ elif app_mode == "Dataset Management & Launch Settings":
     with c_yaml_up:
         uploaded_cfg_file = st.file_uploader("Upload YAML File:", type=["yaml", "yml"], key="page_dataset_yaml_uploader")
     with c_yaml_path:
-        manual_cfg_path = st.text_input("Or Enter YAML Path:", placeholder="G:\...\clairescope_dataset_settings.yaml", key="page_dataset_yaml_path")
+        manual_cfg_path = st.text_input("Or Enter YAML Path:", placeholder=r"G:\...\clairescope_dataset_settings.yaml", key="page_dataset_yaml_path")
     if st.button("📥 Import & Register Dataset", key="page_btn_import_dataset_yaml"):
         src = None
         if uploaded_cfg_file is not None:
